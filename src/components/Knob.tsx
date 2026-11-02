@@ -18,8 +18,8 @@ export interface KnobProps {
   format: (value: number) => string;
   hint?: string;
   onChange: (value: number) => void;
-  /** Number of tick marks; defaults to one per step for small ranges. */
-  ticks?: number;
+  /** "large" for the agent knobs, "small" for secondary ones (wireframe: 76px / 44px). */
+  size?: "large" | "small";
 }
 
 export function clampToStep(value: number, min: number, max: number, step: number): number {
@@ -35,25 +35,10 @@ export function valueFromDrag(
   return clampToStep(start + (dy / (DRAG_PIXELS * (fine ? FINE : 1))) * range, min, max, step);
 }
 
-function point(angle: number, radius: number): [number, number] {
-  const rad = ((angle - 90) * Math.PI) / 180;
-  return [50 + radius * Math.cos(rad), 50 + radius * Math.sin(rad)];
-}
-
-function arc(from: number, to: number, radius: number): string {
-  if (to - from < 0.5) return "";
-  const [x1, y1] = point(from, radius);
-  const [x2, y2] = point(to, radius);
-  return `M ${x1} ${y1} A ${radius} ${radius} 0 ${to - from > 180 ? 1 : 0} 1 ${x2} ${y2}`;
-}
-
-export function Knob({ label, value, min, max, step = 1, defaultValue, format, hint, onChange, ticks }: KnobProps) {
+export function Knob({ label, value, min, max, step = 1, defaultValue, format, hint, onChange, size = "large" }: KnobProps) {
   const drag = useRef<{ y: number; value: number } | null>(null);
   const fraction = max > min ? (value - min) / (max - min) : 0;
   const angle = START + SWEEP * fraction;
-  const tickCount = ticks ?? ((max - min) / step <= 10 ? (max - min) / step + 1 : 0);
-  const [px, py] = point(angle, 28);
-  const [ix, iy] = point(angle, 16);
 
   const set = (next: number) => {
     const clamped = clampToStep(next, min, max, step);
@@ -96,8 +81,7 @@ export function Knob({ label, value, min, max, step = 1, defaultValue, format, h
   };
 
   return (
-    <div className="knob">
-      <span className="knob-label">{label}</span>
+    <div className={`knob ${size}`}>
       <div
         className="knob-dial"
         role="slider"
@@ -116,17 +100,14 @@ export function Knob({ label, value, min, max, step = 1, defaultValue, format, h
         onKeyDown={onKeyDown}
         onDoubleClick={() => set(defaultValue)}
       >
+        {/* Flat, as in the wireframe: white dial, gray ring, charcoal pointer bar. */}
         <svg viewBox="0 0 100 100" aria-hidden="true">
-          {Array.from({ length: tickCount }, (_, i) => {
-            const [tx, ty] = point(START + (SWEEP * i) / Math.max(1, tickCount - 1), 46);
-            return <circle key={i} cx={tx} cy={ty} r={1.6} className="knob-tick" />;
-          })}
-          <path d={arc(START, START + SWEEP, 40)} className="knob-track" />
-          <path d={arc(START, angle, 40)} className="knob-value" />
-          <circle cx={50} cy={50} r={31} className="knob-cap" />
-          <line x1={ix} y1={iy} x2={px} y2={py} className="knob-pointer" />
+          <circle cx={50} cy={50} r={48.5} className="knob-face" />
+          <circle cx={50} cy={50} r={42.5} className="knob-ring" />
+          <rect x={47.4} y={8.5} width={5.2} height={32} rx={2.6} className="knob-pointer" transform={`rotate(${angle} 50 50)`} />
         </svg>
       </div>
+      <span className="knob-label">{label}</span>
       <span className="knob-readout">{format(value)}</span>
       {hint && <span className="knob-hint">{hint}</span>}
     </div>

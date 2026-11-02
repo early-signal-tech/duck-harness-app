@@ -1,12 +1,16 @@
-// DH-1's face: SOURCE, AGENT, and METERS across the top, the prompt and transport in the
-// middle, the answer and the run's activity at the bottom.
+// DH-1's face, laid out like the wireframe: a header bar; SOURCE, AGENT, and METERS;
+// the prompt bar; then the run's activity and the answer.
 
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import {
+  applyAppearance, loadAppearance, saveAppearance, watchSystemTheme,
+  type Appearance, type DisplayStyle, type ThemeChoice,
+} from "./appearance";
 import { Knob } from "./components/Knob";
 import { Markdown } from "./components/Markdown";
 import { MetersPanel } from "./components/MetersPanel";
 import { SourcePanel } from "./components/SourcePanel";
-import { applyAppearance, loadAppearance, saveAppearance, watchSystemTheme, type Appearance, type DisplayStyle, type ThemeChoice } from "./appearance";
 import { Harness, type Effort, type Hello, type Run } from "./harness";
 import { IDLE, runReducer } from "./runState";
 import { loadSettings, MODELS, requestOf, saveSettings, sourceProblem, type FaceSettings } from "./settings";
@@ -16,6 +20,7 @@ type ServerStatus = "connecting" | "ready" | "down";
 
 const EFFORTS: Effort[] = ["low", "medium", "high", "xhigh", "max"];
 const MAX_ITERATIONS = 50;
+const DATA_FILE = /\.(csv|tsv|parquet|json|jsonl|ndjson)(\.gz)?$/i;
 
 const STATUS_TEXT: Record<string, string> = {
   completed: "COMPLETED",
@@ -33,7 +38,7 @@ const STATUS_TEXT: Record<string, string> = {
 const THEMES: { value: ThemeChoice; label: string }[] = [
   { value: "light", label: "LIGHT" },
   { value: "dark", label: "DARK" },
-  { value: "system", label: "SYSTEM" },
+  { value: "system", label: "AUTO" },
 ];
 
 const DISPLAYS: { value: DisplayStyle; label: string }[] = [
@@ -41,16 +46,16 @@ const DISPLAYS: { value: DisplayStyle; label: string }[] = [
   { value: "light", label: "LIGHT" },
 ];
 
-function Switch<T extends string>({ label, options, value, onChange }: {
+function BarSwitch<T extends string>({ label, options, value, onChange }: {
   label: string;
   options: { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="appearance">
-      {label}
-      <div className="segmented tiny" role="radiogroup" aria-label={label}>
+    <div className="bar-switch">
+      <span>{label}</span>
+      <div role="radiogroup" aria-label={label}>
         {options.map((o) => (
           <button key={o.value} role="radio" aria-checked={value === o.value} className={value === o.value ? "on" : ""} onClick={() => onChange(o.value)}>
             {o.label}
@@ -85,6 +90,10 @@ export default function App() {
   const [settings, setSettings] = useState<FaceSettings>(loadSettings);
   const update = useCallback((patch: Partial<FaceSettings>) => setSettings((s) => ({ ...s, ...patch })), []);
   useEffect(() => saveSettings(settings), [settings]);
+
+  const addFiles = useCallback((paths: string[]) => {
+    setSettings((s) => ({ ...s, sourceKind: "files", files: [...new Set([...s.files, ...paths])] }));
+  }, []);
 
   const [appearance, setAppearance] = useState<Appearance>(loadAppearance);
   useEffect(() => {
@@ -121,6 +130,32 @@ export default function App() {
     };
   }, []);
 
+  // Data files dropped anywhere on the window go to the sampler.
+  const [dragging, setDragging] = useState(false);
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    try {
+      getCurrentWebview()
+        .onDragDropEvent(({ payload }) => {
+          if (payload.type === "enter" || payload.type === "over") setDragging(true);
+          else setDragging(false);
+          if (payload.type === "drop") {
+            const files = payload.paths.filter((p) => DATA_FILE.test(p));
+            if (files.length) addFiles(files);
+          }
+        })
+        .then((stop) => (disposed ? stop() : (unlisten = stop)))
+        .catch(() => {});
+    } catch {
+      // Not running inside Tauri.
+    }
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [addFiles]);
+
   const problem = !settings.prompt.trim() ? "Type a question" : sourceProblem(settings);
   const canRun = server === "ready" && !busy && !problem;
 
@@ -144,7 +179,7 @@ export default function App() {
     run.current.stop().catch(() => {});
   }, []);
 
-  // ⌘↵ runs, Esc stops.
+  // Enter (in the prompt) or ⌘↵ runs; Esc stops.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -163,60 +198,53 @@ export default function App() {
   const effortIndex = Math.max(0, EFFORTS.indexOf(settings.effort));
   const result = view.result;
 
-  let transport: string;
-  if (view.phase === "running") transport = `RUNNING · ${clock(elapsed)}`;
-  else if (view.phase === "stopping") transport = `STOPPING · ${clock(elapsed)}`;
-  else if (view.phase === "done" && result) transport = `${STATUS_TEXT[result.status] ?? result.status.toUpperCase()} · ${clock(elapsed)}`;
-  else if (view.phase === "failed") transport = "COULD NOT RUN";
-  else transport = "READY";
+  let status: string;
+  let tone: "idle" | "busy" | "ok" | "warn" | "bad";
+  if (view.phase === "running") [status, tone] = [`RUNNING · ${clock(elapsed)}`, "busy"];
+  else if (view.phase === "stopping") [status, tone] = [`STOPPING · ${clock(elapsed)}`, "busy"];
+  else if (view.phase === "done" && result) {
+    status = `${STATUS_TEXT[result.status] ?? result.status.toUpperCase()} · ${clock(elapsed)}`;
+    tone = result.status === "completed" ? "ok" : ["cancelled", "max_iterations", "max_tokens"].includes(result.status) ? "warn" : "bad";
+  } else if (view.phase === "failed") [status, tone] = ["COULD NOT RUN", "bad"];
+  else [status, tone] = [server === "ready" ? "READY" : server === "connecting" ? "STARTING ENGINE…" : "ENGINE OFFLINE", server === "down" ? "bad" : "idle"];
 
   return (
-    <div className="face">
-      <header className="faceplate">
+    <div className={`face${dragging ? " dragging" : ""}`}>
+      <header className="bar">
         <div className="brand">
           <span className="wordmark">DH-1</span>
           <span className="tagline">DUCK HARNESS · SQL ANALYTICS AGENT</span>
         </div>
-        <div className="header-right">
-          <Switch
-            label="THEME"
-            options={THEMES}
-            value={appearance.theme}
-            onChange={(theme) => setAppearance((a) => ({ ...a, theme }))}
-          />
-          <Switch
-            label="DISPLAYS"
-            options={DISPLAYS}
-            value={appearance.displays}
-            onChange={(displays) => setAppearance((a) => ({ ...a, displays }))}
-          />
-          <div className={`server ${server}`} title={serverError ?? undefined}>
-            <span className="led" />
-            {server === "ready" ? "ENGINE READY" : server === "connecting" ? "STARTING ENGINE…" : "ENGINE OFFLINE"}
-          </div>
+        <div className="spacer" />
+        <BarSwitch label="THEME" options={THEMES} value={appearance.theme} onChange={(theme) => setAppearance((a) => ({ ...a, theme }))} />
+        <BarSwitch label="DISPLAYS" options={DISPLAYS} value={appearance.displays} onChange={(displays) => setAppearance((a) => ({ ...a, displays }))} />
+        <div className={`engine ${server}`} title={serverError ?? undefined}>
+          <span className="dot" aria-hidden="true" />
+          {server === "ready" ? "ENGINE" : server === "connecting" ? "STARTING" : "OFFLINE"}
         </div>
       </header>
 
       <div className="rack">
-        <SourcePanel settings={settings} update={update} />
+        <SourcePanel settings={settings} update={update} addFiles={addFiles} />
 
         <section className="panel agent">
           <h2>AGENT</h2>
-          <span className="field-label">MODEL</span>
-          <div className="segmented three model" role="radiogroup" aria-label="Model">
-            {MODELS.map((m) => (
-              <button
-                key={m.id}
-                role="radio"
-                aria-checked={settings.model === m.id}
-                className={settings.model === m.id ? "on" : ""}
-                onClick={() => update({ model: m.id })}
-                title={m.id}
-              >
-                <span className="led" />
-                {m.label}
-              </button>
-            ))}
+          <div className="model-row">
+            <span className="caps muted">MODEL</span>
+            <div className="segmented" role="radiogroup" aria-label="Model">
+              {MODELS.map((m) => (
+                <button
+                  key={m.id}
+                  role="radio"
+                  aria-checked={settings.model === m.id}
+                  className={settings.model === m.id ? "on" : ""}
+                  onClick={() => update({ model: m.id })}
+                  title={m.id}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="knobs">
             <Knob
@@ -226,7 +254,7 @@ export default function App() {
               max={EFFORTS.length - 1}
               defaultValue={EFFORTS.indexOf(hello?.defaults.effort ?? "medium")}
               format={(i) => EFFORTS[i].toUpperCase()}
-              hint="how hard Claude thinks"
+              hint="low · med · high · xhigh · max"
               onChange={(i) => update({ effort: EFFORTS[i] })}
             />
             <Knob
@@ -237,80 +265,90 @@ export default function App() {
               defaultValue={hello?.defaults.max_iterations ?? 25}
               format={(n) => String(n)}
               hint="tool rounds before wrap-up"
-              ticks={11}
               onChange={(n) => update({ maxIterations: n })}
             />
           </div>
-          {!priced && <p className="note dim">No price table for this model yet, so the cost LCD reads n/a.</p>}
+          <div className="panel-foot">
+            <span className="small muted">
+              {priced ? "Drag, scroll, or use arrow keys · double-click resets" : "No price table for this model yet, so cost reads n/a"}
+            </span>
+          </div>
         </section>
 
-        <MetersPanel view={view} maxIterations={settings.maxIterations} priced={priced} />
+        <MetersPanel view={view} maxIterations={settings.maxIterations} priced={priced} status={status} statusTone={tone} />
       </div>
 
-      <section className="panel prompt">
-        <h2>PROMPT</h2>
-        <textarea
+      <div className="panel prompt">
+        <label className="title" htmlFor="prompt">PROMPT</label>
+        <input
+          id="prompt"
           value={settings.prompt}
-          rows={2}
           spellCheck
           placeholder="Ask a question about your data…"
           onChange={(e) => update({ prompt: e.currentTarget.value })}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) {
+              e.preventDefault();
+              start();
+            }
+          }}
         />
-        <div className="transport">
-          <button className="run" disabled={!canRun} onClick={start} title={problem ?? "Run (⌘↵)"}>
-            <span className="led" />
-            RUN
-          </button>
-          <button className="stop" disabled={!busy || view.phase === "stopping"} onClick={stop} title="Stop (Esc)">
-            STOP
-          </button>
-          <span className={`transport-status ${view.phase}${result ? ` ${result.status}` : ""}`}>{transport}</span>
-          {!busy && problem && server === "ready" && <span className="hint">{problem}</span>}
-        </div>
-      </section>
+        <button className="run" disabled={!canRun} onClick={start} title={problem ?? "Run (↵)"}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 4l14 8-14 8z" /></svg>
+          RUN
+        </button>
+        <button className="stop" disabled={!busy || view.phase === "stopping"} onClick={stop} title="Stop (Esc)">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4" y="4" width="16" height="16" /></svg>
+          STOP
+        </button>
+      </div>
 
       <div className="screens">
-        <section className="panel screen answer">
+        <section className="panel activity">
+          <h2>ACTIVITY</h2>
+          <ol className="log">
+            {view.activity.map((line, i) => (
+              <li key={i} className={line.kind}>
+                <span className="iter">{String(line.iteration).padStart(2, "0")}</span>
+                <div>
+                  <span className="what">{line.text}</span>
+                  {line.detail && <code className="detail">{line.detail}</code>}
+                </div>
+              </li>
+            ))}
+            {view.activity.length === 0 && (
+              <li className="empty muted">{!busy && problem && server === "ready" ? problem : "Tool calls and thinking show up here."}</li>
+            )}
+          </ol>
+        </section>
+
+        <section className="panel answer">
           <h2>
             ANSWER
             {result?.text && (
-              <button className="mini" onClick={() => navigator.clipboard?.writeText(result.text)}>
+              <button className="bar-button" onClick={() => navigator.clipboard?.writeText(result.text)}>
                 Copy
               </button>
             )}
           </h2>
-          <div className="screen-body">
-            {view.phase === "idle" && <p className="dim">The answer appears here when a run finishes.</p>}
-            {busy && <p className="dim blink">{view.phase === "stopping" ? "Stopping…" : "Working…"}</p>}
+          <div className="answer-well">
+            {view.phase === "idle" && <p className="faint">The answer appears here when a run finishes.</p>}
+            {busy && <p className="faint pulse">{view.phase === "stopping" ? "Stopping…" : "Working…"}</p>}
             {view.phase === "failed" && <p className="error">{view.error}</p>}
             {result && (
               <>
-                {result.text ? <Markdown text={result.text} /> : null}
+                {result.text && <Markdown text={result.text} />}
                 {result.error && <p className="error">{result.error}</p>}
-                {!result.text && !result.error && <p className="dim">No answer: the run was stopped.</p>}
-                <p className="meta">
+                {!result.text && !result.error && <p className="faint">No answer: the run was stopped.</p>}
+                <p className="answer-meta">
                   {result.iterations} iterations · {result.api_calls} API calls · {(result.duration_ms / 1000).toFixed(1)} s
                   {result.estimated_cost_usd != null && ` · $${result.estimated_cost_usd.toFixed(4)}`}
-                  {" · "}
-                  <span className="mono">{result.run_id}</span>
+                  <br />
+                  <span className="selectable">{result.run_id}</span>
                 </p>
               </>
             )}
           </div>
-        </section>
-
-        <section className="panel screen activity">
-          <h2>ACTIVITY</h2>
-          <ol className="screen-body">
-            {view.activity.map((line, i) => (
-              <li key={i} className={line.kind}>
-                <span className="iter">{String(line.iteration).padStart(2, "0")}</span>
-                <span className="what">{line.text}</span>
-                {line.detail && <span className="detail">{line.detail}</span>}
-              </li>
-            ))}
-            {view.activity.length === 0 && <li className="dim">Tool calls and thinking show up here.</li>}
-          </ol>
         </section>
       </div>
     </div>

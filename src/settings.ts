@@ -84,3 +84,10 @@ export function requestOf(settings: FaceSettings): RunRequest {
 export function fileName(path: string): string {
   return path.split(/[\\/]/).pop() || path;
 }
+
+/** The table a loaded file becomes, as the agent names it (duckdb_agent/sources.py):
+ *  data/Sales 2026.csv.gz -> sales_2026. */
+export function tableNameFor(path: string): string {
+  const stem = fileName(path).split(".")[0];
+  return stem.replace(/\W+/g, "_").replace(/^_+|_+$/g, "").toLowerCase() || "data";
+}

@@ -33,7 +33,7 @@
 .dh1 .tables .x:hover { color: var(--danger); }
 
 /* --- agent --- */
-.dh1 .dh1-row { flex: none; display: flex; gap: 12px; height: 320px; }
+.dh1 .dh1-row { flex: none; display: flex; gap: 12px; height: 325px; }
 .dh1 .agent { flex: 1; gap: 12px; }
 .dh1 .model-row { display: flex; align-items: center; gap: 10px; }
 .dh1 .model-row .caps { margin-right: 6px; }

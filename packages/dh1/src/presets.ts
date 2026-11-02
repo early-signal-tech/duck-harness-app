@@ -12,11 +12,14 @@
 //     "source": { "kind": "tpch", "tpchScale": 1 } }      <- optional
 
 import { invoke } from "@tauri-apps/api/core";
+import { parseSource, sameSource, type SourceSpec } from "@dh/formats";
 import type { Effort } from "./harness";
 import {
-  AGENT_KEYS, agentSettingsOf, DEFAULT_SETTINGS, fileName, sameAgentSetting, validSetting,
-  type AgentSettings, type FaceSettings, type SourceKind,
+  AGENT_KEYS, agentSettingsOf, DEFAULT_SETTINGS, sameAgentSetting, validSetting,
+  type AgentSettings, type FaceSettings,
 } from "./settings";
+
+export { describeSource, sameSource } from "@dh/formats";
 
 export const DEVICE = "dh1";
 export const DEVICE_VERSION = 1;
@@ -30,11 +33,8 @@ export type PresetSettings = AgentSettings;
 
 const AGENT_DEFAULTS: PresetSettings = agentSettingsOf(DEFAULT_SETTINGS);
 
-/** The source a preset loads, when it has one. Only the fields for its kind are kept. */
-export type PresetSource =
-  | { kind: "tpch"; tpchScale: number }
-  | { kind: "db"; dbPath: string }
-  | { kind: "files"; files: string[] };
+/** The source a preset loads, when it has one (the shared file form, @dh/formats). */
+export type PresetSource = SourceSpec;
 
 export interface Preset {
   id: string;
@@ -114,26 +114,10 @@ export function applyPreset(face: FaceSettings, preset: Preset): FaceSettings {
   return next;
 }
 
-export function sameSource(a: PresetSource, b: PresetSource): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
-}
-
 /** Whether the knobs (and the source, if the preset has one) still match the preset. */
 export function matchesPreset(face: FaceSettings, preset: Preset): boolean {
   const settingsMatch = AGENT_KEYS.every((key) => sameAgentSetting(face[key], preset.settings[key]));
   return settingsMatch && (!preset.source || sameSource(presetSourceOf(face), preset.source));
-}
-
-/** A short description of a preset's source, for the menu. */
-export function describeSource(source: PresetSource): string {
-  switch (source.kind) {
-    case "tpch":
-      return `TPC-H ${source.tpchScale}`;
-    case "db":
-      return fileName(source.dbPath) || "DB file";
-    case "files":
-      return source.files.length === 1 ? fileName(source.files[0]) : `${source.files.length} files`;
-  }
 }
 
 export function presetRef(face: FaceSettings, presets: Preset[]): PresetRef | undefined {
@@ -195,20 +179,6 @@ export function parsePreset(text: string): Preset {
     savedAt: typeof d.savedAt === "string" ? d.savedAt : new Date().toISOString(),
     settings: settings as PresetSettings,
   };
-}
-
-const SOURCE_KINDS: SourceKind[] = ["tpch", "db", "files"];
-
-/** A preset file's source, or undefined if it has none (or one this version can't use). */
-function parseSource(value: unknown): PresetSource | undefined {
-  const s = value as Record<string, unknown> | undefined;
-  if (!s || typeof s !== "object" || !SOURCE_KINDS.includes(s.kind as SourceKind)) return undefined;
-  if (s.kind === "tpch" && typeof s.tpchScale === "number" && s.tpchScale > 0) return { kind: "tpch", tpchScale: s.tpchScale };
-  if (s.kind === "db" && typeof s.dbPath === "string" && s.dbPath.trim()) return { kind: "db", dbPath: s.dbPath };
-  if (s.kind === "files" && Array.isArray(s.files) && s.files.length && s.files.every((f) => typeof f === "string")) {
-    return { kind: "files", files: s.files as string[] };
-  }
-  return undefined;
 }
 
 /** Sort for the menu: by name, ignoring case. */

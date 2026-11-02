@@ -19,6 +19,8 @@ UIs, split into packages:
 packages/
   ui-kit/   shared look and controls: colors, fonts, knobs, switches, panels, LEDs,
             Markdown, the splitter, the host bar, theme handling
+  formats/  file formats the plugins share: sources and question sets
+            (docs/QUESTION_SETS.md), plus the built-in TPC-H set
   dh1/      the DH-1 device: its face, run state, settings, and the client for the
             agent server's protocol
 apps/

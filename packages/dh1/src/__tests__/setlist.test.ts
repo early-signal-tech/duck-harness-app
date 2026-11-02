@@ -4,7 +4,7 @@ import type { AgentResult } from "../harness";
 import { FACTORY_PRESETS } from "../presets";
 import { DEFAULT_SETTINGS } from "../settings";
 import {
-  cellJobs, cellStats, cleanName, newSetlistRunId, setlistTitle, columnSummary, jobRequest, lampOf, median, nextJobs, planJobs, progressOf, SETLIST_IDLE,
+  cellJobs, cellStats, cleanName, newSetlistRunId, setlistTitle, suggestedSetlistName, columnSummary, jobRequest, lampOf, median, nextJobs, planJobs, progressOf, SETLIST_IDLE,
   setlistReducer, spread, type SetlistPlan, type SetlistState,
 } from "../setlist";
 
@@ -150,14 +150,16 @@ describe("the built-in set in a setlist", () => {
 });
 
 describe("naming a setlist", () => {
-  it("builds the on-screen title from the facts, with your name after them", () => {
+  it("suggests a name from the facts, and shows your name when there is one", () => {
     const at = new Date(2026, 10, 2, 14, 5);
-    expect(setlistTitle({ set, columns: [quick, balanced], repeats: 3 }, at)).toBe("Mini · 2 presets × 3 · Nov 2, 14:05");
-    expect(setlistTitle({ set, columns: [quick], repeats: 1, name: "after compressor change" }, new Date(2026, 0, 9, 9, 0)))
-      .toBe("Mini · 1 preset × 1 · Jan 9, 09:00 — after compressor change");
+    expect(suggestedSetlistName({ set, columns: [quick, balanced], repeats: 3 }, at)).toBe("Mini · 2 presets × 3 · Nov 2, 14:05");
+    expect(suggestedSetlistName({ set, columns: [quick], repeats: 1 }, new Date(2026, 0, 9, 9, 0))).toBe("Mini · 1 preset × 1 · Jan 9, 09:00");
+    expect(setlistTitle({ set, columns: [quick], repeats: 1 }, at)).toBe("Mini · 1 preset × 1 · Nov 2, 14:05");
+    expect(setlistTitle({ set, columns: [quick], repeats: 1, name: "Mini · 1 preset × 1 · Nov 2 — compressor" }, at))
+      .toBe("Mini · 1 preset × 1 · Nov 2 — compressor");
   });
 
-  it("stores only your words: no name, no setlist_name label", () => {
+  it("stores no name when the suggestion was left alone", () => {
     const state = setlistReducer(SETLIST_IDLE, { type: "start", plan: { ...plan, name: undefined, note: undefined }, runId: "sl-3", at: 0 });
     const labels = jobRequest(DEFAULT_SETTINGS, state, state.jobs[0]).labels!;
     expect("setlist_name" in labels).toBe(false);

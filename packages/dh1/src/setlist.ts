@@ -21,9 +21,9 @@ export const MAX_NAME = 80;
 export const MAX_NOTE = 200;
 
 export interface SetlistPlan {
-  /** Your words for what this setlist is testing ("after compressor change"), if any.
-   *  Only this is stored as setlist_name: the set, columns, repeats, and start time are
-   *  already in their own fields, and the on-screen title is built from them. */
+  /** The name, when you edited the suggested one: stored exactly as setlist_name.
+   *  Left as suggested, there's no name and the title is built from the facts, which
+   *  are already in their own fields, so no generated text is stored. */
   name?: string;
   /** Optional, one line. */
   note?: string;
@@ -74,17 +74,24 @@ export type SetlistAction =
   | { type: "stop"; at: number }
   | { type: "clear" };
 
-/** A setlist's title, for the screen only (never stored): built from its facts, with
- *  your name after them. "TPC-H · 3 presets × 3 · Nov 2, 14:05 — after compressor change". */
-export function setlistTitle(
-  plan: Pick<SetlistPlan, "set" | "columns" | "repeats" | "name">,
+/** The suggested name, built from the setlist's facts: "TPC-H · 3 presets × 3 · Nov 2,
+ *  14:05". It fills the NAME box; it's never stored (see SetlistPlan.name). */
+export function suggestedSetlistName(
+  plan: Pick<SetlistPlan, "set" | "columns" | "repeats">,
   startedAt: Date = new Date(),
 ): string {
   const presets = `${plan.columns.length} preset${plan.columns.length === 1 ? "" : "s"}`;
   const day = startedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   const time = `${String(startedAt.getHours()).padStart(2, "0")}:${String(startedAt.getMinutes()).padStart(2, "0")}`;
-  const facts = `${plan.set.name} · ${presets} × ${plan.repeats} · ${day}, ${time}`;
-  return plan.name ? `${facts} — ${plan.name}` : facts;
+  return `${plan.set.name} · ${presets} × ${plan.repeats} · ${day}, ${time}`;
+}
+
+/** What a setlist is called on screen: your name, or the suggestion rebuilt from its facts. */
+export function setlistTitle(
+  plan: Pick<SetlistPlan, "set" | "columns" | "repeats" | "name">,
+  startedAt: Date = new Date(),
+): string {
+  return plan.name || suggestedSetlistName(plan, startedAt);
 }
 
 /** A setlist's ID, unique and sortable: "sl-2026-11-02-1405-a7f1" (local start date and

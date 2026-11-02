@@ -6,6 +6,7 @@ import { Knob } from "./components/Knob";
 import { Markdown } from "./components/Markdown";
 import { MetersPanel } from "./components/MetersPanel";
 import { SourcePanel } from "./components/SourcePanel";
+import { applyAppearance, loadAppearance, saveAppearance, watchSystemTheme, type Appearance, type DisplayStyle, type ThemeChoice } from "./appearance";
 import { Harness, type Effort, type Hello, type Run } from "./harness";
 import { IDLE, runReducer } from "./runState";
 import { loadSettings, MODELS, requestOf, saveSettings, sourceProblem, type FaceSettings } from "./settings";
@@ -28,6 +29,37 @@ const STATUS_TEXT: Record<string, string> = {
   interrupted: "INTERRUPTED",
   cancelled: "STOPPED",
 };
+
+const THEMES: { value: ThemeChoice; label: string }[] = [
+  { value: "light", label: "LIGHT" },
+  { value: "dark", label: "DARK" },
+  { value: "system", label: "SYSTEM" },
+];
+
+const DISPLAYS: { value: DisplayStyle; label: string }[] = [
+  { value: "dark", label: "DARK" },
+  { value: "light", label: "LIGHT" },
+];
+
+function Switch<T extends string>({ label, options, value, onChange }: {
+  label: string;
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="appearance">
+      {label}
+      <div className="segmented tiny" role="radiogroup" aria-label={label}>
+        {options.map((o) => (
+          <button key={o.value} role="radio" aria-checked={value === o.value} className={value === o.value ? "on" : ""} onClick={() => onChange(o.value)}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function clock(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -53,6 +85,14 @@ export default function App() {
   const [settings, setSettings] = useState<FaceSettings>(loadSettings);
   const update = useCallback((patch: Partial<FaceSettings>) => setSettings((s) => ({ ...s, ...patch })), []);
   useEffect(() => saveSettings(settings), [settings]);
+
+  const [appearance, setAppearance] = useState<Appearance>(loadAppearance);
+  useEffect(() => {
+    applyAppearance(appearance);
+    saveAppearance(appearance);
+    if (appearance.theme !== "system") return;
+    return watchSystemTheme(() => applyAppearance(appearance));
+  }, [appearance]);
 
   const [view, dispatch] = useReducer(runReducer, IDLE);
   const run = useRef<Run | null>(null);
@@ -137,9 +177,23 @@ export default function App() {
           <span className="wordmark">DH-1</span>
           <span className="tagline">DUCK HARNESS · SQL ANALYTICS AGENT</span>
         </div>
-        <div className={`server ${server}`} title={serverError ?? undefined}>
-          <span className="led" />
-          {server === "ready" ? "ENGINE READY" : server === "connecting" ? "STARTING ENGINE…" : "ENGINE OFFLINE"}
+        <div className="header-right">
+          <Switch
+            label="THEME"
+            options={THEMES}
+            value={appearance.theme}
+            onChange={(theme) => setAppearance((a) => ({ ...a, theme }))}
+          />
+          <Switch
+            label="DISPLAYS"
+            options={DISPLAYS}
+            value={appearance.displays}
+            onChange={(displays) => setAppearance((a) => ({ ...a, displays }))}
+          />
+          <div className={`server ${server}`} title={serverError ?? undefined}>
+            <span className="led" />
+            {server === "ready" ? "ENGINE READY" : server === "connecting" ? "STARTING ENGINE…" : "ENGINE OFFLINE"}
+          </div>
         </div>
       </header>
 

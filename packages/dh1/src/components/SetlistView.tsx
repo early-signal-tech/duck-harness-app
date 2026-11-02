@@ -3,19 +3,19 @@
 // its repeats. Like Compare, it takes over the face until "Back to plugin".
 
 import { open } from "@tauri-apps/plugin-dialog";
-import { invoke } from "@tauri-apps/api/core";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Markdown, Menu, MenuDivider, MenuItem, MenuSection } from "@dh/ui-kit";
 import {
-  describeSource, FACTORY_QUESTION_SETS, parseQuestionSet, type Question, type QuestionSet,
+  describeSource, FACTORY_QUESTION_SETS, type Question, type QuestionSet,
 } from "@dh/formats";
 import { formatSetting } from "../ab";
 import type { Preset } from "../presets";
 import {
   cellJobs, cellStats, checkNote, cleanName, COLUMN_KEYS, columnSummary, CONCURRENCY_CHOICES, jobCount,
-  lampOf, loadSavedPlan, MAX_COLUMNS, MAX_NAME, MAX_NOTE, progressOf, REPEAT_CHOICES, savePlan, setlistTitle, suggestedSetlistName, type Job, type Lamp,
+  lampOf, loadSavedPlan, MAX_COLUMNS, MAX_NAME, MAX_NOTE, progressOf, questionGroups, REPEAT_CHOICES, savePlan, setlistTitle, suggestedSetlistName, type Job, type Lamp,
   type SavedPlan,
 } from "../setlist";
+import { importSet, loadUserSets, removeUserSet, revealUserSet } from "../questionSets";
 import type { SetlistControls } from "../useSetlist";
 import { isAnswer } from "./StructuredAnswer";
 
@@ -72,8 +72,14 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
   const { state, busy } = setlist;
   const [saved, setSaved] = useState<SavedPlan>(loadSavedPlan);
   useEffect(() => savePlan(saved), [saved]);
-  const [opened, setOpened] = useState<QuestionSet[]>([]);
+  // Your own sets (MINE), kept in the Question Sets folder; the built-in ones ship with the app.
+  const [mine, setMine] = useState<QuestionSet[]>([]);
+  const refreshMine = useCallback(() => {
+    loadUserSets().then(setMine).catch(() => setMine([]));
+  }, []);
+  useEffect(refreshMine, [refreshMine]);
   const [problem, setProblem] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [menu, setMenu] = useState<"set" | "column" | "concurrency" | null>(null);
   const [picked, setPicked] = useState<{ question: string; column: number } | null>(null);
   // The next setlist's name and note. The NAME box holds the suggested name as text,
@@ -90,7 +96,7 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
   }, [busy]);
   const closeMenu = useCallback(() => setMenu(null), []);
 
-  const sets = [...FACTORY_QUESTION_SETS, ...opened];
+  const sets = [...FACTORY_QUESTION_SETS, ...mine];
   const draftSet = sets.find((s) => s.id === saved.setId) ?? FACTORY_QUESTION_SETS[0];
   const draftColumns = saved.columnIds
     .map((id) => presets.find((p) => p.id === id))
@@ -110,12 +116,29 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
   const openSetFile = async () => {
     closeMenu();
     setProblem(null);
+    setNotice(null);
     const path = await open({ title: "Open a question set", filters: [{ name: "Question set", extensions: ["json"] }] });
     if (typeof path !== "string") return;
     try {
-      const loaded = parseQuestionSet(await invoke<string>("file_read", { path }));
-      setOpened((list) => [...list.filter((s) => s.id !== loaded.id), loaded]);
+      const { set: loaded, replaced } = await importSet(path, mine, FACTORY_QUESTION_SETS);
+      refreshMine();
       edit({ setId: loaded.id });
+      setNotice(replaced !== undefined
+        ? `Updated “${loaded.name}” in MINE (revision ${replaced} → ${loaded.revision}).`
+        : `Added “${loaded.name}” to MINE.`);
+    } catch (e) {
+      setProblem(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const isMine = mine.some((s) => s.id === draftSet.id);
+  const removeSet = async () => {
+    closeMenu();
+    try {
+      await removeUserSet(draftSet.id);
+      setNotice(`Removed “${draftSet.name}” from MINE. Its past runs stay in the traces.`);
+      edit({ setId: FACTORY_QUESTION_SETS[0].id });
+      refreshMine();
     } catch (e) {
       setProblem(e instanceof Error ? e.message : String(e));
     }
@@ -163,15 +186,21 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
             </button>
           }
         >
-          <MenuSection title="QUESTION SETS">
-            {sets.map((s) => (
-              <MenuItem key={s.id} checked={s.id === set.id} hint={`${s.questions.length} questions`} onSelect={() => { edit({ setId: s.id }); closeMenu(); }}>
-                {s.name}
-              </MenuItem>
-            ))}
-          </MenuSection>
+          {([["BUILT-IN", FACTORY_QUESTION_SETS], ["MINE", mine]] as const).map(([title, list]) => (
+            <MenuSection key={title} title={title}>
+              {list.map((s) => (
+                <MenuItem key={s.id} checked={s.id === set.id} hint={`${s.questions.length} questions${s.source ? ` · ${describeSource(s.source)}` : ""}`}
+                  onSelect={() => { edit({ setId: s.id }); closeMenu(); }}>
+                  {s.name}
+                </MenuItem>
+              ))}
+              {title === "MINE" && !mine.length && <span className="menu-empty">Sets you open are kept here</span>}
+            </MenuSection>
+          ))}
           <MenuDivider />
           <MenuItem onSelect={() => void openSetFile()}>Open a set file…</MenuItem>
+          <MenuItem disabled={!isMine} onSelect={() => { closeMenu(); void revealUserSet(draftSet.id); }}>Show in Finder</MenuItem>
+          <MenuItem disabled={!isMine} danger hint={isMine ? undefined : "built-in"} onSelect={() => void removeSet()}>Remove from MINE</MenuItem>
         </Menu>
 
         <span className="setlist-control">
@@ -288,6 +317,7 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
       </div>
 
       {problem && <p className="error setlist-problem">{problem}</p>}
+      {notice && !problem && <p className="setlist-notice">{notice}</p>}
 
       <div className="setlist-progress" aria-live="polite">
         <div className="track"><div className="fill" style={{ width: `${progress.total ? (progress.settled / progress.total) * 100 : 0}%` }} /></div>
@@ -324,7 +354,17 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
               </tr>
             </thead>
             <tbody>
-              {set.questions.map((q) => (
+              {questionGroups(set).map((group) => (
+                <Fragment key={group.category?.id ?? "-"}>
+                {group.category && (
+                  <tr className="category-row">
+                    <th colSpan={columns.length + 1}>
+                      {group.category.id} · {group.category.name.toUpperCase()}
+                      <span>{group.questions.length} question{group.questions.length === 1 ? "" : "s"}</span>
+                    </th>
+                  </tr>
+                )}
+                {group.questions.map((q) => (
                 <tr key={q.id}>
                   <th className="q">
                     <span className="q-title">{q.id.toUpperCase()} · {q.title}</span>
@@ -358,6 +398,8 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
                     );
                   })}
                 </tr>
+                ))}
+                </Fragment>
               ))}
             </tbody>
             <tfoot>

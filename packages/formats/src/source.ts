@@ -3,7 +3,8 @@
 
 export type SourceSpec =
   | { kind: "tpch"; tpchScale: number }
-  | { kind: "db"; dbPath: string }
+  /** A DuckDB file or ducklake: URI; `schema` is where the agent's unqualified SQL runs. */
+  | { kind: "db"; dbPath: string; schema?: string }
   | { kind: "files"; files: string[] };
 
 export type SourceKind = SourceSpec["kind"];
@@ -15,7 +16,10 @@ export function parseSource(value: unknown): SourceSpec | undefined {
   const s = value as Record<string, unknown> | undefined;
   if (!s || typeof s !== "object" || !SOURCE_KINDS.includes(s.kind as SourceKind)) return undefined;
   if (s.kind === "tpch" && typeof s.tpchScale === "number" && s.tpchScale > 0) return { kind: "tpch", tpchScale: s.tpchScale };
-  if (s.kind === "db" && typeof s.dbPath === "string" && s.dbPath.trim()) return { kind: "db", dbPath: s.dbPath };
+  if (s.kind === "db" && typeof s.dbPath === "string" && s.dbPath.trim()) {
+    if (s.schema !== undefined && (typeof s.schema !== "string" || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(s.schema))) return undefined;
+    return { kind: "db", dbPath: s.dbPath, ...(s.schema ? { schema: s.schema as string } : {}) };
+  }
   if (s.kind === "files" && Array.isArray(s.files) && s.files.length && s.files.every((f) => typeof f === "string")) {
     return { kind: "files", files: [...(s.files as string[])] };
   }
@@ -37,7 +41,7 @@ export function describeSource(source: SourceSpec): string {
     case "tpch":
       return `TPC-H ${source.tpchScale}`;
     case "db":
-      return baseName(source.dbPath) || "DB file";
+      return (baseName(source.dbPath) || "DB file") + (source.schema ? ` · ${source.schema}` : "");
     case "files":
       return source.files.length === 1 ? baseName(source.files[0]) : `${source.files.length} files`;
   }

@@ -4,12 +4,12 @@ import type { AgentResult } from "../harness";
 import { FACTORY_PRESETS } from "../presets";
 import { DEFAULT_SETTINGS } from "../settings";
 import {
-  cellJobs, cellStats, cleanName, newSetlistRunId, setlistTitle, suggestedSetlistName, columnSummary, jobRequest, lampOf, median, nextJobs, planJobs, progressOf, SETLIST_IDLE,
+  cellJobs, cellStats, cleanName, questionGroups, newSetlistRunId, setlistTitle, suggestedSetlistName, columnSummary, jobRequest, lampOf, median, nextJobs, planJobs, progressOf, SETLIST_IDLE,
   setlistReducer, spread, type SetlistPlan, type SetlistState,
 } from "../setlist";
 
 const set: QuestionSet = {
-  id: "mini", name: "Mini", description: "", revision: 2, savedAt: "",
+  id: "mini", name: "Mini", description: "", revision: 2, savedAt: "", categories: [],
   source: { kind: "tpch", tpchScale: 0.01 },
   questions: [
     { id: "q1", title: "One", prompt: "First question?", tags: [], check: { tpchQuery: 1 } },
@@ -189,5 +189,46 @@ describe("setlist IDs", () => {
     expect(newSetlistRunId()).toMatch(/^sl-\d{4}-\d{2}-\d{2}-\d{4}-[a-z2-9]{4}$/);
     const many = new Set(Array.from({ length: 200 }, () => newSetlistRunId(new Date(2026, 10, 2, 14, 5))));
     expect(many.size).toBeGreaterThan(195);
+  });
+});
+
+describe("schema and tables (format v2)", () => {
+  it("sends the source's schema and the question's tables; [] sends none", () => {
+    const lake: QuestionSet = {
+      id: "eval", name: "Eval", description: "", revision: 1, savedAt: "",
+      source: { kind: "db", dbPath: "ducklake:ducklake_prod", schema: "gold" },
+      tables: ["events_rich_ml_gold"],
+      categories: [{ id: "H", name: "Discovery" }],
+      questions: [
+        { id: "A1", title: "A1", prompt: "How many events?", tags: [] },
+        { id: "H1", title: "H1", prompt: "What tables are there?", tags: [], category: "H", tables: [] },
+      ],
+    };
+    const state = setlistReducer(SETLIST_IDLE, { type: "start", plan: { ...plan, set: lake, repeats: 1, columns: [quick] }, runId: "sl-x", at: 0 });
+    const job = (id: string) => state.jobs.find((j) => j.question === id)!;
+    const a1 = jobRequest(DEFAULT_SETTINGS, state, job("A1"));
+    expect(a1.source).toEqual({ db: "ducklake:ducklake_prod", schema: "gold" });
+    expect(a1.tables).toEqual(["events_rich_ml_gold"]);
+    const h1 = jobRequest(DEFAULT_SETTINGS, state, job("H1"));
+    expect(h1.tables).toBeUndefined();
+    expect(h1.prompt).toBe("What tables are there?");
+  });
+});
+
+describe("categories (format v2)", () => {
+  it("groups questions in the set's category order, then the rest; runs follow that order", () => {
+    const grouped: QuestionSet = {
+      ...set, categories: [{ id: "B", name: "Bee" }, { id: "A", name: "Ay" }],
+      questions: [
+        { id: "a1", title: "a1", prompt: "p", tags: [], category: "A" },
+        { id: "x", title: "x", prompt: "p", tags: [] },
+        { id: "b1", title: "b1", prompt: "p", tags: [], category: "B" },
+      ],
+    };
+    expect(questionGroups(grouped).map((g) => [g.category?.id ?? "-", g.questions.map((q) => q.id)])).toEqual([
+      ["B", ["b1"]], ["A", ["a1"]], ["-", ["x"]],
+    ]);
+    expect(planJobs({ ...plan, set: grouped, columns: [quick], repeats: 1 }).map((j) => j.question)).toEqual(["b1", "a1", "x"]);
+    expect(questionGroups(set)).toEqual([{ questions: set.questions }]);
   });
 });

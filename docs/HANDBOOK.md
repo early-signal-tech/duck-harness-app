@@ -246,8 +246,9 @@ identical settings, expect some spread from the model's own variation.
 
 The Setlist runs a **question set** against several presets, several times each, and
 compares how the presets behave. Open it from **Setlist** in the header. Choose:
-- a set: the built-in **TPC-H** set (22 questions on TPC-H 0.01), or **Open a set
-  file…**
+- a set: the built-in **TPC-H** set (22 questions on TPC-H 0.01), or one of yours
+  under **MINE**. **Open a set file…** adds a file to MINE, so it's remembered. Sets
+  with categories show their questions grouped by category.
 - up to four **preset columns**
 - **REPEAT** ×1–×5
 - how many runs go **AT A TIME**

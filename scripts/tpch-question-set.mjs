@@ -34,7 +34,7 @@ const questions = sections.map((section) => {
   const n = Number(head[1]);
   const check = { sql: sql[1].trim(), tpchQuery: n };
   if (AMBIGUOUS.has(n)) {
-    check.expect = "The question is hard to state exactly, so the answer should say what it assumed.";
+    check.careful = "The question is hard to state exactly, so the answer should say what it assumed.";
   }
   return {
     id: `q${n}`,
@@ -48,7 +48,7 @@ if (questions.length !== 22) throw new Error(`Expected 22 questions, found ${que
 
 const set = {
   format: "dh-question-set",
-  formatVersion: 1,
+  formatVersion: 2,
   id: "tpch",
   name: "TPC-H",
   description: "The 22 standard TPC-H decision-support queries, asked in plain language. "

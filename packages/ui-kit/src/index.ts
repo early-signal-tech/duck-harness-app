@@ -2,7 +2,7 @@
 export { applyAppearance, loadAppearance, saveAppearance, resolvedTheme, DEFAULT_APPEARANCE } from "./appearance";
 export type { Appearance, DisplayStyle, ThemeChoice } from "./appearance";
 export { useAppearance } from "./useAppearance";
-export { BarSwitch, HostBar } from "./HostBar";
+export { AppearanceControls, HostBar } from "./HostBar";
 export type { EngineStatus } from "./HostBar";
 export { Knob, SteppedKnob, clampToStep, valueFromDrag } from "./Knob";
 export { Toggle } from "./Toggle";

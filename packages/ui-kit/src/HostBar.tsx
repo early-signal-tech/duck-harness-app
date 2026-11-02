@@ -1,5 +1,7 @@
-// The charcoal bar across the top of a host window: the product name, the appearance
-// switches, and an engine light. Each standalone app has one; the rack will too.
+// The charcoal bar across the top of a host window: the product name, the device's own
+// controls, the host's settings (a gear), and an engine light. Each standalone app has
+// one; the rack will too. Appearance (theme, displays) lives in the settings flyout:
+// AppearanceControls below.
 
 import type { ReactNode } from "react";
 import type { Appearance, DisplayStyle, ThemeChoice } from "./appearance";
@@ -17,22 +19,31 @@ const DISPLAYS: { value: DisplayStyle; label: string }[] = [
   { value: "light", label: "LIGHT" },
 ];
 
-export function BarSwitch<T extends string>({ label, options, value, onChange }: {
+function Segmented<T extends string>({ label, options, value, onChange }: {
   label: string;
   options: { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="bar-switch">
-      <span>{label}</span>
-      <div role="radiogroup" aria-label={label}>
-        {options.map((o) => (
-          <button key={o.value} role="radio" aria-checked={value === o.value} className={value === o.value ? "on" : ""} onClick={() => onChange(o.value)}>
-            {o.label}
-          </button>
-        ))}
-      </div>
+    <div className="segmented" role="radiogroup" aria-label={label}>
+      {options.map((o) => (
+        <button key={o.value} role="radio" aria-checked={value === o.value} className={value === o.value ? "on" : ""} onClick={() => onChange(o.value)}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** THEME (light, dark, follow the system) and DISPLAYS (charcoal LCDs or outlined white). */
+export function AppearanceControls({ appearance, onChange }: { appearance: Appearance; onChange: (appearance: Appearance) => void }) {
+  return (
+    <div className="appearance-controls">
+      <span className="settings-label">THEME</span>
+      <Segmented label="Theme" options={THEMES} value={appearance.theme} onChange={(theme) => onChange({ ...appearance, theme })} />
+      <span className="settings-label">DISPLAYS</span>
+      <Segmented label="Displays" options={DISPLAYS} value={appearance.displays} onChange={(displays) => onChange({ ...appearance, displays })} />
     </div>
   );
 }
@@ -40,14 +51,14 @@ export function BarSwitch<T extends string>({ label, options, value, onChange }:
 interface Props {
   name: string;
   tagline: string;
-  appearance: Appearance;
-  onAppearance: (appearance: Appearance) => void;
   engine?: { status: EngineStatus; error?: string | null };
   /** Device controls shown next to the name, such as DH-1's preset bar. */
   children?: ReactNode;
+  /** The host's settings control (a gear and its flyout), before the engine light. */
+  settings?: ReactNode;
 }
 
-export function HostBar({ name, tagline, appearance, onAppearance, engine, children }: Props) {
+export function HostBar({ name, tagline, engine, children, settings }: Props) {
   return (
     <header className="bar">
       <div className="brand">
@@ -56,8 +67,7 @@ export function HostBar({ name, tagline, appearance, onAppearance, engine, child
       </div>
       {children}
       <div className="spacer" />
-      <BarSwitch label="THEME" options={THEMES} value={appearance.theme} onChange={(theme) => onAppearance({ ...appearance, theme })} />
-      <BarSwitch label="DISPLAYS" options={DISPLAYS} value={appearance.displays} onChange={(displays) => onAppearance({ ...appearance, displays })} />
+      {settings}
       {engine && (
         <div className={`engine ${engine.status}`} title={engine.error ?? undefined}>
           <span className="dot" aria-hidden="true" />

@@ -101,12 +101,22 @@ export interface Hello {
   tools?: string[];
 }
 
+/** Where traces go, and whether the background traces server is up. */
+export interface TracesInfo {
+  enabled: boolean;
+  db: string | null;
+  exists: boolean;
+  size_bytes: number | null;
+  server: { running: boolean; uri: string | null; pid: number | null } | null;
+}
+
 type Message =
   | ({ id: string; type: "hello" } & Hello)
+  | ({ id: string; type: "traces" } & TracesInfo)
   | { id: string; type: "accepted" }
   | ({ id: string; type: "event" } & AgentEvent)
   | { id: string; type: "result"; result: AgentResult }
-  | { id: string; type: "ok" }
+  | { id: string; type: "ok"; stopped?: boolean; deleted?: boolean }
   | { id: string | null; type: "error"; error: string };
 
 export class HarnessError extends Error {}
@@ -132,6 +142,8 @@ export class Harness {
   private pending = new Map<string, Pending>();
   private unlisten: UnlistenFn[] = [];
   private exited = false;
+  /** Which start of the server this client belongs to (see engine_restart). */
+  private generation = 0;
   /** Messages with no request id (e.g. a line the server couldn't parse). */
   onStrayError: (error: string) => void = (error) => console.warn("agent server:", error);
   /** Called once if the server process goes away. */
@@ -141,14 +153,21 @@ export class Harness {
     const harness = new Harness();
     harness.unlisten.push(
       await listen<string>("harness-message", ({ payload }) => harness.receive(payload)),
-      await listen("harness-exit", () => harness.serverExited()),
+      // A restarted server's predecessor also reports its exit: only ours counts.
+      await listen<number>("harness-exit", ({ payload }) => {
+        if (payload === harness.generation) harness.serverExited();
+      }),
     );
+    harness.generation = await invoke<number>("engine_generation");
     return harness;
   }
 
+  /** Stop listening. Anything still waiting (a run, after an engine restart) fails. */
   dispose(): void {
     this.unlisten.forEach((stop) => stop());
     this.unlisten = [];
+    for (const pending of this.pending.values()) pending.reject(new HarnessError("the engine was restarted"));
+    this.pending.clear();
   }
 
   /** Protocol version, AgentConfig defaults, effort levels, and priced models. */
@@ -160,6 +179,26 @@ export class Harness {
     }
     const { id: _id, type: _type, ...hello } = reply;
     return hello;
+  }
+
+  /** Where traces go and whether the traces server is running. */
+  async traces(): Promise<TracesInfo> {
+    const reply = await this.request({ type: "traces" }, nextId("traces"));
+    if (reply.type !== "traces") throw new HarnessError(`unexpected reply ${reply.type}`);
+    const { id: _id, type: _type, ...info } = reply;
+    return info;
+  }
+
+  /** Stop the background traces server (the next run starts it again). */
+  async tracesStop(): Promise<boolean> {
+    const reply = await this.request({ type: "traces_stop" }, nextId("traces"));
+    return reply.type === "ok" && !!reply.stopped;
+  }
+
+  /** Delete the traces database. Refused while runs are going. */
+  async tracesReset(): Promise<boolean> {
+    const reply = await this.request({ type: "traces_reset" }, nextId("traces"));
+    return reply.type === "ok" && !!reply.deleted;
   }
 
   /** Start a run. Events arrive through `onEvent`; several runs can go at once (A/B). */

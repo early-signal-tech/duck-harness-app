@@ -123,9 +123,13 @@ CREATE PERSISTENT SECRET my_lake (
 );
 ```
 
-Then put `ducklake:my_lake` in LINE IN. It's attached read-only, so the agent can't
-change anything, whatever SQL it writes. On big tables, keep TIMEOUT and RESULT SIZE
-modest: every query scans real data.
+Then put `ducklake:my_lake` in LINE IN. To see the secrets you already have, run
+`FROM duckdb_secrets();` in the duckdb CLI: an existing DuckLake secret works right
+away, with no setup.
+
+The lake is attached read-only, so the agent can't change anything, whatever SQL it
+writes. On big tables, keep TIMEOUT and RESULT SIZE modest: every query scans real
+data.
 
 ## 6. AGENT: model and knobs
 

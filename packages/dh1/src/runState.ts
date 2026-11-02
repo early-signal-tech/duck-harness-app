@@ -25,6 +25,39 @@ export interface Clear {
   toolUses: number;
 }
 
+/** One tool call, as the timeline needs it. */
+export interface StepTool {
+  tool: string;
+  label: string;
+  success: boolean;
+  rows: number | null;
+}
+
+/** What one iteration did: the timeline draws one bar per iteration from this. */
+export interface IterationInfo {
+  iteration: number;
+  /** Prompt size of this iteration's API call (null until it returns). */
+  contextTokens: number | null;
+  latencyMs: number | null;
+  costUsd: number | null;
+  tools: StepTool[];
+  /** Tokens the compressor cleared on this call. */
+  cleared: number;
+  calling: boolean;
+  apiError: boolean;
+}
+
+/** The kind of bar to draw: the most telling thing the iteration did. */
+export type StepKind = "error" | "query" | "describe" | "list" | "answer" | "pending";
+
+export function stepKind(info: IterationInfo): StepKind {
+  if (info.apiError || info.tools.some((t) => !t.success)) return "error";
+  if (info.tools.some((t) => t.tool === "query_database")) return "query";
+  if (info.tools.some((t) => t.tool === "describe_table" || t.tool === "sample_rows")) return "describe";
+  if (info.tools.some((t) => t.tool === "list_tables")) return "list";
+  return info.contextTokens === null ? "pending" : "answer";
+}
+
 export interface RunView {
   phase: Phase;
   startedAt: number | null;
@@ -38,6 +71,7 @@ export interface RunView {
   /** Largest prompt seen this run, for the compressor's meter. */
   peakContextTokens: number;
   clears: Clear[];
+  iterations: IterationInfo[];
   activity: ActivityLine[];
   result: AgentResult | null;
   error: string | null;
@@ -69,6 +103,7 @@ export const IDLE: RunView = {
   contextTokens: 0,
   peakContextTokens: 0,
   clears: [],
+  iterations: [],
   activity: [],
   result: null,
   error: null,
@@ -118,7 +153,44 @@ export function endLine(result: AgentResult, iteration: number): ActivityLine {
   return { iteration, kind: "end", text: `${text} · ${facts}`, detail: result.error ?? undefined, hasAnswer };
 }
 
+/** The view with one iteration's record changed (created if it's new). */
+function withIteration(view: RunView, iteration: number, change: (info: IterationInfo) => IterationInfo): RunView {
+  if (iteration < 1) return view;
+  const iterations = view.iterations.slice();
+  const index = iterations.findIndex((i) => i.iteration === iteration);
+  const current = index >= 0 ? iterations[index] : {
+    iteration, contextTokens: null, latencyMs: null, costUsd: null, tools: [], cleared: 0, calling: false, apiError: false,
+  };
+  if (index >= 0) iterations[index] = change(current);
+  else iterations.push(change(current));
+  return { ...view, iterations };
+}
+
 function applyEvent(view: RunView, event: AgentEvent): RunView {
+  const next = applyEventToLog(view, event);
+  switch (event.event) {
+    case "api_call_start":
+      return withIteration(next, event.iteration, (i) => ({ ...i, calling: true }));
+    case "api_call":
+      return withIteration(next, event.iteration, (i) => ({
+        ...i, calling: false, contextTokens: event.context_tokens, latencyMs: event.latency_ms, costUsd: event.cost_usd,
+      }));
+    case "api_error":
+      return withIteration(next, event.iteration, (i) => ({ ...i, calling: false, apiError: true }));
+    case "tool_call":
+      return withIteration(next, event.iteration, (i) => ({
+        ...i, tools: [...i.tools, { tool: event.tool, label: event.label, success: event.success, rows: event.row_count }],
+      }));
+    case "context_edit": {
+      const tokens = (event.details as { cleared_input_tokens?: number }).cleared_input_tokens ?? 0;
+      return withIteration(next, event.iteration, (i) => ({ ...i, cleared: i.cleared + tokens }));
+    }
+    default:
+      return next;
+  }
+}
+
+function applyEventToLog(view: RunView, event: AgentEvent): RunView {
   const add = (line: ActivityLine) => ({ ...view, activity: [...view.activity, line] });
   switch (event.event) {
     case "run_start":
@@ -201,11 +273,13 @@ export function runReducer(view: RunView, action: RunAction): RunView {
     case "finished": {
       // A call in flight when the run ended didn't return a usable answer.
       const leds = view.leds.map((led) => (led === "calling" ? "off" : led));
+      const iterations = view.iterations.map((i) => (i.calling ? { ...i, calling: false } : i));
       return {
         ...view,
         phase: "done",
         endedAt: action.at,
         leds,
+        iterations,
         activity: [...view.activity, endLine(action.result, Math.max(view.iteration, action.result.iterations))],
         result: action.result,
         costUsd: action.result.estimated_cost_usd,

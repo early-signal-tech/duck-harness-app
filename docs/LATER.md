@@ -33,6 +33,39 @@ Send someone a run (question, settings, answer, the SQL it ran) to look at or re
 - Could be an export of one run's traces, plus "open in DH-1" to load its settings.
 - Depends on: re-run from history.
 
+## A lite version of DH-1
+Fewer features for people who don't need every knob.
+
+- **Option 1, a Simple / Advanced switch in DH-1** (about half a day). Simple hides
+  the compressor and the advanced knobs. Hidden knobs still apply from the loaded
+  preset or the defaults, so a preset behaves the same in either mode.
+- **Option 2, a separate "DH-1 Lite" app** (about a day, plus packaging). A thin
+  host (`apps/dh1-lite`) renders the same device locked to Simple. It shares presets,
+  and can tag runs with `labels: {"edition": "lite"}`.
+- **Option 3, a separate lite device** with its own compact layout. Only worth it if
+  lite should look clearly different.
+- Decide by audience: new users point to option 1; a free tier or separate product
+  points to option 2, built on option 1's split.
+- Ongoing cost: each new feature needs an in-or-out decision, and options 2 and 3 mean
+  testing two builds.
+
+## Right-click menu on knobs
+The wireframe's knob menu: Reset to default, Enter value…, Lock when changing presets,
+Sweep in Setlist…, What does this do?
+
+- Right-clicking a knob today shows the webview's own Reload / Inspect Element menu.
+- Reset and Enter value are small. Lock needs presets to skip locked knobs. Sweep
+  depends on the Setlist.
+
+## Replay SQL
+The wireframe's timeline has a "Replay SQL" button: re-run one of the agent's queries
+and see the full result, not just what Claude was shown.
+
+- Needs a new request in the agent server (`query`: run read-only SQL on a run's
+  source and return rows), plus a results view in DH-1.
+- The traces already keep every query exactly as sent (`agent_traces.sql_query`, and
+  the `replay_sql` view), so the SQL is there.
+
 ## Pop out a pane into its own window
 The second half of UI request 1 (expand-in-place shipped). A real window you can move
 to another monitor.

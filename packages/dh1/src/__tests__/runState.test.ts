@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgentEvent, AgentResult, Usage } from "../harness";
-import { cacheHitRate, IDLE, runReducer, type RunAction, type RunView } from "../runState";
+import { cacheHitRate, IDLE, runReducer, stepKind, type RunAction, type RunView } from "../runState";
 
 const usage = (input = 0, output = 0, read = 0, write = 0): Usage => ({
   input_tokens: input,
@@ -139,4 +139,43 @@ describe("the compressor's readings", () => {
 it("says 1 tool result, not 1 tool results", () => {
   const view = play(ev({ event: "context_edit", iteration: 2, details: { cleared_input_tokens: 611, cleared_tool_uses: 1 } }));
   expect(last(view.activity)?.text).toBe("Context cleared · −0.6K tokens · 1 tool result");
+});
+
+describe("iterations for the timeline", () => {
+  it("summarizes each iteration: size, tools, clears, and what kind of step it was", () => {
+    const view = runReducer(play(
+      ev({ event: "api_call_start", iteration: 1 }),
+      ev({ event: "api_call", iteration: 1, context_tokens: 3000, latency_ms: 900, cost_usd: 0.0003, total_cost_usd: 0.0003, total_usage: usage() }),
+      ev({ event: "tool_call_start", iteration: 1, label: "List Tables", input: {} }),
+      ev({ event: "tool_call", iteration: 1, tool: "list_tables", label: "List Tables", success: true, row_count: 8, duration_ms: 2 }),
+      ev({ event: "api_call_start", iteration: 2 }),
+      ev({ event: "context_edit", iteration: 2, details: { cleared_input_tokens: 5000, cleared_tool_uses: 2 } }),
+      ev({ event: "api_call", iteration: 2, context_tokens: 9000, latency_ms: 1200, cost_usd: 0.0006, total_cost_usd: 0.0009, total_usage: usage() }),
+      ev({ event: "tool_call_start", iteration: 2, label: "Query Database", input: { sql: "SELECT 1" } }),
+      ev({ event: "tool_call", iteration: 2, tool: "query_database", label: "Query Database", success: true, row_count: 1, duration_ms: 4 }),
+      ev({ event: "tool_call", iteration: 2, tool: "describe_table", label: "Describe Table", success: true, row_count: 5, duration_ms: 1 }),
+      ev({ event: "api_call_start", iteration: 3 }),
+    ), { type: "finished", result: result(), at: 2000 });
+
+    const [one, two, three] = view.iterations;
+    expect(stepKind(one)).toBe("list");
+    expect(two).toMatchObject({ contextTokens: 9000, cleared: 5000, latencyMs: 1200 });
+    expect(stepKind(two)).toBe("query"); // a query outranks a describe in the same step
+    expect(three.calling).toBe(false); // the run ended, so nothing is still in flight
+    expect(stepKind(three)).toBe("pending");
+  });
+
+  it("marks an iteration with a failed tool or API error as an error", () => {
+    const view = play(
+      ev({ event: "api_call", iteration: 1, context_tokens: 100, total_cost_usd: 0, total_usage: usage() }),
+      ev({ event: "tool_call", iteration: 1, tool: "query_database", label: "Query Database", success: false, error_type: "timeout", duration_ms: 1 }),
+      ev({ event: "api_error", iteration: 2, error: "overloaded", retryable: true }),
+    );
+    expect(view.iterations.map(stepKind)).toEqual(["error", "error"]);
+  });
+
+  it("calls an iteration with no tools an answer", () => {
+    const view = play(ev({ event: "api_call", iteration: 1, context_tokens: 100, total_cost_usd: 0, total_usage: usage() }));
+    expect(stepKind(view.iterations[0])).toBe("answer");
+  });
 });

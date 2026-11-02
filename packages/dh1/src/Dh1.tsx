@@ -15,6 +15,7 @@ import { MetersPanel } from "./components/MetersPanel";
 import { PresetBar } from "./components/PresetBar";
 import { answerText, isAnswer, StructuredAnswer } from "./components/StructuredAnswer";
 import { SourcePanel } from "./components/SourcePanel";
+import { Timeline } from "./components/Timeline";
 import type { Run } from "./harness";
 import {
   DEFAULT_ANSWER_WIDTH, DEFAULT_TEXT_SIZE, loadLayout, MIN_ACTIVITY_WIDTH, MIN_ANSWER_WIDTH, saveLayout, stepTextSize,
@@ -102,6 +103,8 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
     [],
   );
   const [expanded, setExpanded] = useState<Pane | null>(null);
+  // The iteration picked on the timeline: its log lines are highlighted and scrolled to.
+  const [focus, setFocus] = useState<number | null>(null);
   const screens = useRef<HTMLDivElement>(null);
   const log = useRef<HTMLOListElement>(null);
 
@@ -128,6 +131,14 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
     if (view.phase === "running") following.current = true;
   }, [view.phase]);
   const now = useNow(busy);
+
+  const selectIteration = useCallback((iteration: number | null) => {
+    setFocus(iteration);
+    if (iteration === null) return;
+    following.current = false; // stay on the picked iteration while the run goes on
+    const first = log.current?.querySelector(`[data-iteration="${iteration}"]`);
+    first?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, []);
 
   // Data files dropped anywhere on the window go to the sampler.
   const [dragging, setDragging] = useState(false);
@@ -162,6 +173,7 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
     const h = harness;
     if (!h || !canRun) return;
     dispatch({ type: "start", maxIterations: settings.maxIterations, at: Date.now() });
+    setFocus(null);
     const preset = presets.current && {
       id: presets.current.id,
       name: presets.current.name,
@@ -280,9 +292,22 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
             ACTIVITY
             <PaneTools pane="activity" expanded={expanded} textSize={layout.textSize} onTextSize={changeTextSize} onExpand={setExpanded} />
           </h2>
+          <Timeline
+            view={view}
+            maxIterations={settings.maxIterations}
+            threshold={settings.contextEditing ? settings.contextTriggerTokens : null}
+            selected={focus}
+            onSelect={selectIteration}
+          />
           <ol className="log" ref={log}>
             {view.activity.map((line, i) => (
-              <li key={i} className={`${line.kind}${line.kind === "end" && !line.hasAnswer ? " no-answer" : ""}`}>
+              <li
+                key={i}
+                data-iteration={line.kind === "end" ? undefined : line.iteration}
+                className={`${line.kind}${line.kind === "end" && !line.hasAnswer ? " no-answer" : ""}${
+                  focus !== null && line.kind !== "end" && line.iteration === focus ? " focus" : ""
+                }`}
+              >
                 <span className="iter">{line.kind === "end" ? "END" : String(line.iteration).padStart(2, "0")}</span>
                 <div>
                   <span className="what">{line.text}</span>

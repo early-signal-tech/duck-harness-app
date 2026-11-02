@@ -56,7 +56,9 @@ React (packages/dh1)  ──invoke("harness_send")──▶  Rust (apps/dh1/src-
     threshold, and how much each clear freed)
   - METERS: cost, iteration LEDs, and token / cache meters
   - the prompt with RUN and STOP
-  - the Activity and Answer panes
+  - the Activity pane, topped by the run timeline (one bar per iteration: its prompt
+    size, what it did, and compressor clears; click a bar to find it in the log), and
+    the Answer pane
 - **`packages/dh1/src/runState.ts`** turns the server's events into what the meters
   show.
 
@@ -116,7 +118,8 @@ To use a checkout somewhere else, set `DH1_AGENT_DIR`. If `uv` isn't on your PAT
       structured answer, caching
 - [x] Context compressor: threshold, keep, clear-at-least, sidechain, context and
       gain-reduction meters
-- [ ] Run timeline, A/B compare, Setlist
+- [x] Run timeline: one bar per iteration (prompt size, what it did, clears)
+- [ ] A/B compare, Setlist
 - [ ] EH-1: grades agent runs from the traces (its engine in its own repo)
 - [ ] The rack: DH-1 and EH-1 side by side
 - [ ] Packaging: bundle Python with the app, signing and notarization

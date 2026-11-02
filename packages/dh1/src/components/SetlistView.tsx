@@ -374,7 +374,7 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
                           .filter(Boolean).join(" · ") || "—"}
                       </span>
                       <span>
-                        {[s.spread !== null ? `spread ${pct(s.spread)}` : "", `${s.limits} hit limits`, `${s.errors} errors`].join(" · ")}
+                        {[s.spread !== null ? `spread ${pct(s.spread)}` : "", `${s.limits} hit limits`, `${s.errors} errors`].filter(Boolean).join(" · ")}
                       </span>
                     </td>
                   );

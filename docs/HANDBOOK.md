@@ -258,7 +258,8 @@ suggestion back. Add a one-line **NOTE** if you like. A name you edited is store
 it is (the `setlist_name` label); one left as suggested isn't stored, since it's
 rebuilt from the setlist's facts. At start, the setlist also gets an **ID**, such as
 `sl-2026-11-02-1405-a7f1` (start date and time, then 4 random characters), which is
-unique and on every run. EH-1 lists setlists by name and ID.
+unique and on every run. Runs also record how many ran at once, since overlapping
+runs take longer. EH-1 lists setlists by name and ID.
 
 Then press **RUN SETLIST**. Each run uses the column's preset settings, on the
 question's own data, with the question's prompt. Runs go question by question, so a

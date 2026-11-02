@@ -85,7 +85,8 @@ describe("the request for a job", () => {
     expect(first.config?.max_iterations).toBe(10);
     expect(first.preset).toEqual({ id: quick.id, name: quick.name, revision: quick.revision, modified: false });
     expect(first.labels).toEqual({
-      setlist: "mini", setlist_revision: 2, setlist_run: "sl-1", setlist_name: "Effort check", setlist_note: "low vs medium",
+      setlist: "mini", setlist_revision: 2, setlist_run: "sl-1", setlist_concurrency: 3,
+      setlist_name: "Effort check", setlist_note: "low vs medium",
       question: "q1", column: "A", repeat: 1,
     });
 

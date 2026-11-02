@@ -193,6 +193,9 @@ export function jobRequest(face: FaceSettings, state: SetlistState, job: Job): R
       setlist: plan.set.id,
       setlist_revision: plan.set.revision,
       setlist_run: state.runId,
+      // How many ran at once: overlapping runs take longer, so timings from setlists
+      // run at different concurrency aren't comparable.
+      setlist_concurrency: plan.concurrency,
       ...(plan.name ? { setlist_name: plan.name } : {}),
       ...(plan.note ? { setlist_note: plan.note } : {}),
       question: question.id,

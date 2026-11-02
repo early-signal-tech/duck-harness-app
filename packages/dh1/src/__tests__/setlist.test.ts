@@ -4,7 +4,7 @@ import type { AgentResult } from "../harness";
 import { FACTORY_PRESETS } from "../presets";
 import { DEFAULT_SETTINGS } from "../settings";
 import {
-  cellJobs, cellStats, cleanName, defaultSetlistName, newSetlistRunId, columnSummary, jobRequest, lampOf, median, nextJobs, planJobs, progressOf, SETLIST_IDLE,
+  cellJobs, cellStats, cleanName, newSetlistRunId, setlistTitle, columnSummary, jobRequest, lampOf, median, nextJobs, planJobs, progressOf, SETLIST_IDLE,
   setlistReducer, spread, type SetlistPlan, type SetlistState,
 } from "../setlist";
 
@@ -150,10 +150,19 @@ describe("the built-in set in a setlist", () => {
 });
 
 describe("naming a setlist", () => {
-  it("suggests a name from the set, the columns, and the day", () => {
-    const name = defaultSetlistName({ set, columns: [quick, balanced], repeats: 3 }, new Date(2026, 10, 2, 14, 5));
-    expect(name).toBe("Mini · 2 presets × 3 · Nov 2, 14:05");
-    expect(defaultSetlistName({ set, columns: [quick], repeats: 1 }, new Date(2026, 0, 9, 9, 0))).toBe("Mini · 1 preset × 1 · Jan 9, 09:00");
+  it("builds the on-screen title from the facts, with your name after them", () => {
+    const at = new Date(2026, 10, 2, 14, 5);
+    expect(setlistTitle({ set, columns: [quick, balanced], repeats: 3 }, at)).toBe("Mini · 2 presets × 3 · Nov 2, 14:05");
+    expect(setlistTitle({ set, columns: [quick], repeats: 1, name: "after compressor change" }, new Date(2026, 0, 9, 9, 0)))
+      .toBe("Mini · 1 preset × 1 · Jan 9, 09:00 — after compressor change");
+  });
+
+  it("stores only your words: no name, no setlist_name label", () => {
+    const state = setlistReducer(SETLIST_IDLE, { type: "start", plan: { ...plan, name: undefined, note: undefined }, runId: "sl-3", at: 0 });
+    const labels = jobRequest(DEFAULT_SETTINGS, state, state.jobs[0]).labels!;
+    expect("setlist_name" in labels).toBe(false);
+    expect(labels.setlist).toBe("mini");
+    expect(labels.setlist_run).toBe("sl-3");
   });
 
   it("keeps names to one tidy line within the label limit", () => {

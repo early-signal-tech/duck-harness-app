@@ -12,8 +12,8 @@ import {
 import { formatSetting } from "../ab";
 import type { Preset } from "../presets";
 import {
-  cellJobs, cellStats, checkNote, cleanName, COLUMN_KEYS, columnSummary, CONCURRENCY_CHOICES, defaultSetlistName, jobCount,
-  lampOf, loadSavedPlan, MAX_COLUMNS, MAX_NAME, MAX_NOTE, progressOf, REPEAT_CHOICES, savePlan, type Job, type Lamp,
+  cellJobs, cellStats, checkNote, cleanName, COLUMN_KEYS, columnSummary, CONCURRENCY_CHOICES, jobCount,
+  lampOf, loadSavedPlan, MAX_COLUMNS, MAX_NAME, MAX_NOTE, progressOf, REPEAT_CHOICES, savePlan, setlistTitle, type Job, type Lamp,
   type SavedPlan,
 } from "../setlist";
 import type { SetlistControls } from "../useSetlist";
@@ -76,10 +76,8 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
   const [problem, setProblem] = useState<string | null>(null);
   const [menu, setMenu] = useState<"set" | "column" | "concurrency" | null>(null);
   const [picked, setPicked] = useState<{ question: string; column: number } | null>(null);
-  // The next setlist's name and note. The name field holds the suggestion, following the
-  // set, columns, and repeats, until you edit it; ↺ goes back to the suggestion.
+  // The next setlist's name (your words only; the title's facts come from the plan) and note.
   const [nameText, setNameText] = useState("");
-  const [nameEdited, setNameEdited] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -120,21 +118,16 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
     }
   };
 
-  const suggest = () => defaultSetlistName({ set, columns, repeats: saved.repeats });
-  const suggestedName = suggest();
-
   const run = () => {
     if (!canStart || !columns.length) return;
     setPicked(null);
+    const name = cleanName(nameText, MAX_NAME);
     const note = cleanName(noteText, MAX_NOTE);
-    // Untouched, the suggestion is made again so it carries the actual start time.
-    const name = (nameEdited && cleanName(nameText, MAX_NAME)) || cleanName(suggest(), MAX_NAME);
     setlist.start({
-      name,
+      ...(name ? { name } : {}),
       ...(note ? { note } : {}),
       set, columns, repeats: saved.repeats, concurrency: saved.concurrency,
     });
-    setNameEdited(false);
     setNameText("");
     setNoteText("");
   };
@@ -246,27 +239,24 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
       <div className="setlist-name">
         {shown ? (
           <>
-            <span className="caps">NAME</span>
-            <span className="setlist-name-text">{shown.name}</span>
+            <span className="setlist-name-text">{setlistTitle(shown, new Date(state.startedAt ?? Date.now()))}</span>
             {shown.note && <span className="setlist-note-text">{shown.note}</span>}
             {state.runId && <span className="setlist-id selectable" title="This setlist's ID: unique, and on every run">{state.runId}</span>}
           </>
         ) : (
           <>
-            <label className="caps" htmlFor="setlist-name">NAME</label>
+            <span className="setlist-title" title="Built from the setlist's facts; the time is when it starts">
+              {setlistTitle({ set, columns, repeats: saved.repeats })} —
+            </span>
+            <label className="visually-hidden" htmlFor="setlist-name">Name</label>
             <input
               id="setlist-name"
-              value={nameEdited ? nameText : suggestedName}
+              value={nameText}
               maxLength={MAX_NAME}
-              onChange={(e) => {
-                setNameText(e.currentTarget.value);
-                setNameEdited(true);
-              }}
+              placeholder="Add a name…"
+              onChange={(e) => setNameText(e.currentTarget.value)}
               onKeyDown={(e) => e.key === "Enter" && run()}
             />
-            {nameEdited && (
-              <button className="pane-button" onClick={() => setNameEdited(false)} title="Back to the suggested name" aria-label="Back to the suggested name">↺</button>
-            )}
             <label className="caps muted" htmlFor="setlist-note">NOTE</label>
             <input
               id="setlist-note"
@@ -279,7 +269,7 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
             />
           </>
         )}
-        <span className="hint">{shown ? "EH-1 lists setlists by name and ID." : "Keep it, add to it, or replace it. An ID is added at start."}</span>
+        <span className="hint">{shown ? "EH-1 lists setlists by this title and ID." : "Only your name and note are stored; the rest is built from the setlist."}</span>
       </div>
 
       {problem && <p className="error setlist-problem">{problem}</p>}

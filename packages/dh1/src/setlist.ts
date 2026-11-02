@@ -21,9 +21,10 @@ export const MAX_NAME = 80;
 export const MAX_NOTE = 200;
 
 export interface SetlistPlan {
-  /** What this setlist is testing ("After compressor change"). Every run carries it,
-   *  so EH-1 can list setlists by name. */
-  name: string;
+  /** Your words for what this setlist is testing ("after compressor change"), if any.
+   *  Only this is stored as setlist_name: the set, columns, repeats, and start time are
+   *  already in their own fields, and the on-screen title is built from them. */
+  name?: string;
   /** Optional, one line. */
   note?: string;
   set: QuestionSet;
@@ -73,16 +74,17 @@ export type SetlistAction =
   | { type: "stop"; at: number }
   | { type: "clear" };
 
-/** The suggested name, filled into the NAME field for you to keep, extend, or replace:
- *  "TPC-H · 3 presets × 3 · Nov 2, 14:05". The start time keeps untouched defaults apart. */
-export function defaultSetlistName(
-  plan: Pick<SetlistPlan, "set" | "columns" | "repeats">,
-  date: Date = new Date(),
+/** A setlist's title, for the screen only (never stored): built from its facts, with
+ *  your name after them. "TPC-H · 3 presets × 3 · Nov 2, 14:05 — after compressor change". */
+export function setlistTitle(
+  plan: Pick<SetlistPlan, "set" | "columns" | "repeats" | "name">,
+  startedAt: Date = new Date(),
 ): string {
   const presets = `${plan.columns.length} preset${plan.columns.length === 1 ? "" : "s"}`;
-  const day = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const time = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-  return `${plan.set.name} · ${presets} × ${plan.repeats} · ${day}, ${time}`;
+  const day = startedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const time = `${String(startedAt.getHours()).padStart(2, "0")}:${String(startedAt.getMinutes()).padStart(2, "0")}`;
+  const facts = `${plan.set.name} · ${presets} × ${plan.repeats} · ${day}, ${time}`;
+  return plan.name ? `${facts} — ${plan.name}` : facts;
 }
 
 /** A setlist's ID, unique and sortable: "sl-2026-11-02-1405-a7f1" (local start date and
@@ -184,7 +186,7 @@ export function jobRequest(face: FaceSettings, state: SetlistState, job: Job): R
       setlist: plan.set.id,
       setlist_revision: plan.set.revision,
       setlist_run: state.runId,
-      setlist_name: plan.name,
+      ...(plan.name ? { setlist_name: plan.name } : {}),
       ...(plan.note ? { setlist_note: plan.note } : {}),
       question: question.id,
       column: COLUMN_KEYS[job.column],

@@ -252,12 +252,13 @@ compares how the presets behave. Open it from **Setlist** in the header. Choose:
 - **REPEAT** ×1–×5
 - how many runs go **AT A TIME**
 
-The **NAME** field comes filled in ("TPC-H · 3 presets × 3 · Nov 2, 14:05"). Keep
-it, add to it ("… after compressor change"), or replace it; ↺ brings the suggestion
-back. Add a one-line **NOTE** if you like. At start, the setlist also gets an **ID**
-such as `sl-2026-11-02-1405-a7f1` (start date and time, then 4 random characters):
-names can repeat, IDs can't. Every run carries the name and the ID, so EH-1 lists
-setlists by them.
+Each setlist has a title built from its facts: "TPC-H · 3 presets × 3 · Nov 2, 14:05".
+Add a name after it if you like ("— after compressor change"), and a one-line
+**NOTE**. Only your name and note are stored (as the `setlist_name` and
+`setlist_note` labels); the title's facts are already in their own fields. At start,
+the setlist also gets an **ID**, such as `sl-2026-11-02-1405-a7f1` (start date and
+time, then 4 random characters), which is unique and on every run. EH-1 lists
+setlists by title and ID.
 
 Then press **RUN SETLIST**. Each run uses the column's preset settings, on the
 question's own data, with the question's prompt. Runs go question by question, so a

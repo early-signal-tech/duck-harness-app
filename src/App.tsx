@@ -139,10 +139,30 @@ export default function App() {
   );
   const [expanded, setExpanded] = useState<Pane | null>(null);
   const screens = useRef<HTMLDivElement>(null);
+  const log = useRef<HTMLOListElement>(null);
 
   const [view, dispatch] = useReducer(runReducer, IDLE);
   const run = useRef<Run | null>(null);
   const busy = view.phase === "running" || view.phase === "stopping";
+
+  // Keep the newest activity in view, unless you've scrolled up to read something.
+  const following = useRef(true);
+  useEffect(() => {
+    const el = log.current;
+    if (!el) return;
+    const onScroll = () => {
+      following.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    };
+    el.addEventListener("scroll", onScroll);
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+  useEffect(() => {
+    const el = log.current;
+    if (el && following.current) el.scrollTop = el.scrollHeight;
+  }, [view.activity.length]);
+  useEffect(() => {
+    if (view.phase === "running") following.current = true;
+  }, [view.phase]);
   const now = useNow(busy);
 
   useEffect(() => {
@@ -362,13 +382,18 @@ export default function App() {
             ACTIVITY
             <PaneTools pane="activity" expanded={expanded} textSize={layout.textSize} onTextSize={changeTextSize} onExpand={setExpanded} />
           </h2>
-          <ol className="log">
+          <ol className="log" ref={log}>
             {view.activity.map((line, i) => (
-              <li key={i} className={line.kind}>
-                <span className="iter">{String(line.iteration).padStart(2, "0")}</span>
+              <li key={i} className={`${line.kind}${line.kind === "end" && !line.hasAnswer ? " no-answer" : ""}`}>
+                <span className="iter">{line.kind === "end" ? "END" : String(line.iteration).padStart(2, "0")}</span>
                 <div>
                   <span className="what">{line.text}</span>
                   {line.detail && <code className="detail">{line.detail}</code>}
+                  {line.kind === "end" && line.hasAnswer && expanded === "activity" && (
+                    <button className="pane-button show-answer" onClick={() => setExpanded("answer")}>
+                      Show answer →
+                    </button>
+                  )}
                 </div>
               </li>
             ))}

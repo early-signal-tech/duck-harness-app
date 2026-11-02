@@ -440,3 +440,10 @@ input:focus { border-color: var(--accent); }
 .face.expanded-activity .splitter, .face.expanded-answer .splitter,
 .face.expanded-activity .answer, .face.expanded-answer .activity { display: none; }
 .face.expanded-answer .answer { flex: 1; width: auto; }
+
+/* --- the closing line of a run --- */
+.log li.end { margin-top: 0.25em; padding: 0.6em 0.6em; border: 1.5px solid var(--edge); border-radius: 6px; background: var(--field); }
+.log li.end .iter { background: var(--accent); color: var(--accent-ink); }
+.log li.end .what { font-weight: 700; }
+.log li.end.no-answer .iter { background: var(--sel-bg); color: var(--sel-ink); }
+.log li.end .show-answer { align-self: flex-start; margin-top: 0.3em; }

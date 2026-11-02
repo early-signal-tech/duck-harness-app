@@ -82,3 +82,31 @@ describe("cacheHitRate", () => {
     expect(cacheHitRate(usage())).toBe(0);
   });
 });
+
+const last = <T,>(items: T[]): T | undefined => items[items.length - 1];
+
+describe("the closing activity line", () => {
+  it("says the answer is ready, with the run's numbers", () => {
+    const view = runReducer(play(ev({ event: "api_call_start", iteration: 2 })), { type: "finished", result: result(), at: 2000 });
+    expect(last(view.activity)).toEqual({
+      iteration: 2, kind: "end", text: "Answer ready · 2 iterations · 1.2 s · $0.0020", detail: undefined, hasAnswer: true,
+    });
+  });
+
+  it("says when a run was stopped or ended without an answer", () => {
+    const stopped = runReducer(play(), { type: "finished", result: result({ status: "cancelled", text: "" }), at: 2000 });
+    expect(last(stopped.activity)).toMatchObject({ text: expect.stringMatching(/^Run stopped · no answer/), hasAnswer: false });
+    const failed = runReducer(play(), { type: "finished", result: result({ status: "api_error", text: "", error: "overloaded" }), at: 2000 });
+    expect(last(failed.activity)).toMatchObject({ text: expect.stringMatching(/^Run ended · api error · no answer/), detail: "overloaded" });
+  });
+
+  it("notes an answer that came from a limit, like the iteration cap", () => {
+    const view = runReducer(play(), { type: "finished", result: result({ status: "max_iterations", text: "best effort" }), at: 2000 });
+    expect(last(view.activity)?.text).toMatch(/^Answer ready · max iterations/);
+  });
+
+  it("closes a run that couldn't start", () => {
+    const view = runReducer(play(), { type: "failed", error: "FileNotFoundError: x.csv", at: 1500 });
+    expect(last(view.activity)).toMatchObject({ kind: "end", text: "Couldn't run · no answer", hasAnswer: false });
+  });
+});

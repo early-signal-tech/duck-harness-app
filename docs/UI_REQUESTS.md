@@ -22,6 +22,17 @@ When a request is built, mark it done with the PR number rather than deleting it
 
 ## Done
 
+### 4. Activity says when the run has ended — done (PR #2)
+With Activity expanded, nothing else is visible, so there was no way to tell the
+answer had arrived.
+
+- Every run now ends with a closing Activity line: "Answer ready", "Run stopped",
+  "Run ended … no answer", or "Couldn't run". It shows the iterations, time, and cost,
+  plus the error when there is one.
+- While Activity is expanded, that line has a "Show answer →" button that switches the
+  expanded view to the answer.
+- The log follows new lines, unless you've scrolled up to read something.
+
 ### 3. Drag to resize the Activity and Answer panes — done (PR #2)
 A handle where the two panes meet, dragged left or right to trade width between them.
 

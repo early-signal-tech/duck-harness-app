@@ -10,7 +10,10 @@ export type LedState = "off" | "calling" | "done" | "error";
 
 export interface ActivityLine {
   iteration: number;
-  kind: "api" | "tool" | "error" | "thinking" | "edit";
+  // "end" closes every run: the answer is ready, the run stopped, or it failed.
+  kind: "api" | "tool" | "error" | "thinking" | "edit" | "end";
+  /** On the "end" line: whether there is an answer to show. */
+  hasAnswer?: boolean;
   text: string;
   detail?: string;
 }
@@ -80,9 +83,27 @@ function setLed(leds: LedState[], iteration: number, state: LedState): LedState[
   return next;
 }
 
+const rows = (n: number) => `${n.toLocaleString()} row${n === 1 ? "" : "s"}`;
+
 function sqlOf(input: Record<string, unknown>): string | undefined {
   const sql = input.sql ?? input.query;
   return typeof sql === "string" ? sql : undefined;
+}
+
+/** The closing line for a finished run. */
+export function endLine(result: AgentResult, iteration: number): ActivityLine {
+  const facts = [
+    `${result.iterations} iteration${result.iterations === 1 ? "" : "s"}`,
+    `${(result.duration_ms / 1000).toFixed(1)} s`,
+    ...(result.estimated_cost_usd != null ? [`$${result.estimated_cost_usd.toFixed(4)}`] : []),
+  ].join(" · ");
+  const hasAnswer = Boolean(result.text);
+  let text: string;
+  if (result.status === "cancelled") text = "Run stopped · no answer";
+  else if (hasAnswer && result.status === "completed") text = "Answer ready";
+  else if (hasAnswer) text = `Answer ready · ${result.status.replace(/_/g, " ")}`;
+  else text = `Run ended · ${result.status.replace(/_/g, " ")} · no answer`;
+  return { iteration, kind: "end", text: `${text} · ${facts}`, detail: result.error ?? undefined, hasAnswer };
 }
 
 function applyEvent(view: RunView, event: AgentEvent): RunView {
@@ -121,7 +142,7 @@ function applyEvent(view: RunView, event: AgentEvent): RunView {
       // Replace the matching "…" line with the outcome.
       const activity = view.activity.slice();
       const outcome = event.success
-        ? `${event.label} · ${(event.row_count ?? 0).toLocaleString()} rows${event.truncated ? " (truncated)" : ""} · ${event.duration_ms} ms`
+        ? `${event.label} · ${rows(event.row_count ?? 0)}${event.truncated ? " (truncated)" : ""} · ${event.duration_ms} ms`
         : `${event.label} · ${event.error_type ?? "error"}`;
       for (let i = activity.length - 1; i >= 0; i--) {
         if (activity[i].kind === "tool" && activity[i].text === `${event.label}…`) {
@@ -162,12 +183,19 @@ export function runReducer(view: RunView, action: RunAction): RunView {
         phase: "done",
         endedAt: action.at,
         leds,
+        activity: [...view.activity, endLine(action.result, Math.max(view.iteration, action.result.iterations))],
         result: action.result,
         costUsd: action.result.estimated_cost_usd,
         usage: action.result.usage ?? view.usage,
       };
     }
     case "failed":
-      return { ...view, phase: "failed", endedAt: action.at, error: action.error };
+      return {
+        ...view,
+        phase: "failed",
+        endedAt: action.at,
+        error: action.error,
+        activity: [...view.activity, { iteration: view.iteration, kind: "end", text: "Couldn't run · no answer", detail: action.error, hasAnswer: false }],
+      };
   }
 }

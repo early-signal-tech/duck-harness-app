@@ -7,11 +7,14 @@ import {
   applyAppearance, loadAppearance, saveAppearance, watchSystemTheme,
   type Appearance, type DisplayStyle, type ThemeChoice,
 } from "./appearance";
+import { Detail } from "./components/Detail";
 import { Knob } from "./components/Knob";
 import { Markdown } from "./components/Markdown";
 import { MetersPanel } from "./components/MetersPanel";
 import { SourcePanel } from "./components/SourcePanel";
+import { Splitter } from "./components/Splitter";
 import { Harness, type Effort, type Hello, type Run } from "./harness";
+import { DEFAULT_ANSWER_WIDTH, DEFAULT_TEXT_SIZE, loadLayout, saveLayout, stepTextSize, type Layout } from "./layout";
 import { IDLE, runReducer } from "./runState";
 import { loadSettings, MODELS, requestOf, saveSettings, sourceProblem, type FaceSettings } from "./settings";
 import "./App.css";
@@ -66,6 +69,31 @@ function BarSwitch<T extends string>({ label, options, value, onChange }: {
   );
 }
 
+type Pane = "activity" | "answer";
+
+/** A− / A+ and Expand, in each bottom pane's header. */
+function PaneTools({ pane, expanded, textSize, onTextSize, onExpand, dark }: {
+  pane: Pane;
+  expanded: Pane | null;
+  textSize: number;
+  onTextSize: (direction: 1 | -1) => void;
+  onExpand: (pane: Pane | null) => void;
+  dark?: boolean;
+}) {
+  const cls = dark ? "bar-button" : "pane-button";
+  const isOpen = expanded === pane;
+  return (
+    <div className="pane-tools">
+      <button className={cls} onClick={() => onTextSize(-1)} title="Smaller text (⌘−)" aria-label="Smaller text">A−</button>
+      <span className="pane-size" aria-live="polite">{textSize}</span>
+      <button className={cls} onClick={() => onTextSize(1)} title="Larger text (⌘+)" aria-label="Larger text">A+</button>
+      <button className={cls} onClick={() => onExpand(isOpen ? null : pane)} title={isOpen ? "Back to the face (Esc)" : "Fill the window"}>
+        {isOpen ? "Collapse ↙" : "Expand ↗"}
+      </button>
+    </div>
+  );
+}
+
 function clock(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -103,9 +131,39 @@ export default function App() {
     return watchSystemTheme(() => applyAppearance(appearance));
   }, [appearance]);
 
+  const [layout, setLayout] = useState<Layout>(loadLayout);
+  useEffect(() => saveLayout(layout), [layout]);
+  const changeTextSize = useCallback(
+    (direction: 1 | -1 | 0) =>
+      setLayout((l) => ({ ...l, textSize: direction === 0 ? DEFAULT_TEXT_SIZE : stepTextSize(l.textSize, direction) })),
+    [],
+  );
+  const [expanded, setExpanded] = useState<Pane | null>(null);
+  const screens = useRef<HTMLDivElement>(null);
+  const log = useRef<HTMLOListElement>(null);
+
   const [view, dispatch] = useReducer(runReducer, IDLE);
   const run = useRef<Run | null>(null);
   const busy = view.phase === "running" || view.phase === "stopping";
+
+  // Keep the newest activity in view, unless you've scrolled up to read something.
+  const following = useRef(true);
+  useEffect(() => {
+    const el = log.current;
+    if (!el) return;
+    const onScroll = () => {
+      following.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    };
+    el.addEventListener("scroll", onScroll);
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+  useEffect(() => {
+    const el = log.current;
+    if (el && following.current) el.scrollTop = el.scrollHeight;
+  }, [view.activity.length]);
+  useEffect(() => {
+    if (view.phase === "running") following.current = true;
+  }, [view.phase]);
   const now = useNow(busy);
 
   useEffect(() => {
@@ -179,19 +237,31 @@ export default function App() {
     run.current.stop().catch(() => {});
   }, []);
 
-  // Enter (in the prompt) or ⌘↵ runs; Esc stops.
+  // Enter (in the prompt) or ⌘↵ runs. Esc leaves an expanded pane, otherwise stops a
+  // run. ⌘+ / ⌘− / ⌘0 change the Activity and Answer text size.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      const command = e.metaKey || e.ctrlKey;
+      if (e.key === "Enter" && command) {
         e.preventDefault();
         start();
-      } else if (e.key === "Escape" && busy) {
-        stop();
+      } else if (e.key === "Escape") {
+        if (expanded) setExpanded(null);
+        else if (busy) stop();
+      } else if (command && (e.key === "=" || e.key === "+")) {
+        e.preventDefault();
+        changeTextSize(1);
+      } else if (command && e.key === "-") {
+        e.preventDefault();
+        changeTextSize(-1);
+      } else if (command && e.key === "0") {
+        e.preventDefault();
+        changeTextSize(0);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [start, stop, busy]);
+  }, [start, stop, busy, expanded, changeTextSize]);
 
   const elapsed = view.startedAt ? (view.endedAt ?? now) - view.startedAt : 0;
   const priced = hello ? hello.priced_models.includes(settings.model) : true;
@@ -209,7 +279,7 @@ export default function App() {
   else [status, tone] = [server === "ready" ? "READY" : server === "connecting" ? "STARTING ENGINE…" : "ENGINE OFFLINE", server === "down" ? "bad" : "idle"];
 
   return (
-    <div className={`face${dragging ? " dragging" : ""}`}>
+    <div className={`face${dragging ? " dragging" : ""}${expanded ? ` expanded-${expanded}` : ""}`}>
       <header className="bar">
         <div className="brand">
           <span className="wordmark">DH-1</span>
@@ -303,16 +373,28 @@ export default function App() {
         </button>
       </div>
 
-      <div className="screens">
+      <div
+        className="screens"
+        ref={screens}
+        style={{ "--pane-text": `${layout.textSize}px`, "--answer-width": `${layout.answerWidth}px` } as React.CSSProperties}
+      >
         <section className="panel activity">
-          <h2>ACTIVITY</h2>
-          <ol className="log">
+          <h2>
+            ACTIVITY
+            <PaneTools pane="activity" expanded={expanded} textSize={layout.textSize} onTextSize={changeTextSize} onExpand={setExpanded} />
+          </h2>
+          <ol className="log" ref={log}>
             {view.activity.map((line, i) => (
-              <li key={i} className={line.kind}>
-                <span className="iter">{String(line.iteration).padStart(2, "0")}</span>
+              <li key={i} className={`${line.kind}${line.kind === "end" && !line.hasAnswer ? " no-answer" : ""}`}>
+                <span className="iter">{line.kind === "end" ? "END" : String(line.iteration).padStart(2, "0")}</span>
                 <div>
                   <span className="what">{line.text}</span>
-                  {line.detail && <code className="detail">{line.detail}</code>}
+                  {line.detail && <Detail text={line.detail} />}
+                  {line.kind === "end" && line.hasAnswer && expanded === "activity" && (
+                    <button className="pane-button show-answer" onClick={() => setExpanded("answer")}>
+                      Show answer →
+                    </button>
+                  )}
                 </div>
               </li>
             ))}
@@ -322,14 +404,24 @@ export default function App() {
           </ol>
         </section>
 
+        <Splitter
+          container={screens}
+          answerWidth={layout.answerWidth}
+          onChange={(answerWidth) => setLayout((l) => ({ ...l, answerWidth }))}
+          onReset={() => setLayout((l) => ({ ...l, answerWidth: DEFAULT_ANSWER_WIDTH }))}
+        />
+
         <section className="panel answer">
           <h2>
             ANSWER
-            {result?.text && (
-              <button className="bar-button" onClick={() => navigator.clipboard?.writeText(result.text)}>
-                Copy
-              </button>
-            )}
+            <div className="pane-tools">
+              {result?.text && (
+                <button className="bar-button" onClick={() => navigator.clipboard?.writeText(result.text)}>
+                  Copy
+                </button>
+              )}
+              <PaneTools pane="answer" expanded={expanded} textSize={layout.textSize} onTextSize={changeTextSize} onExpand={setExpanded} dark />
+            </div>
           </h2>
           <div className="answer-well">
             {view.phase === "idle" && <p className="faint">The answer appears here when a run finishes.</p>}

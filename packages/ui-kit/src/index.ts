@@ -7,6 +7,6 @@ export type { EngineStatus } from "./HostBar";
 export { Knob, SteppedKnob, clampToStep, valueFromDrag } from "./Knob";
 export { Toggle } from "./Toggle";
 export type { KnobProps } from "./Knob";
-export { Markdown } from "./Markdown";
+export { Markdown, slugify } from "./Markdown";
 export { Splitter, splitWidthAt, SPLITTER_GUTTER } from "./Splitter";
 export { Menu, MenuDivider, MenuItem, MenuSection } from "./Menu";

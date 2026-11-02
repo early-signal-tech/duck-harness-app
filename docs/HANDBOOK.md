@@ -51,7 +51,7 @@ finishes.
 ## 2. The face at a glance
 
 ```
-┌ Header: DH-1 · presets ‹ › · A | B · A→B · Compare · Setlist · ⚙ · engine ────┐
+┌ Header: DH-1 · presets ‹ › · A | B · A→B · Compare · Setlist · Handbook · ⚙ ──┐
 ├ SOURCE ┬ AGENT ─────────────────┬ CONTEXT COMPRESSOR ┬ METERS ───────────────┤
 │ data   │ model, effort, knobs   │ threshold/keep/... │ IN OUT CACHE, cost,   │
 │        │                        │ context meters     │ iteration LEDs        │
@@ -61,15 +61,16 @@ finishes.
 ```
 
 The top row is everything that shapes a run. The middle is the question. The bottom
-is what happened and what came back. Compare and Setlist are full screens that take
-the face's place until you go back.
+is what happened and what came back. Compare, Setlist, and the Handbook are full
+screens that take the face's place until you go back.
 
 ## 3. Header bar
 
 The dark bar across the top holds the app's name, then DH-1's own controls: the
-preset bar, the A/B switch, **Compare**, and **Setlist**. On the right are
-**SETTINGS** (see [Settings](#16-settings)) and the **engine light**, which reads
-ENGINE when it's up, STARTING, or OFFLINE. If it's offline, nothing can run, and the
+preset bar, the A/B switch, **Compare**, **Setlist**, and **Handbook**, which opens
+this document inside the app (its contents links work, and Esc goes back). On the
+right are **SETTINGS** (see [Settings](#16-settings)) and the **engine light**, which
+reads ENGINE when it's up, STARTING, or OFFLINE. If it's offline, nothing can run, and the
 status line in METERS says so.
 
 ## 4. Presets
@@ -318,8 +319,8 @@ share them.
 | Key | Does |
 |---|---|
 | Enter (in the prompt), ⌘↵ | Run the active slot |
-| Esc | Close a menu; else leave Setlist or Compare; else collapse an expanded pane; else stop a run |
-| ⌘+ / ⌘− / ⌘0 | Larger / smaller / default text in Activity, Answer, Compare, and Setlist |
+| Esc | Close a menu; else leave Setlist, Compare, or the Handbook; else collapse an expanded pane; else stop a run |
+| ⌘+ / ⌘− / ⌘0 | Larger / smaller / default text in Activity, Answer, Compare, Setlist, and the Handbook |
 | Arrow keys, scroll (on a knob) | Turn the knob |
 | Double-click (knob, divider) | Reset to the default |
 

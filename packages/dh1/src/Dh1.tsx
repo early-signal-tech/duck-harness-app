@@ -14,6 +14,7 @@ import { AbSwitch } from "./components/AbSwitch";
 import { AgentPanel } from "./components/AgentPanel";
 import { CompareView } from "./components/CompareView";
 import { CompressorPanel } from "./components/CompressorPanel";
+import { HelpView } from "./components/HelpView";
 import { Detail } from "./components/Detail";
 import { MetersPanel } from "./components/MetersPanel";
 import { PresetBar } from "./components/PresetBar";
@@ -51,6 +52,7 @@ const STATUS_TEXT: Record<string, string> = {
 };
 
 type Pane = "activity" | "answer";
+type Screen = "face" | "compare" | "setlist" | "help";
 
 /** A− / A+ and Expand, in each bottom pane's header. */
 function PaneTools({ pane, expanded, textSize, onTextSize, onExpand, dark }: {
@@ -127,9 +129,12 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
   const isBusy = (v: typeof viewA) => v.phase === "running" || v.phase === "stopping";
   const busy = isBusy(view);
   const anyBusy = isBusy(viewA) || isBusy(viewB);
-  const [comparing, setComparing] = useState(false);
-  // The Setlist screen. A running setlist has the engine to itself: RUN and RUN A+B wait.
-  const [setlistOpen, setSetlistOpen] = useState(false);
+  // Compare, Setlist, and the Handbook take over the face until you go back.
+  const [screen, setScreen] = useState<Screen>("face");
+  const comparing = screen === "compare";
+  const setlistOpen = screen === "setlist";
+  const toggleScreen = (next: Screen) => setScreen((current) => (current === next ? "face" : next));
+  // A running setlist has the engine to itself: RUN and RUN A+B wait.
   const setlist = useSetlist(harness, settings);
 
   // Keep the newest activity in view, unless you've scrolled up to read something.
@@ -249,8 +254,7 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
         e.preventDefault();
         start();
       } else if (e.key === "Escape") {
-        if (setlistOpen) setSetlistOpen(false);
-        else if (comparing) setComparing(false);
+        if (screen !== "face") setScreen("face");
         else if (expanded) setExpanded(null);
         else if (anyBusy) stop();
       } else if (command && (e.key === "=" || e.key === "+")) {
@@ -266,7 +270,7 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [start, stop, anyBusy, expanded, comparing, setlistOpen, changeTextSize]);
+  }, [start, stop, anyBusy, expanded, screen, changeTextSize]);
 
   const elapsed = view.startedAt ? (view.endedAt ?? now) - view.startedAt : 0;
   const priced = hello ? hello.priced_models.includes(settings.model) : true;
@@ -298,33 +302,37 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
         onCopy={() => setSettings(copyToOther)}
         canCompare={Boolean(viewA.result || viewB.result)}
         onCompare={() => {
-          setSetlistOpen(false);
-          setComparing(true);
+          setScreen("compare");
         }}
       />
       <button
         className={`bar-button setlist-open${setlist.busy ? " busy" : ""}`}
         aria-pressed={setlistOpen}
-        onClick={() => {
-          setComparing(false);
-          setSetlistOpen((open) => !open);
-        }}
+        onClick={() => toggleScreen("setlist")}
         title={setlist.busy ? "A setlist is running: show it" : "Run a set of questions against several presets"}
       >
         {setlist.busy ? `SETLIST ${setlistProgress.settled}/${setlistProgress.total}` : "Setlist"}
+      </button>
+      <button
+        className="bar-button help-open"
+        aria-pressed={screen === "help"}
+        onClick={() => toggleScreen("help")}
+        title="The DH-1 handbook: every feature, briefly"
+      >
+        Handbook
       </button>
     </>
   );
 
   return (
-    <div className={`dh1${dragging ? " dragging" : ""}${expanded ? ` expanded-${expanded}` : ""}${comparing ? " comparing" : ""}${setlistOpen ? " setlisting" : ""}`}>
+    <div className={`dh1${dragging ? " dragging" : ""}${expanded ? ` expanded-${expanded}` : ""}${screen !== "face" ? ` screen-${screen}` : ""}`}>
       {toolbar ? createPortal(deviceToolbar, toolbar) : <div className="bar dh1-toolbar">{deviceToolbar}</div>}
 
       {comparing && <CompareView
           face={settings}
           views={views}
           presets={presets.all}
-          onBack={() => setComparing(false)}
+          onBack={() => setScreen("face")}
           textSize={layout.textSize}
           onTextSize={changeTextSize}
         />}
@@ -334,16 +342,18 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
           presets={presets.all}
           canStart={!setlistBlocked}
           blockedReason={setlistBlocked}
-          onBack={() => setSetlistOpen(false)}
+          onBack={() => setScreen("face")}
           onLoad={(preset, question, set) => {
             const source = questionSource(set, question);
             setSettings((s) => applyPreset({ ...s, prompt: question.prompt }, { ...preset, source }));
             setFocus(null);
-            setSetlistOpen(false);
+            setScreen("face");
           }}
           textSize={layout.textSize}
           onTextSize={changeTextSize}
         />}
+
+      {screen === "help" && <HelpView onBack={() => setScreen("face")} textSize={layout.textSize} onTextSize={changeTextSize} />}
 
       <div className="dh1-row">
         <SourcePanel settings={settings} update={update} addFiles={addFiles} />

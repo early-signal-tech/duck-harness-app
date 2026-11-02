@@ -398,3 +398,118 @@
   background: var(--bar-sel-bg); color: var(--bar-sel-ink); font: 700 12px/1 var(--mono);
 }
 .dh1 .compare .small { font-size: calc(var(--pane-text, 16px) * 0.9); }
+
+/* --- SETLIST (replaces the face while open) --- */
+.setlist-open { flex: none; height: 32px; padding: 0 12px; font-size: 12px; white-space: nowrap; }
+/* The header got one more button: keep its labels on one line; the preset field gives way. */
+.ab .bar-button { white-space: nowrap; }
+.host-slot .preset-bar { min-width: 0; }
+.host-slot .bar-field { width: auto; flex: 0 1 260px; min-width: 170px; }
+.setlist-open[aria-pressed="true"] { background: var(--bar-sel-bg); color: var(--bar-sel-ink); }
+.setlist-open.busy { border-color: var(--accent); font: 700 11px/1 var(--mono); letter-spacing: 0.08em; }
+.setlist-open.busy::before {
+  content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 6px; vertical-align: 1px;
+  border-radius: 50%; background: var(--accent); animation: pulse 0.8s ease-in-out infinite;
+}
+
+.dh1.setlisting .dh1-row, .dh1.setlisting .prompt, .dh1.setlisting .screens { display: none; }
+.dh1 .setlist { flex: 1; min-height: 0; gap: 12px; font-size: calc(var(--pane-text, 16px) * 0.85); }
+.dh1 .setlist-head { justify-content: flex-start; flex-wrap: wrap; gap: 10px; }
+.dh1 .setlist-head .pane-tools { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.dh1 .field-button {
+  height: 30px; padding: 0 10px; border: 1px solid var(--field-edge); border-radius: 5px;
+  background: var(--field); color: var(--ink); font: 600 11px/1 var(--mono); letter-spacing: 0.06em; white-space: nowrap;
+}
+.dh1 .setlist-head button:disabled { opacity: 0.45; }
+.dh1 .setlist-control { display: flex; align-items: center; gap: 6px; }
+.dh1 .stepper { display: flex; border: 1px solid var(--field-edge); border-radius: 5px; overflow: hidden; }
+.dh1 .stepper button {
+  height: 28px; padding: 0 8px; border: 0; border-left: 1px solid var(--rule);
+  background: var(--field); color: var(--ink); font: 600 11px/1 var(--mono);
+}
+.dh1 .stepper button:first-child { border-left: 0; }
+.dh1 .stepper button.on { background: var(--sel-bg); color: var(--sel-ink); }
+.dh1 .setlist-count { color: var(--muted); letter-spacing: 0.08em; }
+.dh1 .setlist .run, .dh1 .setlist .stop {
+  display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 14px; border-radius: 6px;
+  font: 700 11px/1 var(--mono); letter-spacing: 0.12em;
+}
+.dh1 .setlist .run { border: 0; background: var(--accent); color: var(--accent-ink); }
+.dh1 .setlist .stop { border: 1.5px solid var(--edge); background: var(--field); color: var(--ink); }
+.dh1 .setlist-problem { font-size: 12px; }
+
+.dh1 .setlist-progress { display: flex; align-items: center; gap: 12px; font: 500 12px/1.3 var(--mono); color: var(--muted); }
+.dh1 .setlist-progress .track { flex: 0 0 220px; height: 6px; border: 1px solid var(--edge); border-radius: 3px; overflow: hidden; }
+.dh1 .setlist-progress .fill { height: 100%; background: var(--edge); transition: width 0.3s; }
+
+.dh1 .setlist-body { flex: 1; min-height: 0; display: flex; gap: 12px; }
+.dh1 .setlist-grid-wrap { flex: 1; min-width: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.dh1 .setlist-grid { border-collapse: separate; border-spacing: 6px; margin: -6px; font-size: 1em; }
+.dh1 .setlist-grid th, .dh1 .setlist-grid td { text-align: left; vertical-align: top; font-weight: 400; }
+.dh1 .setlist-grid thead th {
+  position: sticky; top: 0; z-index: 1; padding: 8px 28px 8px 10px; background: var(--panel);
+  border-bottom: 1.5px solid var(--edge);
+}
+.dh1 .setlist-grid thead th.q, .dh1 .setlist-grid tfoot th.q { font: 700 0.8em/1 var(--mono); letter-spacing: 0.12em; color: var(--muted); }
+.dh1 .setlist-grid .col-name { display: block; font: 700 0.85em/1.2 var(--mono); letter-spacing: 0.08em; }
+.dh1 .setlist-grid .col-settings { display: block; margin-top: 3px; font: 400 0.8em/1.2 var(--mono); color: var(--muted); }
+.dh1 .setlist-grid .col-remove {
+  position: absolute; top: 6px; right: 4px; width: 20px; height: 20px; border: 0; background: none;
+  color: var(--muted); font-size: 14px; line-height: 1;
+}
+.dh1 .setlist-grid th.q { width: 260px; min-width: 200px; }
+.dh1 .setlist-grid tbody th.q { padding: 6px 4px; }
+.dh1 .setlist-grid .q-title { display: block; font: 600 1em/1.3 var(--sans); color: var(--ink); }
+.dh1 .setlist-grid .q-note { display: block; font: 400 0.8em/1.3 var(--mono); color: var(--muted); }
+.dh1 .setlist-grid td { min-width: 150px; }
+
+.dh1 .cell {
+  width: 100%; min-height: 48px; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto;
+  gap: 4px 8px; align-items: center; padding: 8px 10px; text-align: left;
+  border: 1px solid var(--field-edge); border-radius: 6px; background: var(--field); color: var(--ink);
+}
+.dh1 .cell.run { border: 1.5px solid var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--field)); }
+.dh1 .cell.queue { border: 1px dotted var(--field-edge); background: transparent; }
+.dh1 .cell.picked { outline: 2px solid var(--edge); outline-offset: 1px; }
+.dh1 .cell:disabled { cursor: default; }
+.dh1 .cell .lamps { display: flex; gap: 4px; grid-column: 1 / -1; }
+.dh1 .cell .meta { font: 500 0.85em/1.2 var(--mono); }
+.dh1 .cell .spread { font: 500 0.8em/1.2 var(--mono); color: var(--muted); }
+.dh1 .lamp { display: inline-block; flex: none; width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid var(--edge); }
+.dh1 .lamp.ok { background: var(--edge); }
+.dh1 .lamp.limit { background: var(--bar-muted); }
+.dh1 .lamp.error { background: var(--field); border: 1.5px dashed var(--danger); }
+.dh1 .lamp.run { background: var(--accent); border-color: var(--accent); animation: pulse 1s ease-in-out infinite; }
+.dh1 .lamp.queue { background: transparent; border: 1px dotted var(--field-edge); }
+.dh1 .lamp.skip { background: transparent; border: 1px solid var(--field-edge); position: relative; }
+.dh1 .lamp.skip::after { content: ""; position: absolute; left: 1px; right: 1px; top: 50%; border-top: 1px solid var(--field-edge); }
+
+.dh1 .setlist-grid tfoot td { padding: 10px; border-top: 1.5px solid var(--edge); font: 400 0.85em/1.5 var(--mono); }
+.dh1 .setlist-grid tfoot td span { display: block; }
+.dh1 .setlist-grid tfoot .sum-main { font-weight: 700; }
+.dh1 .setlist-grid tfoot th.q { padding: 10px 4px; border-top: 1.5px solid var(--edge); }
+
+.dh1 .setlist-check {
+  margin: 0; padding: 10px 12px; border: 1px dashed var(--field-edge); border-radius: 6px;
+  color: var(--muted); font-size: 0.9em; line-height: 1.45;
+}
+.dh1 .setlist-check .caps { margin-right: 8px; color: var(--ink); }
+
+.dh1 .setlist-cell {
+  flex: 0 0 360px; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 8px;
+  padding: 12px; border: 1.5px solid var(--edge); border-radius: 8px; background: var(--field);
+}
+.dh1 .setlist-cell h3 { display: flex; justify-content: space-between; align-items: center; margin: 0; }
+.dh1 .setlist-cell p { margin: 0; }
+.dh1 .setlist-cell .cell-q { font: 700 1.05em/1.3 var(--sans); }
+.dh1 .setlist-cell .cell-prompt { color: var(--muted); font-style: italic; line-height: 1.4; }
+.dh1 .setlist-cell .repeat { border-top: 1px solid var(--rule); padding-top: 8px; }
+.dh1 .setlist-cell summary { display: flex; align-items: center; gap: 8px; cursor: pointer; flex-wrap: wrap; }
+.dh1 .setlist-cell summary .label { font-weight: 600; }
+.dh1 .setlist-cell summary .meta { margin-left: auto; font: 400 0.85em/1.2 var(--mono); color: var(--muted); }
+.dh1 .setlist-cell .repeat-answer { margin-top: 8px; padding: 10px; border-radius: 6px; background: var(--well-dark); color: var(--well-ink); line-height: 1.5; }
+.dh1 .setlist-cell .repeat-answer p { margin: 0 0 6px; }
+.dh1 .setlist-cell .cell-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 8px; }
+.dh1 .setlist .menu { min-width: 400px; }
+.dh1 .setlist .menu-hint { white-space: nowrap; }
+.dh1 .setlist .menu-label { white-space: nowrap; }

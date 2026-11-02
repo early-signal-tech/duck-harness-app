@@ -62,8 +62,9 @@ export function Timeline({ view, maxIterations, threshold, selected, onSelect, o
   const slots = idle ? maxIterations : view.maxIterations;
   const byIteration = new Map(view.iterations.map((i) => [i.iteration, i]));
   const peak = Math.max(0, ...view.iterations.map((i) => i.contextTokens ?? 0));
-  // Scale to the tallest bar, or to the threshold if it's higher, so the line fits.
-  const scale = Math.max(peak, threshold ?? 0, 10_000);
+  // Scale to the tallest bar, or to the threshold if it's higher, with headroom so the
+  // line and its label sit inside the bars area, below the legend.
+  const scale = Math.max(peak, threshold ?? 0, 10_000) * 1.25;
   const height = (tokens: number) => `${Math.max(6, (tokens / scale) * 100)}%`;
 
   return (
@@ -82,7 +83,7 @@ export function Timeline({ view, maxIterations, threshold, selected, onSelect, o
         </div>}
       </div>
       {open && <div className="bars" role="list" aria-label="Iterations">
-        {threshold !== null && !idle && (
+        {threshold !== null && !idle && peak > 0 && (
           <div className="thr" style={{ bottom: `${(threshold / scale) * 100}%` }}>
             <span>THR {kTokens(threshold)}</span>
           </div>

@@ -73,7 +73,7 @@ the preset it came from (id, name, revision, and whether the knobs were edited),
 agent records it in `agent_runs.preset`. The header shows EDITED when the knobs no
 longer match the loaded preset.
 
-UI requests and their triage are tracked in [docs/UI_REQUESTS.md](docs/UI_REQUESTS.md).
+UI requests and their triage are tracked in [docs/UI_REQUESTS.md](docs/UI_REQUESTS.md). Ideas parked on purpose are in [docs/LATER.md](docs/LATER.md).
 
 ## Development
 

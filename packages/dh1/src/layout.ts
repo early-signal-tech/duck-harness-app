@@ -1,5 +1,6 @@
 // Layout preferences for the bottom panes: the Activity / Answer split and their text
-// size. Remembered between launches, like the theme; presets don't carry them.
+// size. Remembered between launches, like the theme; presets don't carry them. The
+// timeline's open state isn't remembered: it starts closed every launch.
 
 export const TEXT_SIZES = [11, 12, 13, 14, 15, 16, 18, 20] as const;
 export const DEFAULT_TEXT_SIZE = 16;
@@ -11,7 +12,7 @@ export const MIN_ACTIVITY_WIDTH = 280;
 export interface Layout {
   answerWidth: number;
   textSize: number;
-  /** The run timeline at the top of Activity: closed by default. */
+  /** The run timeline at the top of Activity: closed at every launch. */
   timelineOpen: boolean;
 }
 
@@ -22,7 +23,7 @@ const STORAGE_KEY = "dh1.layout";
 export function loadLayout(): Layout {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
-    if (saved && typeof saved === "object") return { ...DEFAULT_LAYOUT, ...saved };
+    if (saved && typeof saved === "object") return { ...DEFAULT_LAYOUT, ...saved, timelineOpen: false };
   } catch {
     // Unreadable or blocked storage: use the defaults.
   }
@@ -31,7 +32,8 @@ export function loadLayout(): Layout {
 
 export function saveLayout(layout: Layout): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(layout));
+    const { timelineOpen: _open, ...kept } = layout;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(kept));
   } catch {
     // Not worth interrupting anyone over.
   }

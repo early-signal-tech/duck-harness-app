@@ -4,7 +4,7 @@ import type { AgentResult } from "../harness";
 import { FACTORY_PRESETS } from "../presets";
 import { DEFAULT_SETTINGS } from "../settings";
 import {
-  cellJobs, cellStats, cleanName, defaultSetlistName, columnSummary, jobRequest, lampOf, median, nextJobs, planJobs, progressOf, SETLIST_IDLE,
+  cellJobs, cellStats, cleanName, defaultSetlistName, newSetlistRunId, columnSummary, jobRequest, lampOf, median, nextJobs, planJobs, progressOf, SETLIST_IDLE,
   setlistReducer, spread, type SetlistPlan, type SetlistState,
 } from "../setlist";
 
@@ -151,9 +151,9 @@ describe("the built-in set in a setlist", () => {
 
 describe("naming a setlist", () => {
   it("suggests a name from the set, the columns, and the day", () => {
-    const name = defaultSetlistName({ set, columns: [quick, balanced], repeats: 3 }, new Date(2026, 10, 2));
-    expect(name).toBe("Mini · 2 presets × 3 · Nov 2");
-    expect(defaultSetlistName({ set, columns: [quick], repeats: 1 }, new Date(2026, 0, 9))).toBe("Mini · 1 preset × 1 · Jan 9");
+    const name = defaultSetlistName({ set, columns: [quick, balanced], repeats: 3 }, new Date(2026, 10, 2, 14, 5));
+    expect(name).toBe("Mini · 2 presets × 3 · Nov 2, 14:05");
+    expect(defaultSetlistName({ set, columns: [quick], repeats: 1 }, new Date(2026, 0, 9, 9, 0))).toBe("Mini · 1 preset × 1 · Jan 9, 09:00");
   });
 
   it("keeps names to one tidy line within the label limit", () => {
@@ -166,5 +166,16 @@ describe("naming a setlist", () => {
     const labels = jobRequest(DEFAULT_SETTINGS, state, state.jobs[0]).labels!;
     expect(labels.setlist_name).toBe("Effort check");
     expect("setlist_note" in labels).toBe(false);
+  });
+});
+
+describe("setlist IDs", () => {
+  it("are the start date and time plus 4 random characters, so they sort and never collide", () => {
+    let i = 0;
+    const id = newSetlistRunId(new Date(2026, 10, 2, 14, 5), () => [0, 0.5, 0.99, 0.25][i++ % 4]);
+    expect(id).toBe("sl-2026-11-02-1405-as9i");
+    expect(newSetlistRunId()).toMatch(/^sl-\d{4}-\d{2}-\d{2}-\d{4}-[a-z2-9]{4}$/);
+    const many = new Set(Array.from({ length: 200 }, () => newSetlistRunId(new Date(2026, 10, 2, 14, 5))));
+    expect(many.size).toBeGreaterThan(195);
   });
 });

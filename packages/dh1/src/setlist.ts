@@ -73,14 +73,27 @@ export type SetlistAction =
   | { type: "stop"; at: number }
   | { type: "clear" };
 
-/** The name a setlist gets when you don't give it one: "TPC-H · 3 presets × 3 · Nov 2". */
+/** The suggested name, filled into the NAME field for you to keep, extend, or replace:
+ *  "TPC-H · 3 presets × 3 · Nov 2, 14:05". The start time keeps untouched defaults apart. */
 export function defaultSetlistName(
   plan: Pick<SetlistPlan, "set" | "columns" | "repeats">,
   date: Date = new Date(),
 ): string {
   const presets = `${plan.columns.length} preset${plan.columns.length === 1 ? "" : "s"}`;
   const day = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  return `${plan.set.name} · ${presets} × ${plan.repeats} · ${day}`;
+  const time = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  return `${plan.set.name} · ${presets} × ${plan.repeats} · ${day}, ${time}`;
+}
+
+/** A setlist's ID, unique and sortable: "sl-2026-11-02-1405-a7f1" (local start date and
+ *  time, then 4 random characters). Names can repeat; this can't. It's the setlist_run
+ *  label on every run. */
+export function newSetlistRunId(date: Date = new Date(), random: () => number = Math.random): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  const time = `${pad(date.getHours())}${pad(date.getMinutes())}`;
+  const tail = Array.from({ length: 4 }, () => "abcdefghijkmnpqrstuvwxyz23456789"[Math.floor(random() * 32)]).join("");
+  return `sl-${day}-${time}-${tail}`;
 }
 
 /** The name and note to record: trimmed, one line, within the label limits. */

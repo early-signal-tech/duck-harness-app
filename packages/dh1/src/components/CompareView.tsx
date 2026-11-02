@@ -1,0 +1,127 @@
+// A/B COMPARE: the same prompt on the same data with two sets of settings, side by
+// side. Which settings differ, how each run went, and both answers. Judging which is
+// better is EH-1's job; this shows the facts.
+
+import { Markdown } from "@dh/ui-kit";
+import { diffSettings, settingsForSlot, type Slot } from "../ab";
+import { presetRef, type Preset } from "../presets";
+import { cacheHitRate, promptTokens, type RunView } from "../runState";
+import { agentSettingsOf, type FaceSettings } from "../settings";
+import { kTokens } from "./CompressorPanel";
+import { isAnswer, StructuredAnswer } from "./StructuredAnswer";
+
+interface Props {
+  face: FaceSettings;
+  views: Record<Slot, RunView>;
+  presets: Preset[];
+  onBack: () => void;
+}
+
+interface Stat {
+  label: string;
+  value: (view: RunView) => number | null;
+  format: (value: number) => string;
+  /** When lower is better, the lower value is marked. */
+  lowerIsBetter?: boolean;
+}
+
+const STATS: Stat[] = [
+  { label: "Iterations", value: (v) => v.result?.iterations ?? null, format: String, lowerIsBetter: true },
+  { label: "Time", value: (v) => v.result?.duration_ms ?? null, format: (ms) => `${(ms / 1000).toFixed(1)} s`, lowerIsBetter: true },
+  { label: "Cost", value: (v) => v.result?.estimated_cost_usd ?? null, format: (c) => `$${c.toFixed(4)}`, lowerIsBetter: true },
+  { label: "Prompt tokens", value: (v) => (v.result ? promptTokens(v.usage) : null), format: kTokens, lowerIsBetter: true },
+  { label: "Output tokens", value: (v) => v.result?.usage.output_tokens ?? null, format: kTokens, lowerIsBetter: true },
+  { label: "Cache hit", value: (v) => (v.result ? cacheHitRate(v.usage) : null), format: (r) => `${Math.round(r * 100)}%` },
+  { label: "Peak context", value: (v) => (v.result ? v.peakContextTokens : null), format: kTokens, lowerIsBetter: true },
+  { label: "Clears", value: (v) => (v.result ? v.clears.length : null), format: String },
+];
+
+function statusOf(view: RunView): string {
+  if (view.phase === "running") return "running…";
+  if (view.phase === "stopping") return "stopping…";
+  if (view.phase === "failed") return "couldn't run";
+  if (view.result) return view.result.status.replace(/_/g, " ");
+  return "not run";
+}
+
+export function CompareView({ face, views, presets, onBack }: Props) {
+  const faces = { A: settingsForSlot(face, "A"), B: settingsForSlot(face, "B") };
+  const diff = diffSettings(agentSettingsOf(faces.A), agentSettingsOf(faces.B));
+  const both = views.A.result && views.B.result;
+
+  const presetLabel = (slot: Slot) => {
+    const ref = presetRef(faces[slot], presets);
+    return ref ? `${ref.name}${ref.modified ? " (edited)" : ""}` : "no preset";
+  };
+
+  return (
+    <section className="panel compare">
+      <h2>
+        A/B COMPARE
+        <button className="pane-button" onClick={onBack} title="Back to the plugin (Esc)">Back to plugin</button>
+      </h2>
+      <p className="compare-question">
+        <span className="caps muted">SAME PROMPT, SAME DATA, TWO SETTINGS</span>
+        <span className="quote">“{face.prompt.trim()}”</span>
+      </p>
+
+      <div className="compare-grid">
+        <div className="compare-settings">
+          <span className="caps muted">WHAT'S DIFFERENT</span>
+          {diff.length ? (
+            <table>
+              <thead><tr><th /><th>A</th><th>B</th></tr></thead>
+              <tbody>
+                {diff.map((d) => (
+                  <tr key={d.key}><th>{d.label}</th><td>{d.a}</td><td>{d.b}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="small muted">A and B have the same settings. Differences come down to the model's own variation.</p>
+          )}
+        </div>
+
+        <div className="compare-stats">
+          <table>
+            <thead>
+              <tr><th /><th>A · {presetLabel("A")}</th><th>B · {presetLabel("B")}</th></tr>
+            </thead>
+            <tbody>
+              <tr><th>Status</th><td>{statusOf(views.A)}</td><td>{statusOf(views.B)}</td></tr>
+              {STATS.map((stat) => {
+                const a = stat.value(views.A);
+                const b = stat.value(views.B);
+                const lower = both && stat.lowerIsBetter && a !== null && b !== null && a !== b ? (a < b ? "A" : "B") : null;
+                return (
+                  <tr key={stat.label}>
+                    <th>{stat.label}</th>
+                    <td className={lower === "A" ? "lower" : ""}>{a === null ? "—" : stat.format(a)}</td>
+                    <td className={lower === "B" ? "lower" : ""}>{b === null ? "—" : stat.format(b)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="compare-answers">
+        {(["A", "B"] as Slot[]).map((slot) => {
+          const result = views[slot].result;
+          return (
+            <div key={slot} className="compare-answer">
+              <span className="slot-badge">{slot}</span>
+              <div className="answer-well">
+                {!result && <p className="faint">{views[slot].phase === "failed" ? views[slot].error : statusOf(views[slot])}</p>}
+                {result && (isAnswer(result.answer)
+                  ? <StructuredAnswer answer={result.answer} />
+                  : result.text ? <Markdown text={result.text} /> : <p className="faint">{result.error ?? "No answer."}</p>)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}

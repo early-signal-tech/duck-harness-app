@@ -293,7 +293,14 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
     <div className={`dh1${dragging ? " dragging" : ""}${expanded ? ` expanded-${expanded}` : ""}${comparing ? " comparing" : ""}`}>
       {toolbar ? createPortal(deviceToolbar, toolbar) : <div className="bar dh1-toolbar">{deviceToolbar}</div>}
 
-      {comparing && <CompareView face={settings} views={views} presets={presets.all} onBack={() => setComparing(false)} />}
+      {comparing && <CompareView
+          face={settings}
+          views={views}
+          presets={presets.all}
+          onBack={() => setComparing(false)}
+          textSize={layout.textSize}
+          onTextSize={changeTextSize}
+        />}
 
       <div className="dh1-row">
         <SourcePanel settings={settings} update={update} addFiles={addFiles} />

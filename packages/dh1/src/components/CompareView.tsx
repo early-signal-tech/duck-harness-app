@@ -15,6 +15,9 @@ interface Props {
   views: Record<Slot, RunView>;
   presets: Preset[];
   onBack: () => void;
+  /** The same text size as the Activity and Answer panes (A− / A+, ⌘+ / ⌘−). */
+  textSize: number;
+  onTextSize: (direction: 1 | -1) => void;
 }
 
 interface Stat {
@@ -44,7 +47,7 @@ function statusOf(view: RunView): string {
   return "not run";
 }
 
-export function CompareView({ face, views, presets, onBack }: Props) {
+export function CompareView({ face, views, presets, onBack, textSize, onTextSize }: Props) {
   const faces = { A: settingsForSlot(face, "A"), B: settingsForSlot(face, "B") };
   const diff = diffSettings(agentSettingsOf(faces.A), agentSettingsOf(faces.B));
   const both = views.A.result && views.B.result;
@@ -55,10 +58,15 @@ export function CompareView({ face, views, presets, onBack }: Props) {
   };
 
   return (
-    <section className="panel compare">
+    <section className="panel compare" style={{ "--pane-text": `${textSize}px` } as React.CSSProperties}>
       <h2>
         A/B COMPARE
-        <button className="pane-button" onClick={onBack} title="Back to the plugin (Esc)">Back to plugin</button>
+        <div className="pane-tools">
+          <button className="pane-button" onClick={() => onTextSize(-1)} title="Smaller text (⌘−)" aria-label="Smaller text">A−</button>
+          <span className="pane-size" aria-live="polite">{textSize}</span>
+          <button className="pane-button" onClick={() => onTextSize(1)} title="Larger text (⌘+)" aria-label="Larger text">A+</button>
+          <button className="pane-button" onClick={onBack} title="Back to the plugin (Esc)">Back to plugin</button>
+        </div>
       </h2>
       <p className="compare-question">
         <span className="caps muted">SAME PROMPT, SAME DATA, TWO SETTINGS</span>

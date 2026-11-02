@@ -32,7 +32,8 @@ export function Detail({ text }: { text: string }) {
       }}
     >
       <code ref={ref} className="detail-text">
-        {text}
+        {/* SQL often starts or ends with a newline; don't spend a visible line on it. */}
+        {text.trim()}
       </code>
     </div>
   );

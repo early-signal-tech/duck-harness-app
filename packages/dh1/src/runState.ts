@@ -148,7 +148,7 @@ function applyEvent(view: RunView, event: AgentEvent): RunView {
         toolUses: details.cleared_tool_uses ?? 0,
       };
       const what = clear.tokens
-        ? `Context cleared · −${(clear.tokens / 1000).toFixed(1)}K tokens${clear.toolUses ? ` · ${clear.toolUses} tool results` : ""}`
+        ? `Context cleared · −${(clear.tokens / 1000).toFixed(1)}K tokens${clear.toolUses ? ` · ${clear.toolUses} tool result${clear.toolUses === 1 ? "" : "s"}` : ""}`
         : "Context cleared";
       return { ...add({ iteration: event.iteration, kind: "edit", text: what }), clears: [...view.clears, clear] };
     }

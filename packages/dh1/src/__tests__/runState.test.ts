@@ -135,3 +135,8 @@ describe("the compressor's readings", () => {
     expect(last(view.activity)?.text).toBe("Context cleared · −24.0K tokens · 5 tool results");
   });
 });
+
+it("says 1 tool result, not 1 tool results", () => {
+  const view = play(ev({ event: "context_edit", iteration: 2, details: { cleared_input_tokens: 611, cleared_tool_uses: 1 } }));
+  expect(last(view.activity)?.text).toBe("Context cleared · −0.6K tokens · 1 tool result");
+});

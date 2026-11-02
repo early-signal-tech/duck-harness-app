@@ -13,7 +13,7 @@ export default function App() {
     <div className="host">
       <HostBar
         name="DH-1"
-        tagline="DUCK HARNESS · SQL ANALYTICS AGENT"
+        tagline="DUCKDB HARNESS · SQL ANALYTICS AGENT"
         appearance={appearance}
         onAppearance={setAppearance}
         engine={{ status: engine.status, error: engine.error }}

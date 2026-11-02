@@ -113,6 +113,7 @@ fn stop_server(state: &Harness) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(Harness::default())
         .setup(|app| {
             if let Err(e) = start_server(app.handle()) {

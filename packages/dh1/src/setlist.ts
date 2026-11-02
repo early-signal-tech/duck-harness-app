@@ -6,7 +6,7 @@
 // numbers the grid shows. useSetlist.ts runs it; components/SetlistView.tsx draws it.
 
 import {
-  FACTORY_QUESTION_SETS, questionSource, type Question, type QuestionSet,
+  FACTORY_QUESTION_SETS, hasCheck, questionSource, questionTables, type Category, type Question, type QuestionSet,
 } from "@dh/formats";
 import type { AgentResult, RunRequest } from "./harness";
 import { applyPreset, type Preset } from "./presets";
@@ -114,12 +114,23 @@ export function jobCount(plan: Pick<SetlistPlan, "set" | "columns" | "repeats">)
   return plan.set.questions.length * plan.columns.length * plan.repeats;
 }
 
+/** The questions in scorecard order: by category, in the set's category order, then any
+ *  without one. A set without categories is one group. */
+export function questionGroups(set: QuestionSet): { category?: Category; questions: Question[] }[] {
+  if (!set.categories.length) return [{ questions: set.questions }];
+  const groups: { category?: Category; questions: Question[] }[] = set.categories
+    .map((category) => ({ category, questions: set.questions.filter((q) => q.category === category.id) }))
+    .filter((g) => g.questions.length);
+  const loose = set.questions.filter((q) => !q.category);
+  return loose.length ? [...groups, { questions: loose }] : groups;
+}
+
 /** The order runs go in: question by question, and within a question, repeat by repeat
  *  across the columns. A question's columns run close together in time, so a slow
  *  patch on the API affects them alike instead of landing on one preset. */
 export function planJobs(plan: SetlistPlan): Job[] {
   const jobs: Job[] = [];
-  for (const question of plan.set.questions) {
+  for (const question of questionGroups(plan.set).flatMap((g) => g.questions)) {
     for (let repeat = 1; repeat <= plan.repeats; repeat++) {
       for (let column = 0; column < plan.columns.length; column++) {
         jobs.push({
@@ -186,7 +197,7 @@ export function jobRequest(face: FaceSettings, state: SetlistState, job: Job): R
   const preset = plan.columns[job.column];
   const source = questionSource(plan.set, question);
   const settings = applyPreset({ ...face, prompt: question.prompt }, { ...preset, source });
-  return requestOf(
+  const request = requestOf(
     settings,
     { id: preset.id, name: preset.name, revision: preset.revision, modified: false },
     {
@@ -203,6 +214,12 @@ export function jobRequest(face: FaceSettings, state: SetlistState, job: Job): R
       repeat: job.repeat,
     },
   );
+  // What the face has no control for: the schema the SQL runs in, and the tables whose
+  // schemas are preloaded. [] (or none) means the agent finds tables itself.
+  if (source?.kind === "db" && source.schema) request.source = { db: source.dbPath.trim(), schema: source.schema };
+  const tables = questionTables(plan.set, question);
+  if (tables?.length) request.tables = tables;
+  return request;
 }
 
 // --- what the grid shows ---
@@ -345,8 +362,7 @@ export function progressOf(state: SetlistState): Progress {
 
 /** "has a check" / "no check", for the question column. */
 export function checkNote(question: Question): string {
-  const c = question.check;
-  return c && (c.sql || c.tpchQuery !== undefined || c.expect) ? "has a check" : "no check";
+  return hasCheck(question) ? "has a check" : "no check";
 }
 
 // --- the plan the screen remembers between launches (not the results) ---

@@ -27,6 +27,7 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager, RunEvent, State};
 
 mod presets;
+mod question_sets;
 mod settings;
 
 #[derive(Default)]
@@ -166,7 +167,11 @@ pub fn run() {
             presets::preset_write,
             presets::preset_delete,
             presets::file_read,
-            presets::file_write
+            presets::file_write,
+            question_sets::question_set_list,
+            question_sets::question_set_write,
+            question_sets::question_set_delete,
+            question_sets::question_set_reveal
         ])
         .build(tauri::generate_context!())
         .expect("error while building DH-1")

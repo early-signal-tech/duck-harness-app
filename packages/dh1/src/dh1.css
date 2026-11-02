@@ -546,3 +546,8 @@
 .dh1 .setlist-name .setlist-id { font: 400 11px/1 var(--mono); color: var(--muted); }
 .dh1 .setlist-name input#setlist-name { width: 380px; }
 .dh1 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.dh1 .setlist-grid .category-row th {
+  padding: 12px 4px 2px; text-align: left; font: 700 0.8em/1 var(--mono); letter-spacing: 0.12em; color: var(--ink);
+}
+.dh1 .setlist-grid .category-row th span { margin-left: 10px; font-weight: 400; letter-spacing: 0.04em; color: var(--muted); }
+.dh1 .setlist-notice { margin: 0; font: 400 12px/1.4 var(--sans); color: var(--muted); }

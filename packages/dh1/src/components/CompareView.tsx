@@ -21,18 +21,18 @@ interface Stat {
   label: string;
   value: (view: RunView) => number | null;
   format: (value: number) => string;
-  /** When lower is better, the lower value is marked. */
-  lowerIsBetter?: boolean;
+  /** Which way is better, if either: the better value is marked. */
+  better?: "lower" | "higher";
 }
 
 const STATS: Stat[] = [
-  { label: "Iterations", value: (v) => v.result?.iterations ?? null, format: String, lowerIsBetter: true },
-  { label: "Time", value: (v) => v.result?.duration_ms ?? null, format: (ms) => `${(ms / 1000).toFixed(1)} s`, lowerIsBetter: true },
-  { label: "Cost", value: (v) => v.result?.estimated_cost_usd ?? null, format: (c) => `$${c.toFixed(4)}`, lowerIsBetter: true },
-  { label: "Prompt tokens", value: (v) => (v.result ? promptTokens(v.usage) : null), format: kTokens, lowerIsBetter: true },
-  { label: "Output tokens", value: (v) => v.result?.usage.output_tokens ?? null, format: kTokens, lowerIsBetter: true },
-  { label: "Cache hit", value: (v) => (v.result ? cacheHitRate(v.usage) : null), format: (r) => `${Math.round(r * 100)}%` },
-  { label: "Peak context", value: (v) => (v.result ? v.peakContextTokens : null), format: kTokens, lowerIsBetter: true },
+  { label: "Iterations", value: (v) => v.result?.iterations ?? null, format: String, better: "lower" },
+  { label: "Time", value: (v) => v.result?.duration_ms ?? null, format: (ms) => `${(ms / 1000).toFixed(1)} s`, better: "lower" },
+  { label: "Cost", value: (v) => v.result?.estimated_cost_usd ?? null, format: (c) => `$${c.toFixed(4)}`, better: "lower" },
+  { label: "Prompt tokens", value: (v) => (v.result ? promptTokens(v.usage) : null), format: kTokens, better: "lower" },
+  { label: "Output tokens", value: (v) => v.result?.usage.output_tokens ?? null, format: kTokens, better: "lower" },
+  { label: "Cache hit", value: (v) => (v.result ? cacheHitRate(v.usage) : null), format: (r) => `${Math.round(r * 100)}%`, better: "higher" },
+  { label: "Peak context", value: (v) => (v.result ? v.peakContextTokens : null), format: kTokens, better: "lower" },
   { label: "Clears", value: (v) => (v.result ? v.clears.length : null), format: String },
 ];
 
@@ -92,12 +92,14 @@ export function CompareView({ face, views, presets, onBack }: Props) {
               {STATS.map((stat) => {
                 const a = stat.value(views.A);
                 const b = stat.value(views.B);
-                const lower = both && stat.lowerIsBetter && a !== null && b !== null && a !== b ? (a < b ? "A" : "B") : null;
+                const winner = both && stat.better && a !== null && b !== null && a !== b
+                  ? (a < b) === (stat.better === "lower") ? "A" : "B"
+                  : null;
                 return (
                   <tr key={stat.label}>
                     <th>{stat.label}</th>
-                    <td className={lower === "A" ? "lower" : ""}>{a === null ? "—" : stat.format(a)}</td>
-                    <td className={lower === "B" ? "lower" : ""}>{b === null ? "—" : stat.format(b)}</td>
+                    <td className={winner === "A" ? `better ${stat.better}` : ""}>{a === null ? "—" : stat.format(a)}</td>
+                    <td className={winner === "B" ? `better ${stat.better}` : ""}>{b === null ? "—" : stat.format(b)}</td>
                   </tr>
                 );
               })}

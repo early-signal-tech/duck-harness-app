@@ -1,25 +1,22 @@
-// DH-1's face, laid out like the wireframe: a header bar; SOURCE, AGENT, and METERS;
-// the prompt bar; then the run's activity and the answer.
+// The DH-1 device: SOURCE, AGENT, and METERS; the prompt bar; then the run's activity
+// and the answer. A host (the standalone app, later the rack) gives it an engine
+// connection (useEngine) and draws the window chrome around it.
 
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import {
-  applyAppearance, loadAppearance, saveAppearance, watchSystemTheme,
-  type Appearance, type DisplayStyle, type ThemeChoice,
-} from "./appearance";
+import { Knob, Markdown, Splitter } from "@dh/ui-kit";
 import { Detail } from "./components/Detail";
-import { Knob } from "./components/Knob";
-import { Markdown } from "./components/Markdown";
 import { MetersPanel } from "./components/MetersPanel";
 import { SourcePanel } from "./components/SourcePanel";
-import { Splitter } from "./components/Splitter";
-import { Harness, type Effort, type Hello, type Run } from "./harness";
-import { DEFAULT_ANSWER_WIDTH, DEFAULT_TEXT_SIZE, loadLayout, saveLayout, stepTextSize, type Layout } from "./layout";
+import type { Effort, Run } from "./harness";
+import {
+  DEFAULT_ANSWER_WIDTH, DEFAULT_TEXT_SIZE, loadLayout, MIN_ACTIVITY_WIDTH, MIN_ANSWER_WIDTH, saveLayout, stepTextSize,
+  type Layout,
+} from "./layout";
 import { IDLE, runReducer } from "./runState";
 import { loadSettings, MODELS, requestOf, saveSettings, sourceProblem, type FaceSettings } from "./settings";
-import "./App.css";
-
-type ServerStatus = "connecting" | "ready" | "down";
+import "./dh1.css";
+import type { EngineConnection } from "./useEngine";
 
 const EFFORTS: Effort[] = ["low", "medium", "high", "xhigh", "max"];
 const MAX_ITERATIONS = 50;
@@ -37,37 +34,6 @@ const STATUS_TEXT: Record<string, string> = {
   interrupted: "INTERRUPTED",
   cancelled: "STOPPED",
 };
-
-const THEMES: { value: ThemeChoice; label: string }[] = [
-  { value: "light", label: "LIGHT" },
-  { value: "dark", label: "DARK" },
-  { value: "system", label: "AUTO" },
-];
-
-const DISPLAYS: { value: DisplayStyle; label: string }[] = [
-  { value: "dark", label: "DARK" },
-  { value: "light", label: "LIGHT" },
-];
-
-function BarSwitch<T extends string>({ label, options, value, onChange }: {
-  label: string;
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (value: T) => void;
-}) {
-  return (
-    <div className="bar-switch">
-      <span>{label}</span>
-      <div role="radiogroup" aria-label={label}>
-        {options.map((o) => (
-          <button key={o.value} role="radio" aria-checked={value === o.value} className={value === o.value ? "on" : ""} onClick={() => onChange(o.value)}>
-            {o.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 type Pane = "activity" | "answer";
 
@@ -109,11 +75,8 @@ function useNow(active: boolean): number {
   return now;
 }
 
-export default function App() {
-  const harness = useRef<Harness | null>(null);
-  const [server, setServer] = useState<ServerStatus>("connecting");
-  const [hello, setHello] = useState<Hello | null>(null);
-  const [serverError, setServerError] = useState<string | null>(null);
+export function Dh1({ engine }: { engine: EngineConnection }) {
+  const { harness, status: server, hello } = engine;
 
   const [settings, setSettings] = useState<FaceSettings>(loadSettings);
   const update = useCallback((patch: Partial<FaceSettings>) => setSettings((s) => ({ ...s, ...patch })), []);
@@ -122,14 +85,6 @@ export default function App() {
   const addFiles = useCallback((paths: string[]) => {
     setSettings((s) => ({ ...s, sourceKind: "files", files: [...new Set([...s.files, ...paths])] }));
   }, []);
-
-  const [appearance, setAppearance] = useState<Appearance>(loadAppearance);
-  useEffect(() => {
-    applyAppearance(appearance);
-    saveAppearance(appearance);
-    if (appearance.theme !== "system") return;
-    return watchSystemTheme(() => applyAppearance(appearance));
-  }, [appearance]);
 
   const [layout, setLayout] = useState<Layout>(loadLayout);
   useEffect(() => saveLayout(layout), [layout]);
@@ -166,28 +121,6 @@ export default function App() {
   }, [view.phase]);
   const now = useNow(busy);
 
-  useEffect(() => {
-    let disposed = false;
-    let connected: Harness | null = null;
-    Harness.connect()
-      .then(async (h) => {
-        if (disposed) return h.dispose();
-        connected = harness.current = h;
-        h.onExit = () => setServer("down");
-        setHello(await h.hello());
-        setServer("ready");
-      })
-      .catch((e) => {
-        if (disposed) return;
-        setServerError(e instanceof Error ? e.message : String(e));
-        setServer("down");
-      });
-    return () => {
-      disposed = true;
-      connected?.dispose();
-    };
-  }, []);
-
   // Data files dropped anywhere on the window go to the sampler.
   const [dragging, setDragging] = useState(false);
   useEffect(() => {
@@ -218,7 +151,7 @@ export default function App() {
   const canRun = server === "ready" && !busy && !problem;
 
   const start = useCallback(() => {
-    const h = harness.current;
+    const h = harness;
     if (!h || !canRun) return;
     dispatch({ type: "start", maxIterations: settings.maxIterations, at: Date.now() });
     const r = h.run(requestOf(settings), (event) => dispatch({ type: "event", event }));
@@ -229,7 +162,7 @@ export default function App() {
       .finally(() => {
         if (run.current === r) run.current = null;
       });
-  }, [canRun, settings]);
+  }, [canRun, harness, settings]);
 
   const stop = useCallback(() => {
     if (!run.current) return;
@@ -279,22 +212,8 @@ export default function App() {
   else [status, tone] = [server === "ready" ? "READY" : server === "connecting" ? "STARTING ENGINE…" : "ENGINE OFFLINE", server === "down" ? "bad" : "idle"];
 
   return (
-    <div className={`face${dragging ? " dragging" : ""}${expanded ? ` expanded-${expanded}` : ""}`}>
-      <header className="bar">
-        <div className="brand">
-          <span className="wordmark">DH-1</span>
-          <span className="tagline">DUCK HARNESS · SQL ANALYTICS AGENT</span>
-        </div>
-        <div className="spacer" />
-        <BarSwitch label="THEME" options={THEMES} value={appearance.theme} onChange={(theme) => setAppearance((a) => ({ ...a, theme }))} />
-        <BarSwitch label="DISPLAYS" options={DISPLAYS} value={appearance.displays} onChange={(displays) => setAppearance((a) => ({ ...a, displays }))} />
-        <div className={`engine ${server}`} title={serverError ?? undefined}>
-          <span className="dot" aria-hidden="true" />
-          {server === "ready" ? "ENGINE" : server === "connecting" ? "STARTING" : "OFFLINE"}
-        </div>
-      </header>
-
-      <div className="rack">
+    <div className={`dh1${dragging ? " dragging" : ""}${expanded ? ` expanded-${expanded}` : ""}`}>
+      <div className="dh1-row">
         <SourcePanel settings={settings} update={update} addFiles={addFiles} />
 
         <section className="panel agent">
@@ -406,7 +325,10 @@ export default function App() {
 
         <Splitter
           container={screens}
-          answerWidth={layout.answerWidth}
+          width={layout.answerWidth}
+          minRight={MIN_ANSWER_WIDTH}
+          minLeft={MIN_ACTIVITY_WIDTH}
+          label="Resize the Activity and Answer panes"
           onChange={(answerWidth) => setLayout((l) => ({ ...l, answerWidth }))}
           onReset={() => setLayout((l) => ({ ...l, answerWidth: DEFAULT_ANSWER_WIDTH }))}
         />

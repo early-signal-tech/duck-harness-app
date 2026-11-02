@@ -7,8 +7,9 @@
 //! process's stderr. When the server exits, a `harness-exit` event is emitted.
 //!
 //! Development: the server runs from a local checkout of duckdb-analytics-agent with
-//! `uv run`. By default that checkout is a sibling of this repo; set DH1_AGENT_DIR to
-//! point somewhere else, and DH1_UV if `uv` isn't on PATH.
+//! `uv run`. By default that checkout is a sibling of this repo (four levels up from
+//! apps/dh1/src-tauri); set DH1_AGENT_DIR to point somewhere else, and DH1_UV if `uv`
+//! isn't on PATH.
 
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
@@ -29,7 +30,7 @@ fn agent_dir() -> PathBuf {
     std::env::var_os("DH1_AGENT_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|| {
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../duckdb-analytics-agent")
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../../duckdb-analytics-agent")
         })
 }
 

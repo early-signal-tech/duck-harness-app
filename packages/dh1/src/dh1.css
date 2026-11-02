@@ -1,0 +1,165 @@
+/* DH-1's own panels. Everything is scoped under .dh1 so another device's styles
+   can't collide with it in the rack. Shared pieces come from @dh/ui-kit. */
+
+
+/* --- source --- */
+.dh1 .source { width: 270px; flex: none; }
+.dh1 .source .segmented button { padding: 0 4px; letter-spacing: 0.04em; font-size: 10.5px; }
+.dh1 .tone { display: flex; align-items: flex-start; gap: 12px; padding-top: 2px; }
+.dh1 .tone-text { display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
+.dh1 .tone-text .caps { font-weight: 700; color: var(--ink); }
+.dh1 .dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 92px;
+  border: 1.5px dashed var(--muted);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--ink-strong);
+}
+.dh1 .dropzone:hover { border-color: var(--edge); }
+.dh1 .tables { margin: 0; padding: 0; list-style: none; max-height: 112px; overflow: auto; }
+.dh1 .tables li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font: 400 12px/1.6 var(--mono);
+  border-bottom: 1px solid var(--rule);
+}
+.dh1 .tables .x { padding: 0 4px; border: 0; background: none; color: var(--muted); font-size: 14px; line-height: 1; }
+.dh1 .tables .x:hover { color: var(--danger); }
+
+/* --- agent --- */
+.dh1-row { flex: none; display: flex; gap: 12px; height: 340px; }
+.dh1 .agent { flex: 1; gap: 18px; }
+.dh1 .model-row { display: flex; align-items: center; gap: 16px; }
+.dh1 .model-row .segmented button { flex: none; padding: 0 14px; }
+
+/* --- meters --- */
+.dh1 .meters { width: 250px; flex: none; }
+.dh1 .vmeters { display: flex; justify-content: space-between; align-items: flex-end; padding: 0 4px; }
+.dh1 .vmeter { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.dh1 .vmeter-bar {
+  position: relative;
+  width: 22px;
+  height: 96px;
+  border: 1.5px solid var(--edge);
+  border-radius: 3px;
+  background: var(--field);
+  overflow: hidden;
+}
+.dh1 .vmeter-bar .fill { position: absolute; left: 0; right: 0; bottom: 0; background: var(--meter); transition: height 0.3s; }
+.dh1 .vmeter-bar .fill.accent { background: var(--accent); }
+.dh1 .vmeter .caps { font-weight: 700; letter-spacing: 0.1em; }
+.dh1 .vmeter .small { font-size: 10px; }
+
+.dh1 .run-status { margin-top: auto; display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.dh1 .run-status .dot { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--edge); }
+.dh1 .run-status.busy .dot { background: var(--accent); border-color: var(--accent); animation: pulse 1s ease-in-out infinite; }
+.dh1 .run-status.ok .dot { background: var(--edge); }
+.dh1 .run-status.warn { color: var(--warn); }
+.dh1 .run-status.warn .dot { background: var(--warn); border-color: var(--warn); }
+.dh1 .run-status.bad { color: var(--danger); }
+.dh1 .run-status.bad .dot { background: var(--danger); border-color: var(--danger); }
+
+/* --- prompt bar --- */
+.dh1 .prompt { flex: none; flex-direction: row; align-items: center; gap: 10px; height: 56px; padding: 0 12px; }
+.dh1 .prompt input { flex: 1; height: 36px; padding: 0 12px; font: 400 14px/1 var(--sans); }
+.dh1 .prompt .run,
+.dh1 .prompt .stop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 18px;
+  border-radius: 6px;
+  font: 700 12px/1 var(--mono);
+  letter-spacing: 0.12em;
+}
+.dh1 .prompt .run { border: 0; background: var(--accent); color: var(--accent-ink); }
+.dh1 .prompt .stop { padding: 0 16px; border: 1.5px solid var(--edge); background: var(--field); color: var(--ink); }
+.dh1 .prompt button:disabled { opacity: 0.35; }
+
+/* --- activity + answer --- */
+.dh1 .screens { flex: 1; min-height: 0; display: flex; gap: 0; }
+.dh1 .activity { flex: 1; min-height: 0; gap: 10px; }
+.dh1 .log { flex: 1; min-height: 0; margin: 0; padding: 0; overflow: auto; list-style: none; font-size: var(--pane-text, 14px); }
+.dh1 .log li { display: flex; gap: 0.75em; align-items: flex-start; padding: 0.5em 0; border-bottom: 1px solid var(--rule); }
+.dh1 .log li:last-child { border-bottom: 0; }
+.dh1 .log li.empty { display: block; border: 0; font: 400 1em/1.4 var(--sans); }
+.dh1 .log .iter {
+  flex: none;
+  padding: 3px 6px;
+  border-radius: 3px;
+  background: var(--sel-bg);
+  color: var(--sel-ink);
+  font: 700 0.8em/1.2 var(--mono);
+}
+.dh1 .log li > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.dh1 .log .what { font: 600 0.92em/1.35 var(--mono); }
+.dh1 .log li.thinking .what { color: var(--muted); }
+.dh1 .log li.error .what { color: var(--danger); }
+.dh1 .log li.edit .what { color: var(--accent); }
+.dh1 .log .detail {
+  padding: 6px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--code-bg);
+  color: var(--code-ink);
+  font: 400 0.86em/1.45 var(--mono);
+}
+.dh1 .log .detail-text {
+  /* Line clamping hides lines 4+ entirely, so no glyph tops peek through. It works
+     here because this element has no padding (the padded box is .detail). */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.dh1 .log .detail.clipped { cursor: pointer; border-bottom-style: dashed; }
+.dh1 .log .detail.open .detail-text { display: block; -webkit-line-clamp: none; }
+.dh1 .log li.thinking .detail { font-family: var(--sans); font-size: 0.92em; }
+
+.dh1 .answer { width: var(--answer-width, 520px); flex: none; min-height: 0; gap: 10px; background: var(--bar-bg); color: var(--bar-ink); border-color: var(--bar-bg); }
+.dh1 .answer-well {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 6px;
+  background: var(--well-dark);
+  color: var(--well-ink);
+  font: 400 var(--pane-text, 14px)/1.6 var(--sans);
+}
+.dh1 .answer-well p { margin: 0 0 8px; }
+.dh1 .faint { color: var(--bar-muted); }
+.dh1 .answer-meta { margin-top: 12px !important; padding-top: 8px; border-top: 1px solid var(--well-rule); color: var(--bar-muted); font: 400 11px/1.5 var(--mono); }
+
+/* --- pane tools: text size, expand --- */
+.dh1 .pane-tools { display: flex; align-items: center; gap: 6px; letter-spacing: 0; }
+.dh1 .pane-size { min-width: 18px; text-align: center; font: 600 10px/1 var(--mono); opacity: 0.7; }
+
+/* --- the closing line of a run --- */
+.dh1 .log li.end { margin-top: 0.25em; padding: 0.6em 0.6em; border: 1.5px solid var(--edge); border-radius: 6px; background: var(--field); }
+.dh1 .log li.end .iter { background: var(--accent); color: var(--accent-ink); }
+.dh1 .log li.end .what { font-weight: 700; }
+.dh1 .log li.end.no-answer .iter { background: var(--sel-bg); color: var(--sel-ink); }
+.dh1 .log li.end .show-answer { align-self: flex-start; margin-top: 0.3em; }
+
+.dh1.dragging .dropzone { border-color: var(--accent); color: var(--accent); }
+
+/* --- an expanded pane fills the device --- */
+.dh1.expanded-activity .dh1-row, .dh1.expanded-activity .prompt,
+.dh1.expanded-answer .dh1-row, .dh1.expanded-answer .prompt,
+.dh1.expanded-activity .splitter, .dh1.expanded-answer .splitter,
+.dh1.expanded-activity .answer, .dh1.expanded-answer .activity { display: none; }
+.dh1.expanded-answer .answer { flex: 1; width: auto; }
+
+/* --- the device itself --- */
+.dh1 { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }

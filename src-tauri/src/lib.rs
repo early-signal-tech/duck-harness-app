@@ -1,0 +1,131 @@
+//! DH-1's native side: starts the Python agent server (duck-harness-serve) as a child
+//! process and passes its JSON Lines protocol to and from the web UI.
+//!
+//! UI -> server: the `harness_send` command writes one request line to the server's stdin.
+//! Server -> UI: each stdout line is emitted as a `harness-message` event (the raw JSON
+//! string; the TypeScript client parses it). stderr (the server's logs) goes to this
+//! process's stderr. When the server exits, a `harness-exit` event is emitted.
+//!
+//! Development: the server runs from a local checkout of duckdb-analytics-agent with
+//! `uv run`. By default that checkout is a sibling of this repo; set DH1_AGENT_DIR to
+//! point somewhere else, and DH1_UV if `uv` isn't on PATH.
+
+use std::io::{BufRead, BufReader, Write};
+use std::path::PathBuf;
+use std::process::{Child, ChildStdin, Command, Stdio};
+use std::sync::Mutex;
+use std::thread;
+use std::time::{Duration, Instant};
+
+use tauri::{AppHandle, Emitter, Manager, RunEvent, State};
+
+#[derive(Default)]
+struct Harness {
+    stdin: Mutex<Option<ChildStdin>>,
+    child: Mutex<Option<Child>>,
+}
+
+fn agent_dir() -> PathBuf {
+    std::env::var_os("DH1_AGENT_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../duckdb-analytics-agent")
+        })
+}
+
+fn start_server(app: &AppHandle) -> Result<(), String> {
+    let dir = agent_dir();
+    let uv = std::env::var("DH1_UV").unwrap_or_else(|_| "uv".into());
+    // The working directory is the agent checkout, so its .env (ANTHROPIC_API_KEY) is
+    // found and traces land in its agent_traces.duckdb, the same file the CLI uses.
+    let mut child = Command::new(&uv)
+        .args(["run", "--project"])
+        .arg(&dir)
+        .arg("duck-harness-serve")
+        .current_dir(&dir)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| {
+            format!("could not start `{uv} run duck-harness-serve` in {}: {e}", dir.display())
+        })?;
+
+    let stdout = child.stdout.take().expect("stdout is piped");
+    let stderr = child.stderr.take().expect("stderr is piped");
+    let handle = app.clone();
+    thread::spawn(move || {
+        for line in BufReader::new(stdout).lines() {
+            match line {
+                Ok(line) if !line.trim().is_empty() => {
+                    let _ = handle.emit("harness-message", line);
+                }
+                Ok(_) => {}
+                Err(_) => break,
+            }
+        }
+        let _ = handle.emit("harness-exit", ());
+    });
+    thread::spawn(move || {
+        for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+            eprintln!("[harness] {line}");
+        }
+    });
+
+    let state = app.state::<Harness>();
+    *state.stdin.lock().unwrap() = child.stdin.take();
+    *state.child.lock().unwrap() = Some(child);
+    Ok(())
+}
+
+/// Send one request to the server. `line` is a JSON object; the newline is added here.
+#[tauri::command]
+fn harness_send(line: String, state: State<Harness>) -> Result<(), String> {
+    if line.contains('\n') {
+        return Err("a request must be a single line of JSON".into());
+    }
+    let mut stdin = state.stdin.lock().unwrap();
+    let pipe = stdin.as_mut().ok_or("the agent server is not running")?;
+    pipe.write_all(line.as_bytes())
+        .and_then(|_| pipe.write_all(b"\n"))
+        .and_then(|_| pipe.flush())
+        .map_err(|e| format!("could not write to the agent server: {e}"))
+}
+
+/// Close the server's stdin (end of input cancels its runs and it exits), then wait a
+/// few seconds for it before killing it.
+fn stop_server(state: &Harness) {
+    state.stdin.lock().unwrap().take();
+    if let Some(mut child) = state.child.lock().unwrap().take() {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while Instant::now() < deadline {
+            if let Ok(Some(_)) = child.try_wait() {
+                return;
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .manage(Harness::default())
+        .setup(|app| {
+            if let Err(e) = start_server(app.handle()) {
+                eprintln!("{e}");
+            }
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![harness_send])
+        .build(tauri::generate_context!())
+        .expect("error while building DH-1")
+        .run(|app, event| {
+            if let RunEvent::Exit = event {
+                stop_server(&app.state::<Harness>());
+            }
+        });
+}

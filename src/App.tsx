@@ -1,173 +1,263 @@
-// Step 2 bench: proves the app <-> agent server bridge end to end. The plugin face
-// (knobs, compressor, meters) replaces this in step 3.
+// DH-1's face: SOURCE, AGENT, and METERS across the top, the prompt and transport in the
+// middle, the answer and the run's activity at the bottom.
 
-import { useEffect, useRef, useState } from "react";
-import { Harness, type AgentEvent, type AgentResult, type Effort, type Hello, type Run } from "./harness";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { Knob } from "./components/Knob";
+import { MetersPanel } from "./components/MetersPanel";
+import { SourcePanel } from "./components/SourcePanel";
+import { Harness, type Effort, type Hello, type Run } from "./harness";
+import { IDLE, runReducer } from "./runState";
+import { loadSettings, MODELS, requestOf, saveSettings, sourceProblem, type FaceSettings } from "./settings";
 import "./App.css";
 
-type Status = "connecting" | "ready" | "down";
+type ServerStatus = "connecting" | "ready" | "down";
 
-function describe(event: AgentEvent): string {
-  switch (event.event) {
-    case "run_start":
-      return `start · ${event.model} · effort ${event.effort}`;
-    case "api_call_start":
-      return `iteration ${event.iteration} · calling Claude…`;
-    case "api_call":
-      return `iteration ${event.iteration} · ${event.stop_reason} · ${event.latency_ms} ms · ${event.context_tokens.toLocaleString()} context tokens`;
-    case "api_error":
-      return `API error: ${event.error}`;
-    case "context_edit":
-      return `context edit · ${JSON.stringify(event.details)}`;
-    case "thinking":
-      return `thinking · ${event.text.slice(0, 160)}${event.text.length > 160 ? "…" : ""}`;
-    case "tool_call_start":
-      return `${event.label} · ${String(event.input.sql ?? event.input.table_name ?? "")}`.trim();
-    case "tool_call":
-      return event.success
-        ? `${event.label} · ${event.row_count ?? 0} rows · ${event.duration_ms} ms`
-        : `${event.label} · ${event.error_type}`;
-    case "run_end":
-      return `end · ${event.status}`;
-  }
+const EFFORTS: Effort[] = ["low", "medium", "high", "xhigh", "max"];
+const MAX_ITERATIONS = 50;
+
+const STATUS_TEXT: Record<string, string> = {
+  completed: "COMPLETED",
+  max_iterations: "HIT ITERATION LIMIT",
+  max_tokens: "HIT TOKEN LIMIT",
+  refusal: "REFUSED",
+  context_window_exceeded: "CONTEXT FULL",
+  unexpected_stop: "UNEXPECTED STOP",
+  api_error: "API ERROR",
+  error: "ERROR",
+  interrupted: "INTERRUPTED",
+  cancelled: "STOPPED",
+};
+
+function clock(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function useNow(active: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active) return;
+    const timer = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(timer);
+  }, [active]);
+  return now;
 }
 
 export default function App() {
   const harness = useRef<Harness | null>(null);
-  const [status, setStatus] = useState<Status>("connecting");
+  const [server, setServer] = useState<ServerStatus>("connecting");
   const [hello, setHello] = useState<Hello | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
 
-  const [prompt, setPrompt] = useState("Which 5 customers spent the most in 1997?");
-  const [sourceKind, setSourceKind] = useState<"tpch" | "db">("tpch");
-  const [dbPath, setDbPath] = useState("");
-  const [effort, setEffort] = useState<Effort>("medium");
+  const [settings, setSettings] = useState<FaceSettings>(loadSettings);
+  const update = useCallback((patch: Partial<FaceSettings>) => setSettings((s) => ({ ...s, ...patch })), []);
+  useEffect(() => saveSettings(settings), [settings]);
 
-  const [run, setRun] = useState<Run | null>(null);
-  const [log, setLog] = useState<string[]>([]);
-  const [cost, setCost] = useState<number | null>(null);
-  const [iteration, setIteration] = useState(0);
-  const [result, setResult] = useState<AgentResult | null>(null);
+  const [view, dispatch] = useReducer(runReducer, IDLE);
+  const run = useRef<Run | null>(null);
+  const busy = view.phase === "running" || view.phase === "stopping";
+  const now = useNow(busy);
 
   useEffect(() => {
     let disposed = false;
     let connected: Harness | null = null;
-    Harness.connect().then(async (h) => {
-      if (disposed) return h.dispose();
-      connected = harness.current = h;
-      h.onExit = () => setStatus("down");
-      try {
-        const info = await h.hello();
-        setHello(info);
-        setEffort(info.defaults.effort);
-        setStatus("ready");
-      } catch (e) {
-        setError(String(e));
-        setStatus("down");
-      }
-    });
+    Harness.connect()
+      .then(async (h) => {
+        if (disposed) return h.dispose();
+        connected = harness.current = h;
+        h.onExit = () => setServer("down");
+        setHello(await h.hello());
+        setServer("ready");
+      })
+      .catch((e) => {
+        if (disposed) return;
+        setServerError(e instanceof Error ? e.message : String(e));
+        setServer("down");
+      });
     return () => {
       disposed = true;
       connected?.dispose();
     };
   }, []);
 
-  function start() {
+  const problem = !settings.prompt.trim() ? "Type a question" : sourceProblem(settings);
+  const canRun = server === "ready" && !busy && !problem;
+
+  const start = useCallback(() => {
     const h = harness.current;
-    if (!h || run) return;
-    setLog([]);
-    setCost(null);
-    setIteration(0);
-    setResult(null);
-    setError(null);
-    const r = h.run(
-      {
-        prompt,
-        source: sourceKind === "tpch" ? { tpch: 0.1 } : { db: dbPath },
-        config: { effort },
-      },
-      (event) => {
-        setLog((lines) => [...lines, describe(event)]);
-        if (event.event === "api_call") {
-          setCost(event.total_cost_usd);
-          setIteration(event.iteration);
-        }
-      },
-    );
-    setRun(r);
+    if (!h || !canRun) return;
+    dispatch({ type: "start", maxIterations: settings.maxIterations, at: Date.now() });
+    const r = h.run(requestOf(settings), (event) => dispatch({ type: "event", event }));
+    run.current = r;
     r.done
-      .then(setResult)
-      .catch((e) => setError(String(e)))
-      .finally(() => setRun(null));
-  }
+      .then((result) => dispatch({ type: "finished", result, at: Date.now() }))
+      .catch((e) => dispatch({ type: "failed", error: e instanceof Error ? e.message : String(e), at: Date.now() }))
+      .finally(() => {
+        if (run.current === r) run.current = null;
+      });
+  }, [canRun, settings]);
+
+  const stop = useCallback(() => {
+    if (!run.current) return;
+    dispatch({ type: "stopping" });
+    run.current.stop().catch(() => {});
+  }, []);
+
+  // ⌘↵ runs, Esc stops.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        start();
+      } else if (e.key === "Escape" && busy) {
+        stop();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [start, stop, busy]);
+
+  const elapsed = view.startedAt ? (view.endedAt ?? now) - view.startedAt : 0;
+  const priced = hello ? hello.priced_models.includes(settings.model) : true;
+  const effortIndex = Math.max(0, EFFORTS.indexOf(settings.effort));
+  const result = view.result;
+
+  let transport: string;
+  if (view.phase === "running") transport = `RUNNING · ${clock(elapsed)}`;
+  else if (view.phase === "stopping") transport = `STOPPING · ${clock(elapsed)}`;
+  else if (view.phase === "done" && result) transport = `${STATUS_TEXT[result.status] ?? result.status.toUpperCase()} · ${clock(elapsed)}`;
+  else if (view.phase === "failed") transport = "COULD NOT RUN";
+  else transport = "READY";
 
   return (
-    <main className="bench">
-      <header>
-        <h1>DH-1</h1>
-        <span className={`status ${status}`}>
-          {status === "ready" ? `agent server · protocol ${hello?.protocol} · ${hello?.defaults.model}` : status === "connecting" ? "starting agent server…" : "agent server not running"}
-        </span>
+    <div className="face">
+      <header className="faceplate">
+        <div className="brand">
+          <span className="wordmark">DH-1</span>
+          <span className="tagline">DUCK HARNESS · SQL ANALYTICS AGENT</span>
+        </div>
+        <div className={`server ${server}`} title={serverError ?? undefined}>
+          <span className="led" />
+          {server === "ready" ? "ENGINE READY" : server === "connecting" ? "STARTING ENGINE…" : "ENGINE OFFLINE"}
+        </div>
       </header>
 
-      <section className="controls">
-        <label>
-          Source
-          <select value={sourceKind} onChange={(e) => setSourceKind(e.currentTarget.value as "tpch" | "db")}>
-            <option value="tpch">TPC-H test tone (SF 0.1)</option>
-            <option value="db">DuckDB file…</option>
-          </select>
-        </label>
-        {sourceKind === "db" && (
-          <label className="grow">
-            Path
-            <input value={dbPath} placeholder="/path/to/data.duckdb" onChange={(e) => setDbPath(e.currentTarget.value)} />
-          </label>
-        )}
-        <label>
-          Effort
-          <select value={effort} onChange={(e) => setEffort(e.currentTarget.value as Effort)}>
-            {(hello?.effort_levels ?? ["low", "medium", "high", "xhigh", "max"]).map((level) => (
-              <option key={level}>{level}</option>
+      <div className="rack">
+        <SourcePanel settings={settings} update={update} />
+
+        <section className="panel agent">
+          <h2>AGENT</h2>
+          <span className="field-label">MODEL</span>
+          <div className="segmented three model" role="radiogroup" aria-label="Model">
+            {MODELS.map((m) => (
+              <button
+                key={m.id}
+                role="radio"
+                aria-checked={settings.model === m.id}
+                className={settings.model === m.id ? "on" : ""}
+                onClick={() => update({ model: m.id })}
+                title={m.id}
+              >
+                <span className="led" />
+                {m.label}
+              </button>
             ))}
-          </select>
-        </label>
-      </section>
+          </div>
+          <div className="knobs">
+            <Knob
+              label="EFFORT"
+              value={effortIndex}
+              min={0}
+              max={EFFORTS.length - 1}
+              defaultValue={EFFORTS.indexOf(hello?.defaults.effort ?? "medium")}
+              format={(i) => EFFORTS[i].toUpperCase()}
+              hint="how hard Claude thinks"
+              onChange={(i) => update({ effort: EFFORTS[i] })}
+            />
+            <Knob
+              label="ITERATIONS"
+              value={settings.maxIterations}
+              min={1}
+              max={MAX_ITERATIONS}
+              defaultValue={hello?.defaults.max_iterations ?? 25}
+              format={(n) => String(n)}
+              hint="tool rounds before wrap-up"
+              ticks={11}
+              onChange={(n) => update({ maxIterations: n })}
+            />
+          </div>
+          {!priced && <p className="note dim">No price table for this model yet, so the cost LCD reads n/a.</p>}
+        </section>
 
-      <textarea value={prompt} onChange={(e) => setPrompt(e.currentTarget.value)} rows={3} />
+        <MetersPanel view={view} maxIterations={settings.maxIterations} priced={priced} />
+      </div>
 
-      <section className="transport">
-        <button className="run" disabled={status !== "ready" || !!run || !prompt.trim()} onClick={start}>
-          RUN
-        </button>
-        <button className="stop" disabled={!run} onClick={() => run?.stop()}>
-          STOP
-        </button>
-        <span className="lcd">{cost == null ? "$—" : `$${cost.toFixed(4)}`}</span>
-        <span className="lcd">iter {iteration}</span>
-      </section>
-
-      {error && <p className="error">{error}</p>}
-
-      <section className="panes">
-        <ol className="log">
-          {log.map((line, i) => (
-            <li key={i}>{line}</li>
-          ))}
-        </ol>
-        <div className="answer">
-          {result ? (
-            <>
-              <p className="meta">
-                {result.status} · {result.iterations} iterations · {(result.duration_ms / 1000).toFixed(1)} s
-              </p>
-              <p>{result.text || result.error}</p>
-            </>
-          ) : (
-            <p className="meta">{run ? "running…" : "The answer appears here."}</p>
-          )}
+      <section className="panel prompt">
+        <h2>PROMPT</h2>
+        <textarea
+          value={settings.prompt}
+          rows={2}
+          spellCheck
+          placeholder="Ask a question about your data…"
+          onChange={(e) => update({ prompt: e.currentTarget.value })}
+        />
+        <div className="transport">
+          <button className="run" disabled={!canRun} onClick={start} title={problem ?? "Run (⌘↵)"}>
+            <span className="led" />
+            RUN
+          </button>
+          <button className="stop" disabled={!busy || view.phase === "stopping"} onClick={stop} title="Stop (Esc)">
+            STOP
+          </button>
+          <span className={`transport-status ${view.phase}${result ? ` ${result.status}` : ""}`}>{transport}</span>
+          {!busy && problem && server === "ready" && <span className="hint">{problem}</span>}
         </div>
       </section>
-    </main>
+
+      <div className="screens">
+        <section className="panel screen answer">
+          <h2>
+            ANSWER
+            {result?.text && (
+              <button className="mini" onClick={() => navigator.clipboard?.writeText(result.text)}>
+                Copy
+              </button>
+            )}
+          </h2>
+          <div className="screen-body">
+            {view.phase === "idle" && <p className="dim">The answer appears here when a run finishes.</p>}
+            {busy && <p className="dim blink">{view.phase === "stopping" ? "Stopping…" : "Working…"}</p>}
+            {view.phase === "failed" && <p className="error">{view.error}</p>}
+            {result && (
+              <>
+                {result.text ? <div className="answer-text">{result.text}</div> : null}
+                {result.error && <p className="error">{result.error}</p>}
+                {!result.text && !result.error && <p className="dim">No answer: the run was stopped.</p>}
+                <p className="meta">
+                  {result.iterations} iterations · {result.api_calls} API calls · {(result.duration_ms / 1000).toFixed(1)} s
+                  {result.estimated_cost_usd != null && ` · $${result.estimated_cost_usd.toFixed(4)}`}
+                  {" · "}
+                  <span className="mono">{result.run_id}</span>
+                </p>
+              </>
+            )}
+          </div>
+        </section>
+
+        <section className="panel screen activity">
+          <h2>ACTIVITY</h2>
+          <ol className="screen-body">
+            {view.activity.map((line, i) => (
+              <li key={i} className={line.kind}>
+                <span className="iter">{String(line.iteration).padStart(2, "0")}</span>
+                <span className="what">{line.text}</span>
+                {line.detail && <span className="detail">{line.detail}</span>}
+              </li>
+            ))}
+            {view.activity.length === 0 && <li className="dim">Tool calls and thinking show up here.</li>}
+          </ol>
+        </section>
+      </div>
+    </div>
   );
 }

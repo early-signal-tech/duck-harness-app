@@ -23,8 +23,16 @@ React UI (src/)  ──invoke("harness_send")──▶  Rust (src-tauri/)  ─�
 - **`src/harness.ts`** is the TypeScript client for the protocol: `hello()`, `run()`
   (with live events), and `stop()`. Its types mirror `duckdb_agent/serve.py` and the
   `EventCallback` events in `duckdb_agent/loop.py`.
-- **`src/App.tsx`** is a test bench for now: source, effort, prompt, RUN/STOP, cost and
-  iteration readouts, the event log, and the answer. The plugin face replaces it.
+- **`src/App.tsx`** is the plugin face: SOURCE (TPC-H test tone, a DuckDB file, or data
+  files), AGENT (model switch, Effort and Iterations knobs), METERS (cost LCD, iteration
+  LEDs, context / token / cache meters), the prompt with RUN and STOP, and the answer and
+  activity screens.
+- **`src/runState.ts`** turns the server's events into what the meters show; the tests
+  in `src/__tests__/` cover it, the knob math, and how settings become a run request.
+
+Knobs: drag up or down (hold Shift for fine control), scroll, or use the arrow keys;
+double-click resets to the default. ⌘↵ runs, Esc stops. The face's settings are
+remembered between launches.
 
 ## Development
 
@@ -42,6 +50,7 @@ Then:
 ```bash
 npm install
 npm run tauri dev
+npm test          # the UI's unit tests
 ```
 
 The app runs the server with `uv run --project ../duckdb-analytics-agent`, from that
@@ -52,7 +61,8 @@ To use a checkout somewhere else, set `DH1_AGENT_DIR`. If `uv` isn't on your PAT
 ## Status
 
 - [x] Tauri app with the Python agent server as a child process
-- [x] TypeScript protocol client and a test bench
-- [ ] Plugin face: model switch, Effort and Iterations knobs, cost LCD, iteration LEDs
+- [x] TypeScript protocol client
+- [x] Plugin face: source, model switch, Effort and Iterations knobs, cost LCD, iteration LEDs, answer
+- [ ] Remaining knobs: result size, timeout, max tokens, structured answer, caching
 - [ ] Context compressor, run timeline, presets, A/B compare, Setlist
 - [ ] Packaging: bundle Python with the app, signing and notarization

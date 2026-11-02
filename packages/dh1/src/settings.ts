@@ -2,6 +2,7 @@
 // launches as a convenience; saved presets come later and will build on this shape.
 
 import type { AgentConfig, Effort, RunRequest, Source } from "./harness";
+import type { PresetRef } from "./presets";
 
 export const MODELS = [
   { id: "claude-haiku-5-5", label: "HAIKU" },
@@ -22,6 +23,8 @@ export interface FaceSettings {
   dbPath: string;
   files: string[];
   prompt: string;
+  /** The preset the knobs were loaded from, or null. */
+  presetId: string | null;
 }
 
 export const DEFAULT_SETTINGS: FaceSettings = {
@@ -33,6 +36,7 @@ export const DEFAULT_SETTINGS: FaceSettings = {
   dbPath: "",
   files: [],
   prompt: "Which 5 customers spent the most in 1997?",
+  presetId: "factory-balanced", // the defaults above are the Balanced preset (presets.ts)
 };
 
 const STORAGE_KEY = "dh1.face";
@@ -77,8 +81,13 @@ export function configOf(settings: FaceSettings): AgentConfig {
   return { model: settings.model, effort: settings.effort, max_iterations: settings.maxIterations };
 }
 
-export function requestOf(settings: FaceSettings): RunRequest {
-  return { prompt: settings.prompt.trim(), source: sourceOf(settings), config: configOf(settings) };
+export function requestOf(settings: FaceSettings, preset?: PresetRef): RunRequest {
+  return {
+    prompt: settings.prompt.trim(),
+    source: sourceOf(settings),
+    config: configOf(settings),
+    ...(preset ? { preset } : {}),
+  };
 }
 
 export function fileName(path: string): string {

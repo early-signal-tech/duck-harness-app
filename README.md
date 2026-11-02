@@ -61,6 +61,15 @@ double-click resets to the default. Enter or ⌘↵ runs, Esc stops (or closes a
 pane), and ⌘+ / ⌘− change the Activity and Answer text size. Settings, theme, and
 layout are remembered between launches.
 
+**Presets** store how the agent runs (model, effort, iterations, and later the other
+knobs), not the source or prompt. They're JSON files in
+`~/Library/Application Support/Duck Harness/Presets/dh1/`. The folder is shared by the
+standalone app and the rack, and you can copy or back up the files directly. Each file
+names its device and format version (`packages/dh1/src/presets.ts`). Every run sends
+the preset it came from (id, name, revision, and whether the knobs were edited), and the
+agent records it in `agent_runs.preset`. The header shows EDITED when the knobs no
+longer match the loaded preset.
+
 UI requests and their triage are tracked in [docs/UI_REQUESTS.md](docs/UI_REQUESTS.md).
 
 ## Development
@@ -94,7 +103,8 @@ To use a checkout somewhere else, set `DH1_AGENT_DIR`. If `uv` isn't on your PAT
 - [x] TypeScript protocol client
 - [x] Plugin face: source, model switch, Effort and Iterations knobs, cost LCD, iteration LEDs, answer
 - [x] Shared UI kit and device/host split, ready for more plugins
-- [ ] Presets (device-aware, recorded in traces)
+- [x] Presets: factory and saved, ‹ › and a menu in the header; saved as files in
+      ~/Library/Application Support/Duck Harness/Presets/dh1/ and recorded with each run
 - [ ] Remaining knobs: result size, timeout, max tokens, structured answer, caching
 - [ ] Context compressor, run timeline, A/B compare, Setlist
 - [ ] EH-1: grades agent runs from the traces (its engine in its own repo)

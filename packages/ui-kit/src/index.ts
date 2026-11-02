@@ -8,3 +8,4 @@ export { Knob, clampToStep, valueFromDrag } from "./Knob";
 export type { KnobProps } from "./Knob";
 export { Markdown } from "./Markdown";
 export { Splitter, splitWidthAt, SPLITTER_GUTTER } from "./Splitter";
+export { Menu, MenuDivider, MenuItem, MenuSection } from "./Menu";

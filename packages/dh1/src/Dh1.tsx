@@ -1,12 +1,16 @@
 // The DH-1 device: SOURCE, AGENT, and METERS; the prompt bar; then the run's activity
 // and the answer. A host (the standalone app, later the rack) gives it an engine
-// connection (useEngine) and draws the window chrome around it.
+// connection (useEngine) and draws the window chrome around it. If the host gives it a
+// toolbar element (a slot in its header bar), the preset bar goes there; otherwise the
+// device shows it in a strip of its own.
 
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Knob, Markdown, Splitter } from "@dh/ui-kit";
 import { Detail } from "./components/Detail";
 import { MetersPanel } from "./components/MetersPanel";
+import { PresetBar } from "./components/PresetBar";
 import { SourcePanel } from "./components/SourcePanel";
 import type { Effort, Run } from "./harness";
 import {
@@ -17,6 +21,7 @@ import { IDLE, runReducer } from "./runState";
 import { loadSettings, MODELS, requestOf, saveSettings, sourceProblem, type FaceSettings } from "./settings";
 import "./dh1.css";
 import type { EngineConnection } from "./useEngine";
+import { usePresets } from "./usePresets";
 
 const EFFORTS: Effort[] = ["low", "medium", "high", "xhigh", "max"];
 const MAX_ITERATIONS = 50;
@@ -75,12 +80,14 @@ function useNow(active: boolean): number {
   return now;
 }
 
-export function Dh1({ engine }: { engine: EngineConnection }) {
+export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: HTMLElement | null }) {
   const { harness, status: server, hello } = engine;
 
   const [settings, setSettings] = useState<FaceSettings>(loadSettings);
   const update = useCallback((patch: Partial<FaceSettings>) => setSettings((s) => ({ ...s, ...patch })), []);
   useEffect(() => saveSettings(settings), [settings]);
+
+  const presets = usePresets(settings, setSettings);
 
   const addFiles = useCallback((paths: string[]) => {
     setSettings((s) => ({ ...s, sourceKind: "files", files: [...new Set([...s.files, ...paths])] }));
@@ -154,7 +161,13 @@ export function Dh1({ engine }: { engine: EngineConnection }) {
     const h = harness;
     if (!h || !canRun) return;
     dispatch({ type: "start", maxIterations: settings.maxIterations, at: Date.now() });
-    const r = h.run(requestOf(settings), (event) => dispatch({ type: "event", event }));
+    const preset = presets.current && {
+      id: presets.current.id,
+      name: presets.current.name,
+      revision: presets.current.revision,
+      modified: presets.modified,
+    };
+    const r = h.run(requestOf(settings, preset), (event) => dispatch({ type: "event", event }));
     run.current = r;
     r.done
       .then((result) => dispatch({ type: "finished", result, at: Date.now() }))
@@ -162,7 +175,7 @@ export function Dh1({ engine }: { engine: EngineConnection }) {
       .finally(() => {
         if (run.current === r) run.current = null;
       });
-  }, [canRun, harness, settings]);
+  }, [canRun, harness, settings, presets.current, presets.modified]);
 
   const stop = useCallback(() => {
     if (!run.current) return;
@@ -213,6 +226,10 @@ export function Dh1({ engine }: { engine: EngineConnection }) {
 
   return (
     <div className={`dh1${dragging ? " dragging" : ""}${expanded ? ` expanded-${expanded}` : ""}`}>
+      {toolbar ? createPortal(<PresetBar presets={presets} />, toolbar) : (
+        <div className="bar dh1-toolbar"><PresetBar presets={presets} /></div>
+      )}
+
       <div className="dh1-row">
         <SourcePanel settings={settings} update={update} addFiles={addFiles} />
 

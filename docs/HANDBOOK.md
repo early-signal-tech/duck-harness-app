@@ -100,11 +100,36 @@ inputs:
 - **TEST TONE:** generated TPC-H data (orders, customers, line items, parts,
   suppliers), built in memory. The SCALE knob sets the size: 0.01, 0.1 (about 100 MB),
   or 1. TPC-H has known correct answers, which makes it the place to compare settings.
-- **LINE IN:** your own DuckDB file, or a `ducklake:` URI. It opens read-only.
+- **LINE IN:** your own DuckDB file, or a `ducklake:` URI. It opens read-only. For a
+  DuckLake that needs credentials, save its connection as a persistent DuckDB secret
+  once, then type `ducklake:<secret name>` here (see below).
 - **SAMPLER:** CSV, TSV, Parquet, or JSON files (gzipped files too), each loaded as a
   table named after the file (`Sales 2026.csv` becomes `sales_2026`).
 
 You can drop data files anywhere on the window to add them to the sampler.
+
+**Connecting a DuckLake.** The engine runs a plain `ATTACH '<what you typed>' AS source
+(READ_ONLY)`, so a DuckLake whose catalog and storage need credentials (Postgres,
+S3, ...) should be saved as persistent secrets, which every DuckDB process on your Mac
+can use:
+
+```sql
+-- once, in the duckdb CLI; stored under ~/.duckdb/stored_secrets/
+CREATE PERSISTENT SECRET my_s3 (TYPE s3, KEY_ID '…', SECRET '…', REGION '…');
+CREATE PERSISTENT SECRET my_lake (
+    TYPE ducklake,
+    METADATA_PATH 'postgres:dbname=… host=… user=… password=…',
+    DATA_PATH 's3://bucket/path/'
+);
+```
+
+Then put `ducklake:my_lake` in LINE IN. To see the secrets you already have, run
+`FROM duckdb_secrets();` in the duckdb CLI: an existing DuckLake secret works right
+away, with no setup.
+
+The lake is attached read-only, so the agent can't change anything, whatever SQL it
+writes. On big tables, keep TIMEOUT and RESULT SIZE modest: every query scans real
+data.
 
 ## 6. AGENT: model and knobs
 
@@ -261,6 +286,9 @@ Labels identify A/B pairs (`ab`, `pair`) and setlist runs (`setlist`, `question`
 including the exact SQL. The run id in the ANSWER pane is the key into all of it.
 These traces are what EH-1, the evaluator plugin, will grade.
 
+Where the traces file lives, the traces server, opening the traces in the duckdb CLI,
+and resetting them are all in [Settings](#16-settings).
+
 ## 16. Settings
 
 **SETTINGS** (the gear in the header) holds what belongs to the app, not to a run:
@@ -305,7 +333,7 @@ share them.
 | Setlist results, the current run's activity | memory | no; everything is in the traces |
 | Your presets | `~/Library/Application Support/Duck Harness/Presets/dh1/*.json` | yes |
 | API key | macOS Keychain, service "Duck Harness" | yes |
-| Traces database choice | `~/Library/Application Support/Duck Harness/settings.json` | yes |
+| Traces database choice (see [Settings](#16-settings)) | `~/Library/Application Support/Duck Harness/settings.json` | yes |
 | Theme, displays | app storage | yes |
 | Runs | `agent_traces.duckdb` in the agent checkout | yes |
 

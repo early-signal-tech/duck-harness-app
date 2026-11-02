@@ -43,6 +43,7 @@ interface Props {
   appearance: Appearance;
   onAppearance: (appearance: Appearance) => void;
   engine?: { status: EngineStatus; error?: string | null };
+  /** Device controls shown next to the name, such as DH-1's preset bar. */
   children?: ReactNode;
 }
 
@@ -53,8 +54,8 @@ export function HostBar({ name, tagline, appearance, onAppearance, engine, child
         <span className="wordmark">{name}</span>
         <span className="tagline">{tagline}</span>
       </div>
-      <div className="spacer" />
       {children}
+      <div className="spacer" />
       <BarSwitch label="THEME" options={THEMES} value={appearance.theme} onChange={(theme) => onAppearance({ ...appearance, theme })} />
       <BarSwitch label="DISPLAYS" options={DISPLAYS} value={appearance.displays} onChange={(displays) => onAppearance({ ...appearance, displays })} />
       {engine && (

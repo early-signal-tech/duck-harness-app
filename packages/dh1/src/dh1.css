@@ -163,3 +163,4 @@
 
 /* --- the device itself --- */
 .dh1 { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+.dh1 .dh1-toolbar { flex: none; height: 48px; }

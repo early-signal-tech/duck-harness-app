@@ -20,6 +20,8 @@ use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Emitter, Manager, RunEvent, State};
 
+mod presets;
+
 #[derive(Default)]
 struct Harness {
     stdin: Mutex<Option<ChildStdin>>,
@@ -122,7 +124,14 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![harness_send])
+        .invoke_handler(tauri::generate_handler![
+            harness_send,
+            presets::preset_list,
+            presets::preset_write,
+            presets::preset_delete,
+            presets::file_read,
+            presets::file_write
+        ])
         .build(tauri::generate_context!())
         .expect("error while building DH-1")
         .run(|app, event| {

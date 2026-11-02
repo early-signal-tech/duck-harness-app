@@ -37,6 +37,10 @@ export interface RunRequest {
   source: Source;
   tables?: string[];
   config?: AgentConfig;
+  /** Recorded with the run (agent_runs.preset); doesn't change it. */
+  preset?: { id?: string; name: string; revision?: number; modified?: boolean };
+  /** The caller's own tags, recorded with the run (agent_runs.labels). */
+  labels?: Record<string, string | number | boolean | null>;
 }
 
 // --- reply shapes ---

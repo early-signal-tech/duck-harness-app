@@ -87,7 +87,7 @@
 /* --- activity + answer --- */
 .dh1 .screens { flex: 1; min-height: 0; display: flex; gap: 0; }
 .dh1 .activity { flex: 1; min-height: 0; gap: 10px; }
-.dh1 .log { flex: 1; min-height: 0; margin: 0; padding: 0; overflow: auto; list-style: none; font-size: var(--pane-text, 14px); }
+.dh1 .log { flex: 1; min-height: 0; margin: 0; padding: 0; overflow: auto; list-style: none; font-size: var(--pane-text, 16px); }
 .dh1 .log li { display: flex; gap: 0.75em; align-items: flex-start; padding: 0.5em 0; border-bottom: 1px solid var(--rule); }
 .dh1 .log li:last-child { border-bottom: 0; }
 .dh1 .log li.empty { display: block; border: 0; font: 400 1em/1.4 var(--sans); }
@@ -136,7 +136,7 @@
   border-radius: 6px;
   background: var(--well-dark);
   color: var(--well-ink);
-  font: 400 var(--pane-text, 14px)/1.6 var(--sans);
+  font: 400 var(--pane-text, 16px)/1.6 var(--sans);
 }
 .dh1 .answer-well p { margin: 0 0 8px; }
 .dh1 .faint { color: var(--bar-muted); }
@@ -335,3 +335,66 @@
 .dh1 .timeline-toggle:hover { color: var(--ink); }
 .dh1 .timeline-toggle .chevron { width: 10px; font-size: 10px; }
 .dh1 .timeline-toggle .summary { margin-left: 6px; font-weight: 400; letter-spacing: 0.04em; text-transform: none; }
+
+/* --- A/B in the header (styled like the wireframe's A | B group) --- */
+.dh1-toolbar, .host-slot { gap: 18px; }
+.ab { margin-left: 12px; }
+.ab-slots { display: flex; border: 1px solid var(--bar-edge); border-radius: 6px; overflow: hidden; }
+.ab-slots button {
+  position: relative;
+  width: 36px;
+  height: 32px;
+  border: 0;
+  border-left: 1px solid var(--bar-edge);
+  background: transparent;
+  color: var(--bar-ink);
+  font: 700 13px/1 var(--mono);
+}
+.ab-slots button:first-child { border-left: 0; }
+.ab-slots button.on { background: var(--bar-sel-bg); color: var(--bar-sel-ink); }
+.ab-lamp { position: absolute; top: 4px; right: 4px; width: 5px; height: 5px; border-radius: 50%; }
+.ab-lamp.busy { background: var(--accent); animation: pulse 0.8s ease-in-out infinite; }
+.ab-lamp.done { background: var(--muted); }
+.ab .bar-button { height: 32px; padding: 0 10px; font-size: 12px; }
+.ab .bar-button:disabled { opacity: 0.4; }
+
+/* --- RUN A+B --- */
+.dh1 .prompt .run-ab {
+  height: 36px;
+  padding: 0 14px;
+  border: 1.5px solid var(--edge);
+  border-radius: 6px;
+  background: var(--field);
+  color: var(--ink);
+  font: 700 12px/1 var(--mono);
+  letter-spacing: 0.12em;
+}
+
+/* --- A/B COMPARE (replaces the face while open) --- */
+.dh1.comparing .dh1-row, .dh1.comparing .prompt, .dh1.comparing .screens { display: none; }
+.dh1 .compare { flex: 1; min-height: 0; gap: 14px; overflow: auto; }
+.dh1 .compare-question { display: flex; flex-direction: column; gap: 6px; margin: 0; }
+.dh1 .compare-question .quote { font: 500 calc(var(--pane-text, 16px) * 1.2)/1.4 var(--sans); }
+.dh1 .compare-grid { display: grid; grid-template-columns: minmax(260px, 1fr) 2fr; gap: 14px; align-items: start; }
+.dh1 .compare-settings, .dh1 .compare-stats {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px; border: 1px solid var(--field-edge); border-radius: 6px; background: var(--field);
+}
+.dh1 .compare table { border-collapse: collapse; width: 100%; font: 400 calc(var(--pane-text, 16px) * 0.95)/1.35 var(--mono); }
+.dh1 .compare th, .dh1 .compare td { padding: 0.45em 0.6em; border-bottom: 1px solid var(--rule); text-align: left; }
+.dh1 .compare thead th { font: 700 0.78em/1.2 var(--mono); letter-spacing: 0.1em; color: var(--muted); }
+.dh1 .compare tbody th { font: 600 0.95em/1.3 var(--sans); color: var(--muted); white-space: nowrap; }
+.dh1 .compare td.better { font-weight: 700; }
+.dh1 .compare td.better.lower::after { content: " ▼"; color: var(--accent); font-size: 0.75em; }
+.dh1 .compare td.better.higher::after { content: " ▲"; color: var(--accent); font-size: 0.75em; }
+.dh1 .compare-answers { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; min-height: 280px; }
+.dh1 .compare-answer {
+  position: relative; display: flex; flex-direction: column; min-height: 0;
+  padding: 12px; border-radius: 10px; background: var(--bar-bg); color: var(--bar-ink);
+}
+.dh1 .compare-answer .answer-well { flex: 1; max-height: 520px; }
+.dh1 .slot-badge {
+  align-self: flex-start; margin-bottom: 8px; padding: 3px 8px; border-radius: 3px;
+  background: var(--bar-sel-bg); color: var(--bar-sel-ink); font: 700 12px/1 var(--mono);
+}
+.dh1 .compare .small { font-size: calc(var(--pane-text, 16px) * 0.9); }

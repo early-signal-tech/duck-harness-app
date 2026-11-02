@@ -8,7 +8,10 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Markdown, Splitter } from "@dh/ui-kit";
+import { copyToOther, settingsForSlot, switchSlot, type Slot } from "./ab";
+import { AbSwitch } from "./components/AbSwitch";
 import { AgentPanel } from "./components/AgentPanel";
+import { CompareView } from "./components/CompareView";
 import { CompressorPanel } from "./components/CompressorPanel";
 import { Detail } from "./components/Detail";
 import { MetersPanel } from "./components/MetersPanel";
@@ -21,7 +24,8 @@ import {
   DEFAULT_ANSWER_WIDTH, DEFAULT_TEXT_SIZE, loadLayout, MIN_ACTIVITY_WIDTH, MIN_ANSWER_WIDTH, saveLayout, stepTextSize,
   type Layout,
 } from "./layout";
-import { IDLE, runReducer } from "./runState";
+import { presetRef } from "./presets";
+import { IDLE, runReducer, type RunAction } from "./runState";
 import { loadSettings, requestOf, saveSettings, sourceProblem, type FaceSettings } from "./settings";
 import "./dh1.css";
 import type { EngineConnection } from "./useEngine";
@@ -108,9 +112,18 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
   const screens = useRef<HTMLDivElement>(null);
   const log = useRef<HTMLOListElement>(null);
 
-  const [view, dispatch] = useReducer(runReducer, IDLE);
-  const run = useRef<Run | null>(null);
-  const busy = view.phase === "running" || view.phase === "stopping";
+  // A/B: each slot has its own run; the face shows the active slot's.
+  const [viewA, dispatchA] = useReducer(runReducer, IDLE);
+  const [viewB, dispatchB] = useReducer(runReducer, IDLE);
+  const views = { A: viewA, B: viewB };
+  const dispatchers: Record<Slot, (action: RunAction) => void> = { A: dispatchA, B: dispatchB };
+  const runs = useRef<Record<Slot, Run | null>>({ A: null, B: null });
+  const slot = settings.abSlot;
+  const view = views[slot];
+  const isBusy = (v: typeof viewA) => v.phase === "running" || v.phase === "stopping";
+  const busy = isBusy(view);
+  const anyBusy = isBusy(viewA) || isBusy(viewB);
+  const [comparing, setComparing] = useState(false);
 
   // Keep the newest activity in view, unless you've scrolled up to read something.
   const following = useRef(true);
@@ -168,32 +181,54 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
 
   const problem = !settings.prompt.trim() ? "Type a question" : sourceProblem(settings);
   const canRun = server === "ready" && !busy && !problem;
+  const canRunBoth = server === "ready" && !anyBusy && !problem;
+
+  /** Run one slot, or both at once (an A/B pair, tagged so its runs can be found together). */
+  const startSlots = useCallback(
+    (slots: Slot[]) => {
+      const h = harness;
+      if (!h) return;
+      const pair = slots.length > 1 ? `ab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}` : null;
+      setFocus(null);
+      for (const s of slots) {
+        const dispatch = dispatchers[s];
+        const face = settingsForSlot(settings, s);
+        dispatch({ type: "start", maxIterations: face.maxIterations, at: Date.now() });
+        const r = h.run(
+          requestOf(face, presetRef(face, presets.all), pair ? { ab: s, pair } : undefined),
+          (event) => dispatch({ type: "event", event }),
+        );
+        runs.current[s] = r;
+        r.done
+          .then((result) => dispatch({ type: "finished", result, at: Date.now() }))
+          .catch((e) => dispatch({ type: "failed", error: e instanceof Error ? e.message : String(e), at: Date.now() }))
+          .finally(() => {
+            if (runs.current[s] === r) runs.current[s] = null;
+          });
+      }
+    },
+    // dispatchers are stable (useReducer), so they're left out.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [harness, settings, presets.all],
+  );
 
   const start = useCallback(() => {
-    const h = harness;
-    if (!h || !canRun) return;
-    dispatch({ type: "start", maxIterations: settings.maxIterations, at: Date.now() });
-    setFocus(null);
-    const preset = presets.current && {
-      id: presets.current.id,
-      name: presets.current.name,
-      revision: presets.current.revision,
-      modified: presets.modified,
-    };
-    const r = h.run(requestOf(settings, preset), (event) => dispatch({ type: "event", event }));
-    run.current = r;
-    r.done
-      .then((result) => dispatch({ type: "finished", result, at: Date.now() }))
-      .catch((e) => dispatch({ type: "failed", error: e instanceof Error ? e.message : String(e), at: Date.now() }))
-      .finally(() => {
-        if (run.current === r) run.current = null;
-      });
-  }, [canRun, harness, settings, presets.current, presets.modified]);
+    if (canRun) startSlots([slot]);
+  }, [canRun, slot, startSlots]);
 
+  const startBoth = useCallback(() => {
+    if (canRunBoth) startSlots(["A", "B"]);
+  }, [canRunBoth, startSlots]);
+
+  /** STOP stops whatever is running, in either slot. */
   const stop = useCallback(() => {
-    if (!run.current) return;
-    dispatch({ type: "stopping" });
-    run.current.stop().catch(() => {});
+    for (const s of ["A", "B"] as Slot[]) {
+      const r = runs.current[s];
+      if (!r) continue;
+      dispatchers[s]({ type: "stopping" });
+      r.stop().catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Enter (in the prompt) or ⌘↵ runs. Esc leaves an expanded pane, otherwise stops a
@@ -205,8 +240,9 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
         e.preventDefault();
         start();
       } else if (e.key === "Escape") {
-        if (expanded) setExpanded(null);
-        else if (busy) stop();
+        if (comparing) setComparing(false);
+        else if (expanded) setExpanded(null);
+        else if (anyBusy) stop();
       } else if (command && (e.key === "=" || e.key === "+")) {
         e.preventDefault();
         changeTextSize(1);
@@ -220,7 +256,7 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [start, stop, busy, expanded, changeTextSize]);
+  }, [start, stop, anyBusy, expanded, comparing, changeTextSize]);
 
   const elapsed = view.startedAt ? (view.endedAt ?? now) - view.startedAt : 0;
   const priced = hello ? hello.priced_models.includes(settings.model) : true;
@@ -236,11 +272,35 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
   } else if (view.phase === "failed") [status, tone] = ["COULD NOT RUN", "bad"];
   else [status, tone] = [server === "ready" ? "READY" : server === "connecting" ? "STARTING ENGINE…" : "ENGINE OFFLINE", server === "down" ? "bad" : "idle"];
 
+  const deviceToolbar = (
+    <>
+      <PresetBar presets={presets} settings={settings} />
+      <AbSwitch
+        slot={slot}
+        phases={{ A: viewA.phase, B: viewB.phase }}
+        onSwitch={() => {
+          setSettings(switchSlot);
+          setFocus(null);
+        }}
+        onCopy={() => setSettings(copyToOther)}
+        canCompare={Boolean(viewA.result || viewB.result)}
+        onCompare={() => setComparing(true)}
+      />
+    </>
+  );
+
   return (
-    <div className={`dh1${dragging ? " dragging" : ""}${expanded ? ` expanded-${expanded}` : ""}`}>
-      {toolbar ? createPortal(<PresetBar presets={presets} settings={settings} />, toolbar) : (
-        <div className="bar dh1-toolbar"><PresetBar presets={presets} settings={settings} /></div>
-      )}
+    <div className={`dh1${dragging ? " dragging" : ""}${expanded ? ` expanded-${expanded}` : ""}${comparing ? " comparing" : ""}`}>
+      {toolbar ? createPortal(deviceToolbar, toolbar) : <div className="bar dh1-toolbar">{deviceToolbar}</div>}
+
+      {comparing && <CompareView
+          face={settings}
+          views={views}
+          presets={presets.all}
+          onBack={() => setComparing(false)}
+          textSize={layout.textSize}
+          onTextSize={changeTextSize}
+        />}
 
       <div className="dh1-row">
         <SourcePanel settings={settings} update={update} addFiles={addFiles} />
@@ -272,13 +332,21 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
             }
           }}
         />
-        <button className="run" disabled={!canRun} onClick={start} title={problem ?? "Run (↵)"}>
+        <button className="run" disabled={!canRun} onClick={start} title={problem ?? `Run ${slot} (↵)`}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 4l14 8-14 8z" /></svg>
           RUN
         </button>
-        <button className="stop" disabled={!busy || view.phase === "stopping"} onClick={stop} title="Stop (Esc)">
+        <button
+          className="stop"
+          disabled={!anyBusy || (viewA.phase !== "running" && viewB.phase !== "running")}
+          onClick={stop}
+          title="Stop (Esc)"
+        >
           <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4" y="4" width="16" height="16" /></svg>
           STOP
+        </button>
+        <button className="run-ab" disabled={!canRunBoth} onClick={startBoth} title={problem ?? "Run A and B at the same time, then compare"}>
+          RUN A+B
         </button>
       </div>
 

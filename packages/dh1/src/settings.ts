@@ -2,6 +2,7 @@
 // launches. The agent settings (AGENT_KEYS) are what a preset stores.
 
 import type { AgentConfig, Effort, RunRequest, Source } from "./harness";
+import type { Slot, SlotSettings } from "./ab";
 import type { PresetRef } from "./presets";
 
 export const MODELS = [
@@ -40,6 +41,11 @@ export interface FaceSettings {
   prompt: string;
   /** The preset the knobs were loaded from, or null. */
   presetId: string | null;
+  // --- A/B (see ab.ts) ---
+  /** The slot the face is showing. */
+  abSlot: Slot;
+  /** The other slot's knobs and preset; null until it's first used (then a copy). */
+  abOther: SlotSettings | null;
 }
 
 /** The agent's own defaults (duckdb_agent/config.py); the server's hello confirms them. */
@@ -65,6 +71,8 @@ export const DEFAULT_SETTINGS: FaceSettings = {
   files: [],
   prompt: "Which 5 customers spent the most in 1997?",
   presetId: "factory-balanced", // the defaults above are the Balanced preset (presets.ts)
+  abSlot: "A",
+  abOther: null,
 };
 
 /** The settings a preset stores, and the AgentConfig field each one sets. */
@@ -163,12 +171,13 @@ export function configOf(settings: FaceSettings): AgentConfig {
   return config as AgentConfig;
 }
 
-export function requestOf(settings: FaceSettings, preset?: PresetRef): RunRequest {
+export function requestOf(settings: FaceSettings, preset?: PresetRef, labels?: RunRequest["labels"]): RunRequest {
   return {
     prompt: settings.prompt.trim(),
     source: sourceOf(settings),
     config: configOf(settings),
     ...(preset ? { preset } : {}),
+    ...(labels ? { labels } : {}),
   };
 }
 

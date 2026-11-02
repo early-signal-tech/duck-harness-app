@@ -2,7 +2,7 @@
 // size. Remembered between launches, like the theme; presets don't carry them.
 
 export const TEXT_SIZES = [11, 12, 13, 14, 15, 16, 18, 20] as const;
-export const DEFAULT_TEXT_SIZE = 14;
+export const DEFAULT_TEXT_SIZE = 16;
 
 export const DEFAULT_ANSWER_WIDTH = 520;
 export const MIN_ANSWER_WIDTH = 320;

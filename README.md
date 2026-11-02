@@ -119,7 +119,8 @@ To use a checkout somewhere else, set `DH1_AGENT_DIR`. If `uv` isn't on your PAT
 - [x] Context compressor: threshold, keep, clear-at-least, sidechain, context and
       gain-reduction meters
 - [x] Run timeline: one bar per iteration (prompt size, what it did, clears)
-- [ ] A/B compare, Setlist
+- [x] A/B compare: two sets of settings, RUN A+B, and a side-by-side view
+- [ ] Setlist
 - [ ] EH-1: grades agent runs from the traces (its engine in its own repo)
 - [ ] The rack: DH-1 and EH-1 side by side
 - [ ] Packaging: bundle Python with the app, signing and notarization

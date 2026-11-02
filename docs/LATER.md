@@ -87,3 +87,11 @@ DH-1 and EH-1 side by side in one window, like an Ableton device chain.
 - Also decides the device size question: fixed-size devices that can fold to a title
   bar, versus faces that stretch.
 - Depends on: EH-1.
+
+## Run on the face while a setlist runs
+For now a setlist has the engine to itself: RUN and RUN A+B are disabled while it's going,
+so its timings and costs aren't skewed by other runs competing for API capacity.
+
+- Later: let RUN work alongside it (the engine can already handle concurrent runs),
+  with the header chip showing the setlist is still going.
+- Probably a toggle, since clean timing data is the reason to keep it exclusive.

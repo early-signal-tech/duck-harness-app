@@ -122,7 +122,8 @@ To use a checkout somewhere else, set `DH1_AGENT_DIR`. If `uv` isn't on your PAT
       gain-reduction meters
 - [x] Run timeline: one bar per iteration (prompt size, what it did, clears)
 - [x] A/B compare: two sets of settings, RUN A+B, and a side-by-side view
-- [ ] Setlist
+- [x] Setlist: a question set × preset columns × repeats, run a few at a time, with
+      medians and spread per cell; every run labelled for EH-1 (docs/QUESTION_SETS.md)
 - [ ] EH-1: grades agent runs from the traces (its engine in its own repo)
 - [ ] The rack: DH-1 and EH-1 side by side
 - [ ] Packaging: bundle Python with the app, signing and notarization

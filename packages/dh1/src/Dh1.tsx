@@ -8,6 +8,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Markdown, Splitter } from "@dh/ui-kit";
+import { questionSource } from "@dh/formats";
 import { copyToOther, settingsForSlot, switchSlot, type Slot } from "./ab";
 import { AbSwitch } from "./components/AbSwitch";
 import { AgentPanel } from "./components/AgentPanel";
@@ -17,6 +18,7 @@ import { Detail } from "./components/Detail";
 import { MetersPanel } from "./components/MetersPanel";
 import { PresetBar } from "./components/PresetBar";
 import { answerText, isAnswer, StructuredAnswer } from "./components/StructuredAnswer";
+import { SetlistView } from "./components/SetlistView";
 import { SourcePanel } from "./components/SourcePanel";
 import { Timeline } from "./components/Timeline";
 import type { Run } from "./harness";
@@ -24,12 +26,14 @@ import {
   DEFAULT_ANSWER_WIDTH, DEFAULT_TEXT_SIZE, loadLayout, MIN_ACTIVITY_WIDTH, MIN_ANSWER_WIDTH, saveLayout, stepTextSize,
   type Layout,
 } from "./layout";
-import { presetRef } from "./presets";
+import { applyPreset, presetRef } from "./presets";
 import { IDLE, runReducer, type RunAction } from "./runState";
+import { progressOf } from "./setlist";
 import { loadSettings, requestOf, saveSettings, sourceProblem, type FaceSettings } from "./settings";
 import "./dh1.css";
 import type { EngineConnection } from "./useEngine";
 import { usePresets } from "./usePresets";
+import { useSetlist } from "./useSetlist";
 
 const DATA_FILE = /\.(csv|tsv|parquet|json|jsonl|ndjson)(\.gz)?$/i;
 
@@ -124,6 +128,9 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
   const busy = isBusy(view);
   const anyBusy = isBusy(viewA) || isBusy(viewB);
   const [comparing, setComparing] = useState(false);
+  // The Setlist screen. A running setlist has the engine to itself: RUN and RUN A+B wait.
+  const [setlistOpen, setSetlistOpen] = useState(false);
+  const setlist = useSetlist(harness, settings);
 
   // Keep the newest activity in view, unless you've scrolled up to read something.
   const following = useRef(true);
@@ -179,7 +186,9 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
     };
   }, [addFiles]);
 
-  const problem = !settings.prompt.trim() ? "Type a question" : sourceProblem(settings);
+  const problem = setlist.busy
+    ? "A setlist is running"
+    : !settings.prompt.trim() ? "Type a question" : sourceProblem(settings);
   const canRun = server === "ready" && !busy && !problem;
   const canRunBoth = server === "ready" && !anyBusy && !problem;
 
@@ -240,7 +249,8 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
         e.preventDefault();
         start();
       } else if (e.key === "Escape") {
-        if (comparing) setComparing(false);
+        if (setlistOpen) setSetlistOpen(false);
+        else if (comparing) setComparing(false);
         else if (expanded) setExpanded(null);
         else if (anyBusy) stop();
       } else if (command && (e.key === "=" || e.key === "+")) {
@@ -256,7 +266,7 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [start, stop, anyBusy, expanded, comparing, changeTextSize]);
+  }, [start, stop, anyBusy, expanded, comparing, setlistOpen, changeTextSize]);
 
   const elapsed = view.startedAt ? (view.endedAt ?? now) - view.startedAt : 0;
   const priced = hello ? hello.priced_models.includes(settings.model) : true;
@@ -272,6 +282,9 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
   } else if (view.phase === "failed") [status, tone] = ["COULD NOT RUN", "bad"];
   else [status, tone] = [server === "ready" ? "READY" : server === "connecting" ? "STARTING ENGINE…" : "ENGINE OFFLINE", server === "down" ? "bad" : "idle"];
 
+  const setlistProgress = progressOf(setlist.state);
+  const setlistBlocked = server !== "ready" ? "The engine isn't running" : anyBusy ? "Wait for the run on the face to finish" : null;
+
   const deviceToolbar = (
     <>
       <PresetBar presets={presets} settings={settings} />
@@ -284,13 +297,27 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
         }}
         onCopy={() => setSettings(copyToOther)}
         canCompare={Boolean(viewA.result || viewB.result)}
-        onCompare={() => setComparing(true)}
+        onCompare={() => {
+          setSetlistOpen(false);
+          setComparing(true);
+        }}
       />
+      <button
+        className={`bar-button setlist-open${setlist.busy ? " busy" : ""}`}
+        aria-pressed={setlistOpen}
+        onClick={() => {
+          setComparing(false);
+          setSetlistOpen((open) => !open);
+        }}
+        title={setlist.busy ? "A setlist is running: show it" : "Run a set of questions against several presets"}
+      >
+        {setlist.busy ? `SETLIST ${setlistProgress.settled}/${setlistProgress.total}` : "Setlist"}
+      </button>
     </>
   );
 
   return (
-    <div className={`dh1${dragging ? " dragging" : ""}${expanded ? ` expanded-${expanded}` : ""}${comparing ? " comparing" : ""}`}>
+    <div className={`dh1${dragging ? " dragging" : ""}${expanded ? ` expanded-${expanded}` : ""}${comparing ? " comparing" : ""}${setlistOpen ? " setlisting" : ""}`}>
       {toolbar ? createPortal(deviceToolbar, toolbar) : <div className="bar dh1-toolbar">{deviceToolbar}</div>}
 
       {comparing && <CompareView
@@ -298,6 +325,22 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
           views={views}
           presets={presets.all}
           onBack={() => setComparing(false)}
+          textSize={layout.textSize}
+          onTextSize={changeTextSize}
+        />}
+
+      {setlistOpen && <SetlistView
+          setlist={setlist}
+          presets={presets.all}
+          canStart={!setlistBlocked}
+          blockedReason={setlistBlocked}
+          onBack={() => setSetlistOpen(false)}
+          onLoad={(preset, question, set) => {
+            const source = questionSource(set, question);
+            setSettings((s) => applyPreset({ ...s, prompt: question.prompt }, { ...preset, source }));
+            setFocus(null);
+            setSetlistOpen(false);
+          }}
           textSize={layout.textSize}
           onTextSize={changeTextSize}
         />}

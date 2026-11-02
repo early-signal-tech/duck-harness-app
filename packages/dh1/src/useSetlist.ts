@@ -6,7 +6,7 @@ import { useCallback, useEffect, useReducer, useRef } from "react";
 import type { Harness, Run } from "./harness";
 import type { FaceSettings } from "./settings";
 import {
-  jobRequest, nextJobs, SETLIST_IDLE, setlistReducer, type SetlistPlan, type SetlistState,
+  jobRequest, newSetlistRunId, nextJobs, SETLIST_IDLE, setlistReducer, type SetlistPlan, type SetlistState,
 } from "./setlist";
 
 export interface SetlistControls {
@@ -51,8 +51,8 @@ export function useSetlist(harness: Harness | null, face: FaceSettings): Setlist
   const busy = state.phase === "running" || state.phase === "stopping";
 
   const start = useCallback((plan: SetlistPlan) => {
-    const runId = `sl-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-    dispatch({ type: "start", plan, runId, at: Date.now() });
+    const now = new Date();
+    dispatch({ type: "start", plan, runId: newSetlistRunId(now), at: now.getTime() });
   }, []);
 
   const stop = useCallback(() => {

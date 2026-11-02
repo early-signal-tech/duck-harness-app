@@ -17,7 +17,16 @@ export const MAX_COLUMNS = COLUMN_KEYS.length;
 export const REPEAT_CHOICES = [1, 2, 3, 4, 5] as const;
 export const CONCURRENCY_CHOICES = [1, 2, 3, 4, 6] as const;
 
+export const MAX_NAME = 80;
+export const MAX_NOTE = 200;
+
 export interface SetlistPlan {
+  /** The name, when you edited the suggested one: stored exactly as setlist_name.
+   *  Left as suggested, there's no name and the title is built from the facts, which
+   *  are already in their own fields, so no generated text is stored. */
+  name?: string;
+  /** Optional, one line. */
+  note?: string;
   set: QuestionSet;
   /** One column per preset, A, B, C, D. Copied when the setlist starts, so editing a
    *  preset mid-run doesn't change what the rest of the runs use. */
@@ -64,6 +73,42 @@ export type SetlistAction =
   | { type: "jobFailed"; index: number; error: string; at: number }
   | { type: "stop"; at: number }
   | { type: "clear" };
+
+/** The suggested name, built from the setlist's facts: "TPC-H · 3 presets × 3 · Nov 2,
+ *  14:05". It fills the NAME box; it's never stored (see SetlistPlan.name). */
+export function suggestedSetlistName(
+  plan: Pick<SetlistPlan, "set" | "columns" | "repeats">,
+  startedAt: Date = new Date(),
+): string {
+  const presets = `${plan.columns.length} preset${plan.columns.length === 1 ? "" : "s"}`;
+  const day = startedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const time = `${String(startedAt.getHours()).padStart(2, "0")}:${String(startedAt.getMinutes()).padStart(2, "0")}`;
+  return `${plan.set.name} · ${presets} × ${plan.repeats} · ${day}, ${time}`;
+}
+
+/** What a setlist is called on screen: your name, or the suggestion rebuilt from its facts. */
+export function setlistTitle(
+  plan: Pick<SetlistPlan, "set" | "columns" | "repeats" | "name">,
+  startedAt: Date = new Date(),
+): string {
+  return plan.name || suggestedSetlistName(plan, startedAt);
+}
+
+/** A setlist's ID, unique and sortable: "sl-2026-11-02-1405-a7f1" (local start date and
+ *  time, then 4 random characters). Names can repeat; this can't. It's the setlist_run
+ *  label on every run. */
+export function newSetlistRunId(date: Date = new Date(), random: () => number = Math.random): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  const time = `${pad(date.getHours())}${pad(date.getMinutes())}`;
+  const tail = Array.from({ length: 4 }, () => "abcdefghijkmnpqrstuvwxyz23456789"[Math.floor(random() * 32)]).join("");
+  return `sl-${day}-${time}-${tail}`;
+}
+
+/** The name and note to record: trimmed, one line, within the label limits. */
+export function cleanName(text: string, max: number): string {
+  return text.replace(/\s+/g, " ").trim().slice(0, max);
+}
 
 export function jobCount(plan: Pick<SetlistPlan, "set" | "columns" | "repeats">): number {
   return plan.set.questions.length * plan.columns.length * plan.repeats;
@@ -148,6 +193,11 @@ export function jobRequest(face: FaceSettings, state: SetlistState, job: Job): R
       setlist: plan.set.id,
       setlist_revision: plan.set.revision,
       setlist_run: state.runId,
+      // How many ran at once: overlapping runs take longer, so timings from setlists
+      // run at different concurrency aren't comparable.
+      setlist_concurrency: plan.concurrency,
+      ...(plan.name ? { setlist_name: plan.name } : {}),
+      ...(plan.note ? { setlist_note: plan.note } : {}),
       question: question.id,
       column: COLUMN_KEYS[job.column],
       repeat: job.repeat,

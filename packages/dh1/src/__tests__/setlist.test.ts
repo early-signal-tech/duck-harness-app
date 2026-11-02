@@ -4,7 +4,7 @@ import type { AgentResult } from "../harness";
 import { FACTORY_PRESETS } from "../presets";
 import { DEFAULT_SETTINGS } from "../settings";
 import {
-  cellJobs, cellStats, columnSummary, jobRequest, lampOf, median, nextJobs, planJobs, progressOf, SETLIST_IDLE,
+  cellJobs, cellStats, cleanName, newSetlistRunId, setlistTitle, suggestedSetlistName, columnSummary, jobRequest, lampOf, median, nextJobs, planJobs, progressOf, SETLIST_IDLE,
   setlistReducer, spread, type SetlistPlan, type SetlistState,
 } from "../setlist";
 
@@ -17,7 +17,7 @@ const set: QuestionSet = {
   ],
 };
 const [quick, balanced] = FACTORY_PRESETS;
-const plan: SetlistPlan = { set, columns: [quick, balanced], repeats: 2, concurrency: 3 };
+const plan: SetlistPlan = { name: "Effort check", note: "low vs medium", set, columns: [quick, balanced], repeats: 2, concurrency: 3 };
 
 const result = (over: Partial<AgentResult> = {}): AgentResult => ({
   run_id: "r", status: "completed", text: "answer", iterations: 4, stop_reason: "end_turn", error: null, retryable: false,
@@ -84,7 +84,11 @@ describe("the request for a job", () => {
     expect(first.config?.effort).toBe("low");
     expect(first.config?.max_iterations).toBe(10);
     expect(first.preset).toEqual({ id: quick.id, name: quick.name, revision: quick.revision, modified: false });
-    expect(first.labels).toEqual({ setlist: "mini", setlist_revision: 2, setlist_run: "sl-1", question: "q1", column: "A", repeat: 1 });
+    expect(first.labels).toEqual({
+      setlist: "mini", setlist_revision: 2, setlist_run: "sl-1", setlist_concurrency: 3,
+      setlist_name: "Effort check", setlist_note: "low vs medium",
+      question: "q1", column: "A", repeat: 1,
+    });
 
     const last = jobRequest(face, state, state.jobs[7]); // q2, column B, repeat 2
     expect(last.source).toEqual({ db: "/data/x.duckdb" });
@@ -142,6 +146,48 @@ describe("numbers", () => {
 
 describe("the built-in set in a setlist", () => {
   it("22 questions × 3 presets × 3 repeats is 198 runs", () => {
-    expect(planJobs({ set: FACTORY_QUESTION_SETS[0], columns: FACTORY_PRESETS, repeats: 3, concurrency: 3 })).toHaveLength(198);
+    expect(planJobs({ name: "x", set: FACTORY_QUESTION_SETS[0], columns: FACTORY_PRESETS, repeats: 3, concurrency: 3 })).toHaveLength(198);
+  });
+});
+
+describe("naming a setlist", () => {
+  it("suggests a name from the facts, and shows your name when there is one", () => {
+    const at = new Date(2026, 10, 2, 14, 5);
+    expect(suggestedSetlistName({ set, columns: [quick, balanced], repeats: 3 }, at)).toBe("Mini · 2 presets × 3 · Nov 2, 14:05");
+    expect(suggestedSetlistName({ set, columns: [quick], repeats: 1 }, new Date(2026, 0, 9, 9, 0))).toBe("Mini · 1 preset × 1 · Jan 9, 09:00");
+    expect(setlistTitle({ set, columns: [quick], repeats: 1 }, at)).toBe("Mini · 1 preset × 1 · Nov 2, 14:05");
+    expect(setlistTitle({ set, columns: [quick], repeats: 1, name: "Mini · 1 preset × 1 · Nov 2 — compressor" }, at))
+      .toBe("Mini · 1 preset × 1 · Nov 2 — compressor");
+  });
+
+  it("stores no name when the suggestion was left alone", () => {
+    const state = setlistReducer(SETLIST_IDLE, { type: "start", plan: { ...plan, name: undefined, note: undefined }, runId: "sl-3", at: 0 });
+    const labels = jobRequest(DEFAULT_SETTINGS, state, state.jobs[0]).labels!;
+    expect("setlist_name" in labels).toBe(false);
+    expect(labels.setlist).toBe("mini");
+    expect(labels.setlist_run).toBe("sl-3");
+  });
+
+  it("keeps names to one tidy line within the label limit", () => {
+    expect(cleanName("  After   compressor\nchange ", 80)).toBe("After compressor change");
+    expect(cleanName("x".repeat(300), 80)).toHaveLength(80);
+  });
+
+  it("leaves the note out of the labels when there isn't one", () => {
+    const state = setlistReducer(SETLIST_IDLE, { type: "start", plan: { ...plan, note: undefined }, runId: "sl-2", at: 0 });
+    const labels = jobRequest(DEFAULT_SETTINGS, state, state.jobs[0]).labels!;
+    expect(labels.setlist_name).toBe("Effort check");
+    expect("setlist_note" in labels).toBe(false);
+  });
+});
+
+describe("setlist IDs", () => {
+  it("are the start date and time plus 4 random characters, so they sort and never collide", () => {
+    let i = 0;
+    const id = newSetlistRunId(new Date(2026, 10, 2, 14, 5), () => [0, 0.5, 0.99, 0.25][i++ % 4]);
+    expect(id).toBe("sl-2026-11-02-1405-as9i");
+    expect(newSetlistRunId()).toMatch(/^sl-\d{4}-\d{2}-\d{2}-\d{4}-[a-z2-9]{4}$/);
+    const many = new Set(Array.from({ length: 200 }, () => newSetlistRunId(new Date(2026, 10, 2, 14, 5))));
+    expect(many.size).toBeGreaterThan(195);
   });
 });

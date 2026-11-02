@@ -12,8 +12,9 @@ import {
 import { formatSetting } from "../ab";
 import type { Preset } from "../presets";
 import {
-  cellJobs, cellStats, checkNote, COLUMN_KEYS, columnSummary, CONCURRENCY_CHOICES, jobCount, lampOf, loadSavedPlan,
-  MAX_COLUMNS, progressOf, REPEAT_CHOICES, savePlan, type Job, type Lamp, type SavedPlan,
+  cellJobs, cellStats, checkNote, cleanName, COLUMN_KEYS, columnSummary, CONCURRENCY_CHOICES, jobCount,
+  lampOf, loadSavedPlan, MAX_COLUMNS, MAX_NAME, MAX_NOTE, progressOf, REPEAT_CHOICES, savePlan, setlistTitle, suggestedSetlistName, type Job, type Lamp,
+  type SavedPlan,
 } from "../setlist";
 import type { SetlistControls } from "../useSetlist";
 import { isAnswer } from "./StructuredAnswer";
@@ -75,6 +76,12 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
   const [problem, setProblem] = useState<string | null>(null);
   const [menu, setMenu] = useState<"set" | "column" | "concurrency" | null>(null);
   const [picked, setPicked] = useState<{ question: string; column: number } | null>(null);
+  // The next setlist's name and note. The NAME box holds the suggested name as text,
+  // following the set, columns, and repeats until you edit it (typing adds to it rather
+  // than replacing it); ↺ goes back to the suggestion. Only an edited name is stored.
+  const [nameText, setNameText] = useState("");
+  const [nameEdited, setNameEdited] = useState(false);
+  const [noteText, setNoteText] = useState("");
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!busy) return;
@@ -114,10 +121,23 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
     }
   };
 
+  const suggestedName = suggestedSetlistName({ set, columns, repeats: saved.repeats });
+
   const run = () => {
     if (!canStart || !columns.length) return;
     setPicked(null);
-    setlist.start({ set, columns, repeats: saved.repeats, concurrency: saved.concurrency });
+    // Untouched (or edited back to the suggestion): no name, so nothing generated is stored.
+    const typed = nameEdited ? cleanName(nameText, MAX_NAME) : "";
+    const name = typed && typed !== suggestedName ? typed : "";
+    const note = cleanName(noteText, MAX_NOTE);
+    setlist.start({
+      ...(name ? { name } : {}),
+      ...(note ? { note } : {}),
+      set, columns, repeats: saved.repeats, concurrency: saved.concurrency,
+    });
+    setNameEdited(false);
+    setNameText("");
+    setNoteText("");
   };
 
   const startTitle = !columns.length
@@ -224,6 +244,49 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
         </div>
       </h2>
 
+      <div className="setlist-name">
+        {shown ? (
+          <>
+            <span className="setlist-name-text">{setlistTitle(shown, new Date(state.startedAt ?? Date.now()))}</span>
+            {shown.note && <span className="setlist-note-text">{shown.note}</span>}
+            {state.runId && <span className="setlist-id selectable" title="This setlist's ID: unique, and on every run">{state.runId}</span>}
+          </>
+        ) : (
+          <>
+            <label className="caps" htmlFor="setlist-name">NAME</label>
+            <input
+              id="setlist-name"
+              value={nameEdited ? nameText : suggestedName}
+              maxLength={MAX_NAME}
+              onFocus={(e) => {
+                // Land at the end, so typing adds to the suggestion.
+                const end = e.currentTarget.value.length;
+                e.currentTarget.setSelectionRange(end, end);
+              }}
+              onChange={(e) => {
+                setNameText(e.currentTarget.value);
+                setNameEdited(true);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && run()}
+            />
+            {nameEdited && (
+              <button className="pane-button" onClick={() => setNameEdited(false)} title="Back to the suggested name" aria-label="Back to the suggested name">↺</button>
+            )}
+            <label className="caps muted" htmlFor="setlist-note">NOTE</label>
+            <input
+              id="setlist-note"
+              className="note"
+              value={noteText}
+              maxLength={MAX_NOTE}
+              placeholder="Optional: what you're testing"
+              onChange={(e) => setNoteText(e.currentTarget.value)}
+              onKeyDown={(e) => e.key === "Enter" && run()}
+            />
+          </>
+        )}
+        <span className="hint">{shown ? "EH-1 lists setlists by this name and ID." : "Keep it, add to it, or replace it. An ID is added at start."}</span>
+      </div>
+
       {problem && <p className="error setlist-problem">{problem}</p>}
 
       <div className="setlist-progress" aria-live="polite">
@@ -311,7 +374,7 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
                           .filter(Boolean).join(" · ") || "—"}
                       </span>
                       <span>
-                        {[s.spread !== null ? `spread ${pct(s.spread)}` : "", `${s.limits} hit limits`, `${s.errors} errors`].join(" · ")}
+                        {[s.spread !== null ? `spread ${pct(s.spread)}` : "", `${s.limits} hit limits`, `${s.errors} errors`].filter(Boolean).join(" · ")}
                       </span>
                     </td>
                   );

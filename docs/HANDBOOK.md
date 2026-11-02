@@ -252,6 +252,15 @@ compares how the presets behave. Open it from **Setlist** in the header. Choose:
 - **REPEAT** ×1–×5
 - how many runs go **AT A TIME**
 
+The **NAME** box comes filled in with a suggestion: "TPC-H · 3 presets × 3 · Nov 2,
+14:05". Typing adds to it; you can also change or replace it, and ↺ brings the
+suggestion back. Add a one-line **NOTE** if you like. A name you edited is stored as
+it is (the `setlist_name` label); one left as suggested isn't stored, since it's
+rebuilt from the setlist's facts. At start, the setlist also gets an **ID**, such as
+`sl-2026-11-02-1405-a7f1` (start date and time, then 4 random characters), which is
+unique and on every run. Runs also record how many ran at once, since overlapping
+runs take longer. EH-1 lists setlists by name and ID.
+
 Then press **RUN SETLIST**. Each run uses the column's preset settings, on the
 question's own data, with the question's prompt. Runs go question by question, so a
 slow patch on the API hits every preset alike.
@@ -274,7 +283,7 @@ while you're back on the face. A projected total cost appears once every column 
 finished a run.
 
 **Results and labels.** Results stay on screen until you clear them, but every run is
-in the traces, labelled with its setlist, question, column, and repeat. The question
+in the traces, labelled with its setlist (and its name), question, column, and repeat. The question
 set format is described in [QUESTION_SETS.md](QUESTION_SETS.md).
 
 ## 15. Traces: where runs are recorded

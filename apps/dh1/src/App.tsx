@@ -3,6 +3,7 @@
 import { Dh1, useEngine } from "@dh/dh1";
 import { HostBar, useAppearance } from "@dh/ui-kit";
 import { useState } from "react";
+import { SettingsMenu } from "./Settings";
 
 export default function App() {
   const [appearance, setAppearance] = useAppearance();
@@ -14,9 +15,8 @@ export default function App() {
       <HostBar
         name="DH-1"
         tagline="SQL ANALYTICS AGENT"
-        appearance={appearance}
-        onAppearance={setAppearance}
         engine={{ status: engine.status, error: engine.error }}
+        settings={<SettingsMenu engine={engine} appearance={appearance} onAppearance={setAppearance} />}
       >
         <div className="host-slot" ref={setToolbar} />
       </HostBar>

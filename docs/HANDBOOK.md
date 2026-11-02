@@ -25,10 +25,11 @@ It's written so a person or an agent can read it top to bottom before starting.
 13. [A/B and Compare](#13-ab-and-compare)
 14. [Setlist](#14-setlist)
 15. [Traces: where runs are recorded](#15-traces-where-runs-are-recorded)
-16. [Keyboard shortcuts](#16-keyboard-shortcuts)
-17. [What's remembered, and where](#17-whats-remembered-and-where)
-18. [Code map (for contributors and agents)](#18-code-map-for-contributors-and-agents)
-19. [Related docs](#19-related-docs)
+16. [Settings](#16-settings)
+17. [Keyboard shortcuts](#17-keyboard-shortcuts)
+18. [What's remembered, and where](#18-whats-remembered-and-where)
+19. [Code map (for contributors and agents)](#19-code-map-for-contributors-and-agents)
+20. [Related docs](#20-related-docs)
 
 ---
 
@@ -36,7 +37,8 @@ It's written so a person or an agent can read it top to bottom before starting.
 
 DH-1 needs two checkouts side by side: this repo (`duck-harness-app`) and the agent,
 [`duckdb-analytics-agent`](https://github.com/early-signal-tech/duckdb-analytics-agent).
-The agent needs an `ANTHROPIC_API_KEY` in its `.env`. Then run `npm install` once and
+It needs an Anthropic API key: paste one into **Settings** (the gear in the header),
+or put `ANTHROPIC_API_KEY` in the agent's `.env`. Then run `npm install` once and
 `npm run dh1` to start the app. The app starts the agent as a child process
 (`uv run --project ../duckdb-analytics-agent duck-harness-serve`) and talks to it over
 JSON Lines. The **engine light** at the right of the header shows whether it's up.
@@ -49,7 +51,7 @@ finishes.
 ## 2. The face at a glance
 
 ```
-┌ Header: DH-1 · presets ‹ › · A | B · A→B · Compare · Setlist · theme · engine ┐
+┌ Header: DH-1 · presets ‹ › · A | B · A→B · Compare · Setlist · ⚙ · engine ────┐
 ├ SOURCE ┬ AGENT ─────────────────┬ CONTEXT COMPRESSOR ┬ METERS ───────────────┤
 │ data   │ model, effort, knobs   │ threshold/keep/... │ IN OUT CACHE, cost,   │
 │        │                        │ context meters     │ iteration LEDs        │
@@ -65,11 +67,10 @@ the face's place until you go back.
 ## 3. Header bar
 
 The dark bar across the top holds the app's name, then DH-1's own controls: the
-preset bar, the A/B switch, **Compare**, and **Setlist**. On the right are **THEME**
-(LIGHT, DARK, AUTO follows the system) and **DISPLAYS**, which picks whether the
-small readouts (the cost display, knob values) are charcoal LCDs or outlined white. The light theme is the default. The
-**engine light** at the far right reads READY, STARTING, or OFFLINE. If it's offline,
-nothing can run, and the status line in METERS says so.
+preset bar, the A/B switch, **Compare**, and **Setlist**. On the right are
+**SETTINGS** (see [Settings](#16-settings)) and the **engine light**, which reads
+ENGINE when it's up, STARTING, or OFFLINE. If it's offline, nothing can run, and the
+status line in METERS says so.
 
 ## 4. Presets
 
@@ -260,7 +261,31 @@ Labels identify A/B pairs (`ab`, `pair`) and setlist runs (`setlist`, `question`
 including the exact SQL. The run id in the ANSWER pane is the key into all of it.
 These traces are what EH-1, the evaluator plugin, will grade.
 
-## 16. Keyboard shortcuts
+## 16. Settings
+
+**SETTINGS** (the gear in the header) holds what belongs to the app, not to a run:
+- **Appearance.** **THEME** is light, dark, or AUTO (follows the system). **DISPLAYS**
+  makes the small readouts (the cost display, knob values) charcoal LCDs or outlined
+  white.
+- **Anthropic API key.** It's saved in the macOS Keychain and given to the engine,
+  where it wins over the agent's `.env`. The panel says where the current key comes
+  from (Keychain, environment, or `.env`) and shows its last four characters, never
+  the whole key.
+- **Traces database.** This is the file runs are recorded in: the agent's
+  `agent_traces.duckdb` by default, or any file you choose.
+- **Traces server.** The background Quack server that lets other programs read the
+  traces while runs write them. The panel shows whether it's running, and **Stop**
+  stops it. The next run starts it again.
+- **Open traces in DuckDB shell.** This opens Terminal with the duckdb CLI connected
+  to the traces.
+- **Reset traces….** This deletes every recorded run, after you confirm. It's refused
+  while runs are going.
+
+Changing the key or the traces file restarts the engine, which stops any runs in
+progress. These settings belong to the host, not DH-1, so EH-1 and the rack will
+share them.
+
+## 17. Keyboard shortcuts
 
 | Key | Does |
 |---|---|
@@ -270,7 +295,7 @@ These traces are what EH-1, the evaluator plugin, will grade.
 | Arrow keys, scroll (on a knob) | Turn the knob |
 | Double-click (knob, divider) | Reset to the default |
 
-## 17. What's remembered, and where
+## 18. What's remembered, and where
 
 | What | Where | Survives restart |
 |---|---|---|
@@ -279,9 +304,12 @@ These traces are what EH-1, the evaluator plugin, will grade.
 | Setlist setup (set, columns, repeats, at a time) | app storage (`dh1.setlist`) | yes |
 | Setlist results, the current run's activity | memory | no; everything is in the traces |
 | Your presets | `~/Library/Application Support/Duck Harness/Presets/dh1/*.json` | yes |
+| API key | macOS Keychain, service "Duck Harness" | yes |
+| Traces database choice | `~/Library/Application Support/Duck Harness/settings.json` | yes |
+| Theme, displays | app storage | yes |
 | Runs | `agent_traces.duckdb` in the agent checkout | yes |
 
-## 18. Code map (for contributors and agents)
+## 19. Code map (for contributors and agents)
 
 ```
 packages/ui-kit/      shared look and controls (Knob, Toggle, Menu, Splitter, HostBar, Markdown, themes)
@@ -297,7 +325,8 @@ packages/dh1/src/
   setlist.ts          Setlist model; useSetlist.ts runs it
   layout.ts           pane split, text size, timeline state
   components/         one file per panel or view (AgentPanel, CompressorPanel, SetlistView, ...)
-apps/dh1/             the standalone Tauri app; src-tauri/ starts the engine and stores presets
+apps/dh1/             the standalone Tauri app: Settings.tsx (the gear), and src-tauri/,
+                      which starts the engine and keeps presets, the Keychain key, and settings.json
 scripts/              tpch-question-set.mjs builds the TPC-H set from the agent repo
 ```
 
@@ -305,7 +334,7 @@ Changes to what a run can do go into the agent repo's protocol
 (`duckdb_agent/serve.py`) first, then into `harness.ts`. Run `npm test` and
 `npm run typecheck` before a PR.
 
-## 19. Related docs
+## 20. Related docs
 
 - [README](../README.md): how the repo is organized, and status.
 - [QUESTION_SETS.md](QUESTION_SETS.md): the question set file format.

@@ -252,6 +252,11 @@ compares how the presets behave. Open it from **Setlist** in the header. Choose:
 - **REPEAT** ×1–×5
 - how many runs go **AT A TIME**
 
+Give it a **NAME** that says what you're testing ("After compressor change") and,
+if you like, a one-line **NOTE**. Leave the name empty and it's filled in for you
+("TPC-H · 3 presets × 3 · Nov 2"). Every run carries the name, so EH-1 lists setlists
+by it.
+
 Then press **RUN SETLIST**. Each run uses the column's preset settings, on the
 question's own data, with the question's prompt. Runs go question by question, so a
 slow patch on the API hits every preset alike.
@@ -274,7 +279,7 @@ while you're back on the face. A projected total cost appears once every column 
 finished a run.
 
 **Results and labels.** Results stay on screen until you clear them, but every run is
-in the traces, labelled with its setlist, question, column, and repeat. The question
+in the traces, labelled with its setlist (and its name), question, column, and repeat. The question
 set format is described in [QUESTION_SETS.md](QUESTION_SETS.md).
 
 ## 15. Traces: where runs are recorded

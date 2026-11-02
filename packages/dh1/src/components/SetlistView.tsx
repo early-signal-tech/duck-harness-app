@@ -12,8 +12,9 @@ import {
 import { formatSetting } from "../ab";
 import type { Preset } from "../presets";
 import {
-  cellJobs, cellStats, checkNote, COLUMN_KEYS, columnSummary, CONCURRENCY_CHOICES, jobCount, lampOf, loadSavedPlan,
-  MAX_COLUMNS, progressOf, REPEAT_CHOICES, savePlan, type Job, type Lamp, type SavedPlan,
+  cellJobs, cellStats, checkNote, cleanName, COLUMN_KEYS, columnSummary, CONCURRENCY_CHOICES, defaultSetlistName, jobCount,
+  lampOf, loadSavedPlan, MAX_COLUMNS, MAX_NAME, MAX_NOTE, progressOf, REPEAT_CHOICES, savePlan, type Job, type Lamp,
+  type SavedPlan,
 } from "../setlist";
 import type { SetlistControls } from "../useSetlist";
 import { isAnswer } from "./StructuredAnswer";
@@ -75,6 +76,9 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
   const [problem, setProblem] = useState<string | null>(null);
   const [menu, setMenu] = useState<"set" | "column" | "concurrency" | null>(null);
   const [picked, setPicked] = useState<{ question: string; column: number } | null>(null);
+  // The next setlist's name and note. Left empty, the name is filled in at start.
+  const [nameText, setNameText] = useState("");
+  const [noteText, setNoteText] = useState("");
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!busy) return;
@@ -114,10 +118,19 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
     }
   };
 
+  const suggestedName = defaultSetlistName({ set, columns, repeats: saved.repeats });
+
   const run = () => {
     if (!canStart || !columns.length) return;
     setPicked(null);
-    setlist.start({ set, columns, repeats: saved.repeats, concurrency: saved.concurrency });
+    const note = cleanName(noteText, MAX_NOTE);
+    setlist.start({
+      name: cleanName(nameText, MAX_NAME) || suggestedName,
+      ...(note ? { note } : {}),
+      set, columns, repeats: saved.repeats, concurrency: saved.concurrency,
+    });
+    setNameText("");
+    setNoteText("");
   };
 
   const startTitle = !columns.length
@@ -223,6 +236,39 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
           <button className="pane-button" onClick={onBack} title="Back to the plugin (Esc)">Back to plugin</button>
         </div>
       </h2>
+
+      <div className="setlist-name">
+        {shown ? (
+          <>
+            <span className="caps">NAME</span>
+            <span className="setlist-name-text">{shown.name}</span>
+            {shown.note && <span className="setlist-note-text">{shown.note}</span>}
+          </>
+        ) : (
+          <>
+            <label className="caps" htmlFor="setlist-name">NAME</label>
+            <input
+              id="setlist-name"
+              value={nameText}
+              maxLength={MAX_NAME}
+              placeholder={suggestedName}
+              onChange={(e) => setNameText(e.currentTarget.value)}
+              onKeyDown={(e) => e.key === "Enter" && run()}
+            />
+            <label className="caps muted" htmlFor="setlist-note">NOTE</label>
+            <input
+              id="setlist-note"
+              className="note"
+              value={noteText}
+              maxLength={MAX_NOTE}
+              placeholder="Optional: what you're testing"
+              onChange={(e) => setNoteText(e.currentTarget.value)}
+              onKeyDown={(e) => e.key === "Enter" && run()}
+            />
+          </>
+        )}
+        <span className="hint">Saved with every run; EH-1 lists setlists by name.</span>
+      </div>
 
       {problem && <p className="error setlist-problem">{problem}</p>}
 

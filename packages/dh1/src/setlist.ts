@@ -17,7 +17,15 @@ export const MAX_COLUMNS = COLUMN_KEYS.length;
 export const REPEAT_CHOICES = [1, 2, 3, 4, 5] as const;
 export const CONCURRENCY_CHOICES = [1, 2, 3, 4, 6] as const;
 
+export const MAX_NAME = 80;
+export const MAX_NOTE = 200;
+
 export interface SetlistPlan {
+  /** What this setlist is testing ("After compressor change"). Every run carries it,
+   *  so EH-1 can list setlists by name. */
+  name: string;
+  /** Optional, one line. */
+  note?: string;
   set: QuestionSet;
   /** One column per preset, A, B, C, D. Copied when the setlist starts, so editing a
    *  preset mid-run doesn't change what the rest of the runs use. */
@@ -64,6 +72,21 @@ export type SetlistAction =
   | { type: "jobFailed"; index: number; error: string; at: number }
   | { type: "stop"; at: number }
   | { type: "clear" };
+
+/** The name a setlist gets when you don't give it one: "TPC-H · 3 presets × 3 · Nov 2". */
+export function defaultSetlistName(
+  plan: Pick<SetlistPlan, "set" | "columns" | "repeats">,
+  date: Date = new Date(),
+): string {
+  const presets = `${plan.columns.length} preset${plan.columns.length === 1 ? "" : "s"}`;
+  const day = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `${plan.set.name} · ${presets} × ${plan.repeats} · ${day}`;
+}
+
+/** The name and note to record: trimmed, one line, within the label limits. */
+export function cleanName(text: string, max: number): string {
+  return text.replace(/\s+/g, " ").trim().slice(0, max);
+}
 
 export function jobCount(plan: Pick<SetlistPlan, "set" | "columns" | "repeats">): number {
   return plan.set.questions.length * plan.columns.length * plan.repeats;
@@ -148,6 +171,8 @@ export function jobRequest(face: FaceSettings, state: SetlistState, job: Job): R
       setlist: plan.set.id,
       setlist_revision: plan.set.revision,
       setlist_run: state.runId,
+      setlist_name: plan.name,
+      ...(plan.note ? { setlist_note: plan.note } : {}),
       question: question.id,
       column: COLUMN_KEYS[job.column],
       repeat: job.repeat,

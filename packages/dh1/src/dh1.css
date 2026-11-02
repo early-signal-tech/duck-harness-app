@@ -533,3 +533,13 @@
 .dh1 .help-doc .markdown hr { border: 0; border-top: 1px solid var(--well-rule); margin: 1.4em 0; }
 .dh1 .help-doc .markdown pre { line-height: 1.35; }
 .dh1 .help-doc .markdown a.local-link { color: inherit; text-decoration: underline dotted; cursor: pointer; }
+.dh1 .setlist-name { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.dh1 .setlist-name input {
+  width: 300px; height: 30px; box-sizing: border-box; padding: 0 8px;
+  border: 1px solid var(--field-edge); border-radius: 5px; background: var(--field); color: var(--ink);
+  font: 600 13px/1 var(--sans);
+}
+.dh1 .setlist-name input.note { flex: 1; min-width: 200px; font-weight: 400; }
+.dh1 .setlist-name .setlist-name-text { font: 600 14px/1.2 var(--sans); }
+.dh1 .setlist-name .setlist-note-text { font: italic 400 13px/1.3 var(--sans); color: var(--muted); }
+.dh1 .setlist-name .hint { margin-left: auto; font: 400 11px/1.3 var(--sans); color: var(--muted); }

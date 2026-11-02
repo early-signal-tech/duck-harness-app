@@ -33,20 +33,20 @@
 .dh1 .tables .x:hover { color: var(--danger); }
 
 /* --- agent --- */
-.dh1 .dh1-row { flex: none; display: flex; gap: 12px; height: 380px; }
-.dh1 .agent { flex: 1; gap: 18px; }
+.dh1 .dh1-row { flex: none; display: flex; gap: 12px; height: 320px; }
+.dh1 .agent { flex: 1; gap: 12px; }
 .dh1 .model-row { display: flex; align-items: center; gap: 10px; }
 .dh1 .model-row .caps { margin-right: 6px; }
 .dh1 .model-row .segmented button { flex: none; padding: 0 14px; }
 
 /* --- meters --- */
 .dh1 .meters { width: 240px; flex: none; }
-.dh1 .vmeters { display: flex; justify-content: space-between; align-items: flex-end; padding: 0 4px; }
+.dh1 .vmeters { display: flex; justify-content: center; align-items: flex-end; gap: 26px; }
 .dh1 .vmeter { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .dh1 .vmeter-bar {
   position: relative;
   width: 22px;
-  height: 96px;
+  height: 84px;
   border: 1.5px solid var(--edge);
   border-radius: 3px;
   background: var(--field);
@@ -190,7 +190,7 @@
 .dh1 .flyout-knobs .knob { width: 72px; }
 
 /* --- the context compressor --- */
-.dh1 .compressor { width: 330px; flex: none; gap: 12px; }
+.dh1 .compressor { width: 330px; flex: none; gap: 9px; }
 .dh1 .compressor.off .comp-meter .fill { background: var(--field-edge); }
 .dh1 .comp-knobs { display: flex; justify-content: space-between; }
 .dh1 .comp-meter { display: flex; flex-direction: column; gap: 6px; }

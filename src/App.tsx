@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { Knob } from "./components/Knob";
+import { Markdown } from "./components/Markdown";
 import { MetersPanel } from "./components/MetersPanel";
 import { SourcePanel } from "./components/SourcePanel";
 import { Harness, type Effort, type Hello, type Run } from "./harness";
@@ -230,7 +231,7 @@ export default function App() {
             {view.phase === "failed" && <p className="error">{view.error}</p>}
             {result && (
               <>
-                {result.text ? <div className="answer-text">{result.text}</div> : null}
+                {result.text ? <Markdown text={result.text} /> : null}
                 {result.error && <p className="error">{result.error}</p>}
                 {!result.text && !result.error && <p className="dim">No answer: the run was stopped.</p>}
                 <p className="meta">

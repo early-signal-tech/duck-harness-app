@@ -62,7 +62,10 @@ pane), and ⌘+ / ⌘− change the Activity and Answer text size. Settings, the
 layout are remembered between launches.
 
 **Presets** store how the agent runs (model, effort, iterations, and later the other
-knobs), not the source or prompt. They're JSON files in
+knobs), and can also store the source. The factory presets each load Test Tone at
+their own TPC-H scale: Quick & Cheap 0.01, Balanced 0.1, Deep Dive 1. For your own
+presets, Save as has an Include source checkbox. The prompt is never saved. They're
+JSON files in
 `~/Library/Application Support/Duck Harness/Presets/dh1/`. The folder is shared by the
 standalone app and the rack, and you can copy or back up the files directly. Each file
 names its device and format version (`packages/dh1/src/presets.ts`). Every run sends

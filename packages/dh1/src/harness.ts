@@ -24,6 +24,10 @@ export interface AgentConfig {
   structured_answer?: boolean;
   prompt_caching?: boolean;
   context_editing?: boolean;
+  context_trigger_tokens?: number;
+  context_keep_tool_uses?: number;
+  context_clear_at_least_tokens?: number;
+  context_protected_tools?: string[];
   system_prompt?: string | null;
 }
 
@@ -92,6 +96,9 @@ export interface Hello {
   defaults: Required<AgentConfig>;
   effort_levels: Effort[];
   priced_models: string[];
+  /** Added with the compressor settings; absent from older servers. */
+  limits?: { max_tokens: number };
+  tools?: string[];
 }
 
 type Message =

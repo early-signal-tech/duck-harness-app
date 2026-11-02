@@ -1,5 +1,5 @@
 // The face's settings, and turning them into a run request. Kept in localStorage between
-// launches as a convenience; saved presets come later and will build on this shape.
+// launches. The agent settings (AGENT_KEYS) are what a preset stores.
 
 import type { AgentConfig, Effort, RunRequest, Source } from "./harness";
 import type { PresetRef } from "./presets";
@@ -15,9 +15,24 @@ export const TPCH_SCALES = [0.01, 0.1, 1] as const;
 export type SourceKind = "tpch" | "db" | "files";
 
 export interface FaceSettings {
+  // --- agent settings (AgentConfig fields; saved in presets) ---
   model: string;
   effort: Effort;
   maxIterations: number;
+  maxResultRows: number;
+  maxResultChars: number;
+  maxCellChars: number;
+  queryTimeoutSeconds: number;
+  maxTokens: number;
+  structuredAnswer: boolean;
+  promptCaching: boolean;
+  // the context compressor (context editing)
+  contextEditing: boolean;
+  contextTriggerTokens: number;
+  contextKeepToolUses: number;
+  contextClearAtLeastTokens: number;
+  contextProtectedTools: string[];
+  // --- source and prompt ---
   sourceKind: SourceKind;
   tpchScale: number;
   dbPath: string;
@@ -27,10 +42,23 @@ export interface FaceSettings {
   presetId: string | null;
 }
 
+/** The agent's own defaults (duckdb_agent/config.py); the server's hello confirms them. */
 export const DEFAULT_SETTINGS: FaceSettings = {
   model: "claude-haiku-5-5",
   effort: "medium",
   maxIterations: 25,
+  maxResultRows: 200,
+  maxResultChars: 20_000,
+  maxCellChars: 500,
+  queryTimeoutSeconds: 30,
+  maxTokens: 16_000,
+  structuredAnswer: false,
+  promptCaching: true,
+  contextEditing: true,
+  contextTriggerTokens: 80_000,
+  contextKeepToolUses: 8,
+  contextClearAtLeastTokens: 20_000,
+  contextProtectedTools: ["list_tables", "describe_table"],
   sourceKind: "tpch",
   tpchScale: 0.1,
   dbPath: "",
@@ -38,6 +66,58 @@ export const DEFAULT_SETTINGS: FaceSettings = {
   prompt: "Which 5 customers spent the most in 1997?",
   presetId: "factory-balanced", // the defaults above are the Balanced preset (presets.ts)
 };
+
+/** The settings a preset stores, and the AgentConfig field each one sets. */
+export const AGENT_FIELDS = {
+  model: "model",
+  effort: "effort",
+  maxIterations: "max_iterations",
+  maxResultRows: "max_result_rows",
+  maxResultChars: "max_result_chars",
+  maxCellChars: "max_cell_chars",
+  queryTimeoutSeconds: "query_timeout_seconds",
+  maxTokens: "max_tokens",
+  structuredAnswer: "structured_answer",
+  promptCaching: "prompt_caching",
+  contextEditing: "context_editing",
+  contextTriggerTokens: "context_trigger_tokens",
+  contextKeepToolUses: "context_keep_tool_uses",
+  contextClearAtLeastTokens: "context_clear_at_least_tokens",
+  contextProtectedTools: "context_protected_tools",
+} as const satisfies Partial<Record<keyof FaceSettings, keyof AgentConfig>>;
+
+export type AgentKey = keyof typeof AGENT_FIELDS;
+export const AGENT_KEYS = Object.keys(AGENT_FIELDS) as AgentKey[];
+export type AgentSettings = Pick<FaceSettings, AgentKey>;
+
+export function agentSettingsOf(settings: FaceSettings): AgentSettings {
+  const out = {} as Record<AgentKey, unknown>;
+  for (const key of AGENT_KEYS) {
+    const value = settings[key];
+    out[key] = Array.isArray(value) ? [...value] : value;
+  }
+  return out as AgentSettings;
+}
+
+/** Whether a value has the same type as the default for that setting (for reading
+ *  saved settings and presets written by other versions). */
+export function validSetting(key: AgentKey, value: unknown): boolean {
+  const fallback = DEFAULT_SETTINGS[key];
+  if (Array.isArray(fallback)) return Array.isArray(value) && value.every((v) => typeof v === "string");
+  if (typeof fallback === "number") {
+    // Whole numbers, positive, except counts that can be 0.
+    const zeroOk = key === "contextKeepToolUses" || key === "contextClearAtLeastTokens";
+    return typeof value === "number" && Number.isFinite(value) && (zeroOk ? value >= 0 : value > 0)
+      && (key === "queryTimeoutSeconds" || Number.isInteger(value));
+  }
+  return typeof value === typeof fallback;
+}
+
+export function sameAgentSetting(a: unknown, b: unknown): boolean {
+  return Array.isArray(a) && Array.isArray(b)
+    ? a.length === b.length && [...a].sort().every((v, i) => v === [...b].sort()[i])
+    : a === b;
+}
 
 const STORAGE_KEY = "dh1.face";
 
@@ -78,7 +158,9 @@ export function sourceOf(settings: FaceSettings): Source {
 }
 
 export function configOf(settings: FaceSettings): AgentConfig {
-  return { model: settings.model, effort: settings.effort, max_iterations: settings.maxIterations };
+  const config: Record<string, unknown> = {};
+  for (const key of AGENT_KEYS) config[AGENT_FIELDS[key]] = settings[key];
+  return config as AgentConfig;
 }
 
 export function requestOf(settings: FaceSettings, preset?: PresetRef): RunRequest {

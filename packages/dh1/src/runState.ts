@@ -18,6 +18,13 @@ export interface ActivityLine {
   detail?: string;
 }
 
+/** One context clear (the compressor acting), from a context_edit event. */
+export interface Clear {
+  iteration: number;
+  tokens: number;
+  toolUses: number;
+}
+
 export interface RunView {
   phase: Phase;
   startedAt: number | null;
@@ -28,6 +35,9 @@ export interface RunView {
   costUsd: number | null;
   usage: Usage;
   contextTokens: number;
+  /** Largest prompt seen this run, for the compressor's meter. */
+  peakContextTokens: number;
+  clears: Clear[];
   activity: ActivityLine[];
   result: AgentResult | null;
   error: string | null;
@@ -57,6 +67,8 @@ export const IDLE: RunView = {
   costUsd: null,
   usage: ZERO_USAGE,
   contextTokens: 0,
+  peakContextTokens: 0,
+  clears: [],
   activity: [],
   result: null,
   error: null,
@@ -121,14 +133,25 @@ function applyEvent(view: RunView, event: AgentEvent): RunView {
         costUsd: event.total_cost_usd,
         usage: event.total_usage,
         contextTokens: event.context_tokens,
+        peakContextTokens: Math.max(view.peakContextTokens, event.context_tokens),
       };
     case "api_error":
       return {
         ...add({ iteration: event.iteration, kind: "error", text: "API error", detail: event.error }),
         leds: setLed(view.leds, event.iteration, "error"),
       };
-    case "context_edit":
-      return add({ iteration: event.iteration, kind: "edit", text: "Context cleared" });
+    case "context_edit": {
+      const details = event.details as { cleared_input_tokens?: number; cleared_tool_uses?: number };
+      const clear: Clear = {
+        iteration: event.iteration,
+        tokens: details.cleared_input_tokens ?? 0,
+        toolUses: details.cleared_tool_uses ?? 0,
+      };
+      const what = clear.tokens
+        ? `Context cleared · −${(clear.tokens / 1000).toFixed(1)}K tokens${clear.toolUses ? ` · ${clear.toolUses} tool result${clear.toolUses === 1 ? "" : "s"}` : ""}`
+        : "Context cleared";
+      return { ...add({ iteration: event.iteration, kind: "edit", text: what }), clears: [...view.clears, clear] };
+    }
     case "thinking":
       return add({ iteration: event.iteration, kind: "thinking", text: "Thinking", detail: event.text });
     case "tool_call_start":

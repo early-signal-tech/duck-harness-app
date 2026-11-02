@@ -4,11 +4,11 @@ import {
   presetSourceOf, stepPreset, toFile,
   type Preset,
 } from "../presets";
-import { DEFAULT_SETTINGS, requestOf } from "../settings";
+import { agentSettingsOf, DEFAULT_SETTINGS, requestOf } from "../settings";
 
 const mine: Preset = {
   id: "p-1", name: "Wide net", revision: 4, savedAt: "2026-11-02T10:00:00Z",
-  settings: { model: "claude-haiku-5-5", effort: "xhigh", maxIterations: 50 },
+  settings: { ...agentSettingsOf(DEFAULT_SETTINGS), effort: "xhigh", maxIterations: 50, contextKeepToolUses: 4 },
 };
 
 describe("presets and the face", () => {
@@ -59,7 +59,7 @@ describe("preset files", () => {
   it("fills settings an older file doesn't have with the defaults", () => {
     const old = JSON.stringify({ format: "dh-preset", formatVersion: 1, device: "dh1", name: "Old", settings: { effort: "high" } });
     const preset = parsePreset(old);
-    expect(preset.settings).toEqual({ model: DEFAULT_SETTINGS.model, effort: "high", maxIterations: DEFAULT_SETTINGS.maxIterations });
+    expect(preset.settings).toEqual({ ...agentSettingsOf(DEFAULT_SETTINGS), effort: "high" });
     expect(preset.revision).toBe(1);
     expect(preset.id).toMatch(/^p-/);
   });
@@ -113,5 +113,29 @@ describe("presets with a source", () => {
     expect(parsePreset(toFile(withSource))).toEqual(withSource);
     const bad = JSON.stringify({ format: "dh-preset", formatVersion: 1, device: "dh1", name: "x", source: { kind: "tpch", tpchScale: -1 } });
     expect(parsePreset(bad)).not.toHaveProperty("source");
+  });
+});
+
+describe("presets hold every knob", () => {
+  it("counts a change to any knob, including the compressor, as an edit", () => {
+    const face = applyPreset(DEFAULT_SETTINGS, mine);
+    expect(matchesPreset(face, mine)).toBe(true);
+    expect(matchesPreset({ ...face, contextTriggerTokens: 60_000 }, mine)).toBe(false);
+    expect(matchesPreset({ ...face, structuredAnswer: true }, mine)).toBe(false);
+    // The order of protected tools doesn't matter.
+    expect(matchesPreset({ ...face, contextProtectedTools: ["describe_table", "list_tables"] }, mine)).toBe(true);
+  });
+
+  it("keeps settings of the right type from a file and ignores the rest", () => {
+    const text = JSON.stringify({
+      format: "dh-preset", formatVersion: 1, device: "dh1", name: "x",
+      settings: { maxTokens: 8000, contextKeepToolUses: 0, promptCaching: "yes", maxResultRows: -5, effort: "turbo" },
+    });
+    const { settings } = parsePreset(text);
+    expect(settings.maxTokens).toBe(8000);
+    expect(settings.contextKeepToolUses).toBe(0); // 0 is allowed for keep
+    expect(settings.promptCaching).toBe(true); // "yes" isn't a boolean: default
+    expect(settings.maxResultRows).toBe(DEFAULT_SETTINGS.maxResultRows);
+    expect(settings.effort).toBe(DEFAULT_SETTINGS.effort);
   });
 });

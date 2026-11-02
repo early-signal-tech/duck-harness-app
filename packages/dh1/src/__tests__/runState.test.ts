@@ -120,3 +120,23 @@ describe("tool lines", () => {
     expect(view.activity[0].text).toBe("Query Database · 1 row · 3 ms");
   });
 });
+
+describe("the compressor's readings", () => {
+  it("records each clear and the peak prompt size", () => {
+    const view = play(
+      ev({ event: "api_call", iteration: 1, context_tokens: 70_000, total_cost_usd: 0, total_usage: usage() }),
+      ev({ event: "api_call", iteration: 2, context_tokens: 91_000, total_cost_usd: 0, total_usage: usage() }),
+      ev({ event: "context_edit", iteration: 3, details: { cleared_input_tokens: 24_000, cleared_tool_uses: 5 } }),
+      ev({ event: "api_call", iteration: 3, context_tokens: 66_000, total_cost_usd: 0, total_usage: usage() }),
+    );
+    expect(view.clears).toEqual([{ iteration: 3, tokens: 24_000, toolUses: 5 }]);
+    expect(view.peakContextTokens).toBe(91_000);
+    expect(view.contextTokens).toBe(66_000);
+    expect(last(view.activity)?.text).toBe("Context cleared · −24.0K tokens · 5 tool results");
+  });
+});
+
+it("says 1 tool result, not 1 tool results", () => {
+  const view = play(ev({ event: "context_edit", iteration: 2, details: { cleared_input_tokens: 611, cleared_tool_uses: 1 } }));
+  expect(last(view.activity)?.text).toBe("Context cleared · −0.6K tokens · 1 tool result");
+});

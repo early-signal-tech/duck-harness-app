@@ -382,3 +382,30 @@ input:focus { border-color: var(--accent); }
 .host-slot { display: flex; align-items: center; margin-left: 12px; }
 .menu-check-row { display: flex; align-items: center; gap: 8px; font: 500 12px/1.3 var(--sans); }
 .menu-check-row input { width: auto; height: auto; }
+
+/* --- medium knobs, disabled knobs --- */
+.knob.medium { width: 96px; gap: 7px; }
+.knob.medium .knob-dial { width: 60px; height: 60px; }
+.knob.medium .knob-face { stroke-width: 3.3; }
+.knob.medium .knob-ring { stroke-width: 10; }
+.knob.medium .knob-readout { min-width: 56px; padding: 3px 6px; font-size: 11px; }
+.knob.disabled { opacity: 0.4; }
+.knob.disabled .knob-dial { cursor: default; }
+
+/* --- toggles (STRUCTURED, CACHE, compressor ON) --- */
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1.5px solid var(--edge);
+  border-radius: 6px;
+  background: var(--field);
+  color: var(--ink);
+  font: 700 10px/1 var(--mono);
+  letter-spacing: 0.1em;
+}
+.toggle.small { height: 24px; padding: 0 8px; border-radius: 4px; }
+.toggle .lamp { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--edge); background: var(--field); }
+.toggle.on .lamp { border-color: var(--accent); background: var(--accent); }

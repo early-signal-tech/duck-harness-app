@@ -7,24 +7,25 @@
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Knob, Markdown, Splitter } from "@dh/ui-kit";
+import { Markdown, Splitter } from "@dh/ui-kit";
+import { AgentPanel } from "./components/AgentPanel";
+import { CompressorPanel } from "./components/CompressorPanel";
 import { Detail } from "./components/Detail";
 import { MetersPanel } from "./components/MetersPanel";
 import { PresetBar } from "./components/PresetBar";
+import { answerText, isAnswer, StructuredAnswer } from "./components/StructuredAnswer";
 import { SourcePanel } from "./components/SourcePanel";
-import type { Effort, Run } from "./harness";
+import type { Run } from "./harness";
 import {
   DEFAULT_ANSWER_WIDTH, DEFAULT_TEXT_SIZE, loadLayout, MIN_ACTIVITY_WIDTH, MIN_ANSWER_WIDTH, saveLayout, stepTextSize,
   type Layout,
 } from "./layout";
 import { IDLE, runReducer } from "./runState";
-import { loadSettings, MODELS, requestOf, saveSettings, sourceProblem, type FaceSettings } from "./settings";
+import { loadSettings, requestOf, saveSettings, sourceProblem, type FaceSettings } from "./settings";
 import "./dh1.css";
 import type { EngineConnection } from "./useEngine";
 import { usePresets } from "./usePresets";
 
-const EFFORTS: Effort[] = ["low", "medium", "high", "xhigh", "max"];
-const MAX_ITERATIONS = 50;
 const DATA_FILE = /\.(csv|tsv|parquet|json|jsonl|ndjson)(\.gz)?$/i;
 
 const STATUS_TEXT: Record<string, string> = {
@@ -211,7 +212,6 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
 
   const elapsed = view.startedAt ? (view.endedAt ?? now) - view.startedAt : 0;
   const priced = hello ? hello.priced_models.includes(settings.model) : true;
-  const effortIndex = Math.max(0, EFFORTS.indexOf(settings.effort));
   const result = view.result;
 
   let status: string;
@@ -233,53 +233,14 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
       <div className="dh1-row">
         <SourcePanel settings={settings} update={update} addFiles={addFiles} />
 
-        <section className="panel agent">
-          <h2>AGENT</h2>
-          <div className="model-row">
-            <span className="caps muted">MODEL</span>
-            <div className="segmented" role="radiogroup" aria-label="Model">
-              {MODELS.map((m) => (
-                <button
-                  key={m.id}
-                  role="radio"
-                  aria-checked={settings.model === m.id}
-                  className={settings.model === m.id ? "on" : ""}
-                  onClick={() => update({ model: m.id })}
-                  title={m.id}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="knobs">
-            <Knob
-              label="EFFORT"
-              value={effortIndex}
-              min={0}
-              max={EFFORTS.length - 1}
-              defaultValue={EFFORTS.indexOf(hello?.defaults.effort ?? "medium")}
-              format={(i) => EFFORTS[i].toUpperCase()}
-              hint="low · med · high · xhigh · max"
-              onChange={(i) => update({ effort: EFFORTS[i] })}
-            />
-            <Knob
-              label="ITERATIONS"
-              value={settings.maxIterations}
-              min={1}
-              max={MAX_ITERATIONS}
-              defaultValue={hello?.defaults.max_iterations ?? 25}
-              format={(n) => String(n)}
-              hint="tool rounds before wrap-up"
-              onChange={(n) => update({ maxIterations: n })}
-            />
-          </div>
-          <div className="panel-foot">
-            <span className="small muted">
-              {priced ? "Drag, scroll, or use arrow keys · double-click resets" : "No price table for this model yet, so cost reads n/a"}
-            </span>
-          </div>
-        </section>
+        <AgentPanel settings={settings} update={update} hello={hello} priced={priced} />
+
+        <CompressorPanel
+          settings={settings}
+          update={update}
+          view={view}
+          tools={hello?.tools ?? ["list_tables", "describe_table", "sample_rows", "query_database"]}
+        />
 
         <MetersPanel view={view} maxIterations={settings.maxIterations} priced={priced} status={status} statusTone={tone} />
       </div>
@@ -355,7 +316,10 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
             ANSWER
             <div className="pane-tools">
               {result?.text && (
-                <button className="bar-button" onClick={() => navigator.clipboard?.writeText(result.text)}>
+                <button
+                  className="bar-button"
+                  onClick={() => navigator.clipboard?.writeText(isAnswer(result.answer) ? answerText(result.answer) : result.text)}
+                >
                   Copy
                 </button>
               )}
@@ -368,7 +332,7 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
             {view.phase === "failed" && <p className="error">{view.error}</p>}
             {result && (
               <>
-                {result.text && <Markdown text={result.text} />}
+                {isAnswer(result.answer) ? <StructuredAnswer answer={result.answer} /> : result.text && <Markdown text={result.text} />}
                 {result.error && <p className="error">{result.error}</p>}
                 {!result.text && !result.error && <p className="faint">No answer: the run was stopped.</p>}
                 <p className="answer-meta">

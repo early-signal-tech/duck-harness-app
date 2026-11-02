@@ -10,8 +10,12 @@ describe("settings to request", () => {
   });
 
   it("sends the knob settings as config", () => {
-    expect(requestOf({ ...DEFAULT_SETTINGS, effort: "high", maxIterations: 10 }).config).toEqual({
+    expect(requestOf({ ...DEFAULT_SETTINGS, effort: "high", maxIterations: 10, contextTriggerTokens: 60_000 }).config).toEqual({
       model: "claude-haiku-5-5", effort: "high", max_iterations: 10,
+      max_result_rows: 200, max_result_chars: 20_000, max_cell_chars: 500, query_timeout_seconds: 30, max_tokens: 16_000,
+      structured_answer: false, prompt_caching: true,
+      context_editing: true, context_trigger_tokens: 60_000, context_keep_tool_uses: 8, context_clear_at_least_tokens: 20_000,
+      context_protected_tools: ["list_tables", "describe_table"],
     });
   });
 

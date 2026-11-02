@@ -8,12 +8,15 @@
 //
 //   { "format": "dh-preset", "formatVersion": 1, "device": "dh1", "deviceVersion": 1,
 //     "id": "…", "name": "Deep Dive", "revision": 3, "savedAt": "…",
-//     "settings": { "model": "…", "effort": "high", "maxIterations": 40 },
+//     "settings": { "model": "…", "effort": "high", "maxIterations": 40, … every agent knob },
 //     "source": { "kind": "tpch", "tpchScale": 1 } }      <- optional
 
 import { invoke } from "@tauri-apps/api/core";
 import type { Effort } from "./harness";
-import { DEFAULT_SETTINGS, fileName, type FaceSettings, type SourceKind } from "./settings";
+import {
+  AGENT_KEYS, agentSettingsOf, DEFAULT_SETTINGS, fileName, sameAgentSetting, validSetting,
+  type AgentSettings, type FaceSettings, type SourceKind,
+} from "./settings";
 
 export const DEVICE = "dh1";
 export const DEVICE_VERSION = 1;
@@ -22,12 +25,10 @@ export const FORMAT_VERSION = 1;
 
 const EFFORTS: Effort[] = ["low", "medium", "high", "xhigh", "max"];
 
-/** The part of the face a preset stores. */
-export interface PresetSettings {
-  model: string;
-  effort: Effort;
-  maxIterations: number;
-}
+/** The part of the face a preset stores: every agent setting (see AGENT_KEYS). */
+export type PresetSettings = AgentSettings;
+
+const AGENT_DEFAULTS: PresetSettings = agentSettingsOf(DEFAULT_SETTINGS);
 
 /** The source a preset loads, when it has one. Only the fields for its kind are kept. */
 export type PresetSource =
@@ -61,17 +62,22 @@ export const DEFAULT_PRESET_ID = "factory-balanced";
 export const FACTORY_PRESETS: Preset[] = [
   {
     id: "factory-quick", name: "Quick & Cheap", revision: 1, savedAt: "2026-11-01T00:00:00Z", factory: true,
-    settings: { model: "claude-haiku-5-5", effort: "low", maxIterations: 10 },
+    settings: {
+      ...AGENT_DEFAULTS, effort: "low", maxIterations: 10, maxResultRows: 100, queryTimeoutSeconds: 15, maxTokens: 8_000,
+    },
     source: { kind: "tpch", tpchScale: 0.01 },
   },
   {
     id: DEFAULT_PRESET_ID, name: "Balanced (default)", revision: 1, savedAt: "2026-11-01T00:00:00Z", factory: true,
-    settings: { model: "claude-haiku-5-5", effort: "medium", maxIterations: 25 },
+    settings: { ...AGENT_DEFAULTS },
     source: { kind: "tpch", tpchScale: 0.1 },
   },
   {
     id: "factory-deep", name: "Deep Dive", revision: 1, savedAt: "2026-11-01T00:00:00Z", factory: true,
-    settings: { model: "claude-haiku-5-5", effort: "high", maxIterations: 40 },
+    settings: {
+      ...AGENT_DEFAULTS, effort: "high", maxIterations: 40, maxResultRows: 500, maxResultChars: 40_000,
+      queryTimeoutSeconds: 60, maxTokens: 20_000,
+    },
     source: { kind: "tpch", tpchScale: 1 },
   },
 ];
@@ -79,7 +85,7 @@ export const FACTORY_PRESETS: Preset[] = [
 export class PresetError extends Error {}
 
 export function settingsOf(face: FaceSettings): PresetSettings {
-  return { model: face.model, effort: face.effort, maxIterations: face.maxIterations };
+  return agentSettingsOf(face);
 }
 
 /** The face's current source, in preset form. */
@@ -98,7 +104,7 @@ export function presetSourceOf(face: FaceSettings): PresetSource {
  *  prompt is left alone, and so is the source when the preset doesn't have one. Fields
  *  for other source kinds (a db path while on TPC-H) are kept for switching back. */
 export function applyPreset(face: FaceSettings, preset: Preset): FaceSettings {
-  const next: FaceSettings = { ...face, ...preset.settings, presetId: preset.id };
+  const next: FaceSettings = { ...face, ...agentSettingsOf({ ...face, ...preset.settings }), presetId: preset.id };
   const source = preset.source;
   if (!source) return next;
   next.sourceKind = source.kind;
@@ -114,10 +120,7 @@ export function sameSource(a: PresetSource, b: PresetSource): boolean {
 
 /** Whether the knobs (and the source, if the preset has one) still match the preset. */
 export function matchesPreset(face: FaceSettings, preset: Preset): boolean {
-  const current = settingsOf(face);
-  const settingsMatch = (Object.keys(preset.settings) as (keyof PresetSettings)[]).every(
-    (key) => current[key] === preset.settings[key],
-  );
+  const settingsMatch = AGENT_KEYS.every((key) => sameAgentSetting(face[key], preset.settings[key]));
   return settingsMatch && (!preset.source || sameSource(presetSourceOf(face), preset.source));
 }
 
@@ -177,19 +180,20 @@ export function parsePreset(text: string): Preset {
   }
   if (typeof d.name !== "string" || !d.name.trim()) throw new PresetError("This preset has no name.");
   const s = (d.settings ?? {}) as Record<string, unknown>;
-  const settings: PresetSettings = {
-    model: typeof s.model === "string" ? s.model : DEFAULT_SETTINGS.model,
-    effort: EFFORTS.includes(s.effort as Effort) ? (s.effort as Effort) : DEFAULT_SETTINGS.effort,
-    maxIterations:
-      Number.isInteger(s.maxIterations) && (s.maxIterations as number) >= 1 ? (s.maxIterations as number) : DEFAULT_SETTINGS.maxIterations,
-  };
+  // Each setting the file has (and that has the right type) is used; the rest are the
+  // defaults, so presets saved before a knob existed still load.
+  const settings = { ...AGENT_DEFAULTS } as Record<string, unknown>;
+  for (const key of AGENT_KEYS) {
+    if (validSetting(key, s[key])) settings[key] = Array.isArray(s[key]) ? [...(s[key] as string[])] : s[key];
+  }
+  if (!EFFORTS.includes(settings.effort as Effort)) settings.effort = AGENT_DEFAULTS.effort;
   return {
     ...(parseSource(d.source) ? { source: parseSource(d.source) } : {}),
     id: typeof d.id === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(d.id) ? d.id : newPresetId(),
     name: d.name.trim(),
     revision: Number.isInteger(d.revision) && (d.revision as number) >= 1 ? (d.revision as number) : 1,
     savedAt: typeof d.savedAt === "string" ? d.savedAt : new Date().toISOString(),
-    settings,
+    settings: settings as PresetSettings,
   };
 }
 

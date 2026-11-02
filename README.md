@@ -49,8 +49,12 @@ React (packages/dh1)  ──invoke("harness_send")──▶  Rust (apps/dh1/src-
   `duckdb_agent/serve.py` and the `EventCallback` events in `duckdb_agent/loop.py`.
 - **`packages/dh1/src/Dh1.tsx`** is the face:
   - SOURCE: the TPC-H test tone, a DuckDB file, or data files
-  - AGENT: model switch, plus Effort and Iterations knobs
-  - METERS: cost, iteration LEDs, and context / token / cache meters
+  - AGENT: model switch, STRUCTURED and CACHE, and the Effort, Iterations, Result
+    Size, Timeout, and Max Tokens knobs
+  - CONTEXT COMPRESSOR: context editing as a compressor (threshold, keep, clear at
+    least, the sidechain of never-cleared tools, the prompt's size against the
+    threshold, and how much each clear freed)
+  - METERS: cost, iteration LEDs, and token / cache meters
   - the prompt with RUN and STOP
   - the Activity and Answer panes
 - **`packages/dh1/src/runState.ts`** turns the server's events into what the meters
@@ -108,8 +112,11 @@ To use a checkout somewhere else, set `DH1_AGENT_DIR`. If `uv` isn't on your PAT
 - [x] Shared UI kit and device/host split, ready for more plugins
 - [x] Presets: factory and saved, ‹ › and a menu in the header; saved as files in
       ~/Library/Application Support/Duck Harness/Presets/dh1/ and recorded with each run
-- [ ] Remaining knobs: result size, timeout, max tokens, structured answer, caching
-- [ ] Context compressor, run timeline, A/B compare, Setlist
+- [x] Every agent knob: result size (rows, chars, cell clip), timeout, max tokens,
+      structured answer, caching
+- [x] Context compressor: threshold, keep, clear-at-least, sidechain, context and
+      gain-reduction meters
+- [ ] Run timeline, A/B compare, Setlist
 - [ ] EH-1: grades agent runs from the traces (its engine in its own repo)
 - [ ] The rack: DH-1 and EH-1 side by side
 - [ ] Packaging: bundle Python with the app, signing and notarization

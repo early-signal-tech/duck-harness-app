@@ -29,9 +29,8 @@ interface Props {
   statusTone: "idle" | "busy" | "ok" | "warn" | "bad";
 }
 
-// Meter scales. Context: Haiku 5.5's long-prompt price starts at 100K. In and out are
-// run totals, so they're scaled to a typical longer run.
-const CONTEXT_SCALE = 100_000;
+// Meter scales: run totals, scaled to a typical longer run. (The prompt's current size
+// is on the compressor's CONTEXT IN meter.)
 const IN_SCALE = 200_000;
 const OUT_SCALE = 20_000;
 
@@ -47,7 +46,6 @@ export function MetersPanel({ view, maxIterations, priced, status, statusTone }:
     <section className="panel meters">
       <h2>METERS</h2>
       <div className="vmeters">
-        <Meter label="CTX" value={compact(view.contextTokens)} fraction={view.contextTokens / CONTEXT_SCALE} />
         <Meter label="IN" value={compact(prompt)} fraction={prompt / IN_SCALE} />
         <Meter label="OUT" value={compact(view.usage.output_tokens)} fraction={view.usage.output_tokens / OUT_SCALE} />
         <Meter label="CACHE" value={prompt ? `${Math.round(hit * 100)}%` : "—"} fraction={hit} accent />

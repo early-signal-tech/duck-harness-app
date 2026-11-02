@@ -18,8 +18,10 @@ export interface KnobProps {
   format: (value: number) => string;
   hint?: string;
   onChange: (value: number) => void;
-  /** "large" for the agent knobs, "small" for secondary ones (wireframe: 76px / 44px). */
-  size?: "large" | "small";
+  /** "large" for the agent knobs, "medium" for the compressor, "small" for secondary
+   *  ones (wireframe: 76px / 60px / 44px). */
+  size?: "large" | "medium" | "small";
+  disabled?: boolean;
 }
 
 export function clampToStep(value: number, min: number, max: number, step: number): number {
@@ -35,12 +37,13 @@ export function valueFromDrag(
   return clampToStep(start + (dy / (DRAG_PIXELS * (fine ? FINE : 1))) * range, min, max, step);
 }
 
-export function Knob({ label, value, min, max, step = 1, defaultValue, format, hint, onChange, size = "large" }: KnobProps) {
+export function Knob({ label, value, min, max, step = 1, defaultValue, format, hint, onChange, size = "large", disabled }: KnobProps) {
   const drag = useRef<{ y: number; value: number } | null>(null);
   const fraction = max > min ? (value - min) / (max - min) : 0;
   const angle = START + SWEEP * fraction;
 
   const set = (next: number) => {
+    if (disabled) return;
     const clamped = clampToStep(next, min, max, step);
     if (clamped !== value) onChange(clamped);
   };
@@ -81,11 +84,12 @@ export function Knob({ label, value, min, max, step = 1, defaultValue, format, h
   };
 
   return (
-    <div className={`knob ${size}`}>
+    <div className={`knob ${size}${disabled ? " disabled" : ""}`}>
       <div
         className="knob-dial"
         role="slider"
-        tabIndex={0}
+        tabIndex={disabled ? -1 : 0}
+        aria-disabled={disabled || undefined}
         aria-label={label}
         aria-valuemin={min}
         aria-valuemax={max}
@@ -111,5 +115,31 @@ export function Knob({ label, value, min, max, step = 1, defaultValue, format, h
       <span className="knob-readout">{format(value)}</span>
       {hint && <span className="knob-hint">{hint}</span>}
     </div>
+  );
+}
+
+/** A knob that steps through a list of values (token counts, timeouts) rather than a
+ *  smooth range. A value that isn't on the list shows at the nearest step. */
+export function SteppedKnob({ values, value, defaultValue, onChange, ...rest }: Omit<KnobProps, "min" | "max" | "step" | "value" | "defaultValue" | "onChange" | "format"> & {
+  values: readonly number[];
+  value: number;
+  defaultValue: number;
+  onChange: (value: number) => void;
+  format: (value: number) => string;
+}) {
+  const nearest = (v: number) =>
+    values.reduce((best, candidate, i) => (Math.abs(candidate - v) < Math.abs(values[best] - v) ? i : best), 0);
+  const format = rest.format;
+  return (
+    <Knob
+      {...rest}
+      min={0}
+      max={values.length - 1}
+      value={nearest(value)}
+      defaultValue={nearest(defaultValue)}
+      // Show the real value when it's off the list (e.g. from an imported preset).
+      format={(i) => format(i === nearest(value) ? value : values[i])}
+      onChange={(i) => onChange(values[i])}
+    />
   );
 }

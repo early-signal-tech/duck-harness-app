@@ -3,7 +3,7 @@
 // into memory; drop them anywhere on the window).
 
 import { open } from "@tauri-apps/plugin-dialog";
-import { Knob } from "./Knob";
+import { Knob } from "@dh/ui-kit";
 import { fileName, tableNameFor, TPCH_SCALES, type FaceSettings, type SourceKind } from "../settings";
 
 interface Props {

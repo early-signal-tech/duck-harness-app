@@ -41,11 +41,3 @@ export function stepTextSize(size: number, direction: 1 | -1): number {
   if (direction > 0) return sizes.find((s) => s > size) ?? sizes[sizes.length - 1];
   return [...sizes].reverse().find((s) => s < size) ?? sizes[0];
 }
-
-/** Answer width for a splitter at `pointerX`, kept so neither pane gets too narrow.
- *  `left` and `right` are the edges of the area the two panes share. */
-export function answerWidthAt(pointerX: number, left: number, right: number, gutter: number): number {
-  const max = right - left - gutter - MIN_ACTIVITY_WIDTH;
-  const width = right - pointerX - gutter / 2;
-  return Math.round(Math.max(MIN_ANSWER_WIDTH, Math.min(max, width)));
-}

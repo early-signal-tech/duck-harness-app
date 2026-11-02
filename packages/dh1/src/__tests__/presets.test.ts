@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  applyPreset, DEFAULT_PRESET_ID, FACTORY_PRESETS, matchesPreset, parsePreset, PresetError, presetRef, stepPreset, toFile,
+  applyPreset, DEFAULT_PRESET_ID, describeSource, FACTORY_PRESETS, matchesPreset, parsePreset, PresetError, presetRef,
+  presetSourceOf, stepPreset, toFile,
   type Preset,
 } from "../presets";
 import { DEFAULT_SETTINGS, requestOf } from "../settings";
@@ -77,5 +78,40 @@ describe("preset files", () => {
   it("replaces an id that isn't safe for a file name", () => {
     const text = JSON.stringify({ format: "dh-preset", formatVersion: 1, device: "dh1", id: "../../etc", name: "x" });
     expect(parsePreset(text).id).toMatch(/^p-[0-9a-f-]+$/);
+  });
+});
+
+describe("presets with a source", () => {
+  const byId = (id: string) => FACTORY_PRESETS.find((p) => p.id === id)!;
+
+  it("factory presets switch to Test Tone at their own TPC-H scale", () => {
+    const face = { ...DEFAULT_SETTINGS, sourceKind: "db" as const, dbPath: "mine.duckdb", prompt: "keep me" };
+    expect(applyPreset(face, byId("factory-quick"))).toMatchObject({ sourceKind: "tpch", tpchScale: 0.01, prompt: "keep me" });
+    expect(applyPreset(face, byId(DEFAULT_PRESET_ID))).toMatchObject({ sourceKind: "tpch", tpchScale: 0.1 });
+    // The db path is kept, so switching back to Line In still has it.
+    expect(applyPreset(face, byId("factory-deep"))).toMatchObject({ sourceKind: "tpch", tpchScale: 1, dbPath: "mine.duckdb" });
+  });
+
+  it("counts a source change as an edit, but only for presets that hold a source", () => {
+    const deep = applyPreset(DEFAULT_SETTINGS, byId("factory-deep"));
+    expect(matchesPreset(deep, byId("factory-deep"))).toBe(true);
+    expect(matchesPreset({ ...deep, tpchScale: 0.1 }, byId("factory-deep"))).toBe(false);
+    expect(matchesPreset({ ...deep, sourceKind: "db" }, byId("factory-deep"))).toBe(false);
+    const face = applyPreset(DEFAULT_SETTINGS, mine); // mine has no source
+    expect(matchesPreset({ ...face, sourceKind: "files", files: ["a.csv"] }, mine)).toBe(true);
+  });
+
+  it("keeps only the fields for the source's kind", () => {
+    const face = { ...DEFAULT_SETTINGS, sourceKind: "files" as const, files: ["a.csv", "b.parquet"], dbPath: "x.duckdb" };
+    expect(presetSourceOf(face)).toEqual({ kind: "files", files: ["a.csv", "b.parquet"] });
+    expect(describeSource(presetSourceOf(face))).toBe("2 files");
+    expect(describeSource({ kind: "db", dbPath: "/data/shop.duckdb" })).toBe("shop.duckdb");
+  });
+
+  it("round-trips a source through a file, and drops one it can't use", () => {
+    const withSource: Preset = { ...mine, source: { kind: "db", dbPath: "/data/shop.duckdb" } };
+    expect(parsePreset(toFile(withSource))).toEqual(withSource);
+    const bad = JSON.stringify({ format: "dh-preset", formatVersion: 1, device: "dh1", name: "x", source: { kind: "tpch", tpchScale: -1 } });
+    expect(parsePreset(bad)).not.toHaveProperty("source");
   });
 });

@@ -226,8 +226,8 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
 
   return (
     <div className={`dh1${dragging ? " dragging" : ""}${expanded ? ` expanded-${expanded}` : ""}`}>
-      {toolbar ? createPortal(<PresetBar presets={presets} />, toolbar) : (
-        <div className="bar dh1-toolbar"><PresetBar presets={presets} /></div>
+      {toolbar ? createPortal(<PresetBar presets={presets} settings={settings} />, toolbar) : (
+        <div className="bar dh1-toolbar"><PresetBar presets={presets} settings={settings} /></div>
       )}
 
       <div className="dh1-row">

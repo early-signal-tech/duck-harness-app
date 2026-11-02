@@ -12,6 +12,14 @@ interface Props {
   addFiles: (paths: string[]) => void;
 }
 
+// TPC-H data is about 1 GB per unit of scale. It's built on the first run at a scale
+// and reused after that, until the app restarts.
+const SCALE_NOTES: Record<number, string> = {
+  0.01: "0.01 ≈ 10 MB. Builds almost instantly.",
+  0.1: "0.1 ≈ 100 MB. Builds in a few seconds.",
+  1: "1 ≈ 1 GB. The first run takes longer while it builds.",
+};
+
 const KINDS: { kind: SourceKind; label: string }[] = [
   { kind: "tpch", label: "TEST TONE" },
   { kind: "db", label: "LINE IN" },
@@ -70,7 +78,7 @@ export function SourcePanel({ settings, update, addFiles }: Props) {
           <div className="tone-text">
             <span className="caps">TEST TONE · TPC-H</span>
             <span className="small muted">Generated orders, customers, line items, parts, and suppliers, in memory.</span>
-            <span className="small muted">0.1 ≈ 100 MB, built in a few seconds.</span>
+            <span className="small muted">{SCALE_NOTES[settings.tpchScale] ?? `Scale ${settings.tpchScale}.`}</span>
           </div>
         </div>
       )}

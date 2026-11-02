@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   applyPreset, byName, deleteUserPreset, exportPreset, FACTORY_PRESETS, importPreset, loadUserPresets,
-  matchesPreset, newPresetId, settingsOf, stepPreset, writeUserPreset, type Preset,
+  matchesPreset, newPresetId, settingsOf, presetSourceOf, stepPreset, writeUserPreset, type Preset,
 } from "./presets";
 import type { FaceSettings } from "./settings";
 
@@ -15,7 +15,7 @@ export interface PresetControls {
   select: (preset: Preset) => void;
   step: (direction: 1 | -1) => void;
   save: () => Promise<void>;
-  saveAs: (name: string) => Promise<void>;
+  saveAs: (name: string, includeSource: boolean) => Promise<void>;
   rename: (name: string) => Promise<void>;
   remove: () => Promise<void>;
   importFrom: (path: string) => Promise<void>;
@@ -64,16 +64,24 @@ export function usePresets(
 
   const save = async () => {
     if (!current || current.factory) throw new Error("Factory presets can't be changed. Use Save as.");
-    await store({ ...current, settings: settingsOf(settings), revision: current.revision + 1, savedAt: new Date().toISOString() });
+    await store({
+      ...current,
+      settings: settingsOf(settings),
+      // A preset that holds a source keeps holding one, now the current one.
+      ...(current.source ? { source: presetSourceOf(settings) } : {}),
+      revision: current.revision + 1,
+      savedAt: new Date().toISOString(),
+    });
   };
 
-  const saveAs = async (name: string) => {
+  const saveAs = async (name: string, includeSource: boolean) => {
     const preset: Preset = {
       id: newPresetId(),
       name: checkName(name),
       revision: 1,
       savedAt: new Date().toISOString(),
       settings: settingsOf(settings),
+      ...(includeSource ? { source: presetSourceOf(settings) } : {}),
     };
     await store(preset);
     setSettings((s) => ({ ...s, presetId: preset.id }));

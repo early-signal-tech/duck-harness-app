@@ -4,15 +4,17 @@
 import { Menu, MenuDivider, MenuItem, MenuSection } from "@dh/ui-kit";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { useCallback, useState, type FormEvent } from "react";
-import type { Preset } from "../presets";
+import { describeSource, presetSourceOf, type Preset } from "../presets";
+import type { FaceSettings } from "../settings";
 import type { PresetControls } from "../usePresets";
 
 type Mode = "list" | "save-as" | "rename" | "delete";
 
-export function PresetBar({ presets }: { presets: PresetControls }) {
+export function PresetBar({ presets, settings }: { presets: PresetControls; settings: FaceSettings }) {
   const [isOpen, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("list");
   const [name, setName] = useState("");
+  const [includeSource, setIncludeSource] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { all, current, modified } = presets;
   const own = current && !current.factory;
@@ -42,7 +44,7 @@ export function PresetBar({ presets }: { presets: PresetControls }) {
 
   const submitName = (e: FormEvent) => {
     e.preventDefault();
-    attempt(() => (mode === "rename" ? presets.rename(name) : presets.saveAs(name)));
+    attempt(() => (mode === "rename" ? presets.rename(name) : presets.saveAs(name, includeSource)));
   };
 
   const doImport = () =>
@@ -63,7 +65,12 @@ export function PresetBar({ presets }: { presets: PresetControls }) {
     });
 
   const item = (preset: Preset) => (
-    <MenuItem key={preset.id} checked={preset.id === current?.id} onSelect={() => attempt(() => presets.select(preset))}>
+    <MenuItem
+      key={preset.id}
+      checked={preset.id === current?.id}
+      hint={preset.source ? describeSource(preset.source) : undefined}
+      onSelect={() => attempt(() => presets.select(preset))}
+    >
       {preset.name}
     </MenuItem>
   );
@@ -108,7 +115,12 @@ export function PresetBar({ presets }: { presets: PresetControls }) {
             >
               Save
             </MenuItem>
-            <MenuItem onSelect={() => startNaming("save-as", current ? `${current.name.replace(/ \(default\)$/, "")} copy` : "My preset")}>
+            <MenuItem
+              onSelect={() => {
+                setIncludeSource(current?.source !== undefined || !current);
+                startNaming("save-as", current ? `${current.name.replace(/ \(default\)$/, "")} copy` : "My preset");
+              }}
+            >
               Save as…
             </MenuItem>
             <MenuItem disabled={!own} onSelect={() => current && startNaming("rename", current.name)}>Rename…</MenuItem>
@@ -123,7 +135,19 @@ export function PresetBar({ presets }: { presets: PresetControls }) {
           <form className="menu-form" onSubmit={submitName}>
             <span className="menu-title">{mode === "rename" ? "RENAME PRESET" : "SAVE AS A NEW PRESET"}</span>
             <input autoFocus value={name} maxLength={60} onChange={(e) => setName(e.currentTarget.value)} aria-label="Preset name" />
-            {mode === "save-as" && <span className="note">Saves the current knobs. Source and prompt aren't part of a preset.</span>}
+            {mode === "save-as" && (
+              <>
+                <label className="menu-check-row">
+                  <input type="checkbox" checked={includeSource} onChange={(e) => setIncludeSource(e.currentTarget.checked)} />
+                  Include source ({describeSource(presetSourceOf(settings))})
+                </label>
+                <span className="note">
+                  {includeSource
+                    ? "Loading the preset will switch to this source too. The prompt isn't saved."
+                    : "Loading the preset leaves the source as it is. The prompt isn't saved."}
+                </span>
+              </>
+            )}
             <div className="row">
               <button type="button" className="pane-button" onClick={() => startNaming("list", "")}>Back</button>
               <button type="submit" className="pane-button" disabled={!name.trim()}>{mode === "rename" ? "Rename" : "Save"}</button>

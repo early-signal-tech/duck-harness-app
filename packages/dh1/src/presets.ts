@@ -1,17 +1,19 @@
-// DH-1 presets: saved agent settings. A preset holds how the agent runs (model, effort,
-// iterations, and later the other knobs), not what it runs on: the source and prompt are
-// the input, like the signal going into an audio plugin.
+// DH-1 presets: saved agent settings. A preset always holds how the agent runs (model,
+// effort, iterations, and later the other knobs). It can also hold the source it runs on
+// (the factory presets do: TPC-H at a scale that suits them). The prompt is never part of
+// a preset: it's the question being asked.
 //
 // The file format names its device and versions, so a rack can hold presets for
 // several devices and older files can be read by newer versions:
 //
 //   { "format": "dh-preset", "formatVersion": 1, "device": "dh1", "deviceVersion": 1,
 //     "id": "…", "name": "Deep Dive", "revision": 3, "savedAt": "…",
-//     "settings": { "model": "…", "effort": "high", "maxIterations": 40 } }
+//     "settings": { "model": "…", "effort": "high", "maxIterations": 40 },
+//     "source": { "kind": "tpch", "tpchScale": 1 } }      <- optional
 
 import { invoke } from "@tauri-apps/api/core";
 import type { Effort } from "./harness";
-import { DEFAULT_SETTINGS, type FaceSettings } from "./settings";
+import { DEFAULT_SETTINGS, fileName, type FaceSettings, type SourceKind } from "./settings";
 
 export const DEVICE = "dh1";
 export const DEVICE_VERSION = 1;
@@ -27,6 +29,12 @@ export interface PresetSettings {
   maxIterations: number;
 }
 
+/** The source a preset loads, when it has one. Only the fields for its kind are kept. */
+export type PresetSource =
+  | { kind: "tpch"; tpchScale: number }
+  | { kind: "db"; dbPath: string }
+  | { kind: "files"; files: string[] };
+
 export interface Preset {
   id: string;
   name: string;
@@ -34,6 +42,8 @@ export interface Preset {
   revision: number;
   savedAt: string;
   settings: PresetSettings;
+  /** Loaded along with the settings, if present. */
+  source?: PresetSource;
   /** Built in, read-only. */
   factory?: boolean;
 }
@@ -52,14 +62,17 @@ export const FACTORY_PRESETS: Preset[] = [
   {
     id: "factory-quick", name: "Quick & Cheap", revision: 1, savedAt: "2026-11-01T00:00:00Z", factory: true,
     settings: { model: "claude-haiku-5-5", effort: "low", maxIterations: 10 },
+    source: { kind: "tpch", tpchScale: 0.01 },
   },
   {
     id: DEFAULT_PRESET_ID, name: "Balanced (default)", revision: 1, savedAt: "2026-11-01T00:00:00Z", factory: true,
     settings: { model: "claude-haiku-5-5", effort: "medium", maxIterations: 25 },
+    source: { kind: "tpch", tpchScale: 0.1 },
   },
   {
     id: "factory-deep", name: "Deep Dive", revision: 1, savedAt: "2026-11-01T00:00:00Z", factory: true,
     settings: { model: "claude-haiku-5-5", effort: "high", maxIterations: 40 },
+    source: { kind: "tpch", tpchScale: 1 },
   },
 ];
 
@@ -69,15 +82,55 @@ export function settingsOf(face: FaceSettings): PresetSettings {
   return { model: face.model, effort: face.effort, maxIterations: face.maxIterations };
 }
 
-/** The face with a preset's settings applied (source and prompt are left alone). */
-export function applyPreset(face: FaceSettings, preset: Preset): FaceSettings {
-  return { ...face, ...preset.settings, presetId: preset.id };
+/** The face's current source, in preset form. */
+export function presetSourceOf(face: FaceSettings): PresetSource {
+  switch (face.sourceKind) {
+    case "tpch":
+      return { kind: "tpch", tpchScale: face.tpchScale };
+    case "db":
+      return { kind: "db", dbPath: face.dbPath };
+    case "files":
+      return { kind: "files", files: [...face.files] };
+  }
 }
 
-/** Whether the knobs still match the preset they were loaded from. */
+/** The face with a preset applied: its settings, and its source if it has one. The
+ *  prompt is left alone, and so is the source when the preset doesn't have one. Fields
+ *  for other source kinds (a db path while on TPC-H) are kept for switching back. */
+export function applyPreset(face: FaceSettings, preset: Preset): FaceSettings {
+  const next: FaceSettings = { ...face, ...preset.settings, presetId: preset.id };
+  const source = preset.source;
+  if (!source) return next;
+  next.sourceKind = source.kind;
+  if (source.kind === "tpch") next.tpchScale = source.tpchScale;
+  if (source.kind === "db") next.dbPath = source.dbPath;
+  if (source.kind === "files") next.files = [...source.files];
+  return next;
+}
+
+export function sameSource(a: PresetSource, b: PresetSource): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/** Whether the knobs (and the source, if the preset has one) still match the preset. */
 export function matchesPreset(face: FaceSettings, preset: Preset): boolean {
   const current = settingsOf(face);
-  return (Object.keys(preset.settings) as (keyof PresetSettings)[]).every((key) => current[key] === preset.settings[key]);
+  const settingsMatch = (Object.keys(preset.settings) as (keyof PresetSettings)[]).every(
+    (key) => current[key] === preset.settings[key],
+  );
+  return settingsMatch && (!preset.source || sameSource(presetSourceOf(face), preset.source));
+}
+
+/** A short description of a preset's source, for the menu. */
+export function describeSource(source: PresetSource): string {
+  switch (source.kind) {
+    case "tpch":
+      return `TPC-H ${source.tpchScale}`;
+    case "db":
+      return fileName(source.dbPath) || "DB file";
+    case "files":
+      return source.files.length === 1 ? fileName(source.files[0]) : `${source.files.length} files`;
+  }
 }
 
 export function presetRef(face: FaceSettings, presets: Preset[]): PresetRef | undefined {
@@ -131,12 +184,27 @@ export function parsePreset(text: string): Preset {
       Number.isInteger(s.maxIterations) && (s.maxIterations as number) >= 1 ? (s.maxIterations as number) : DEFAULT_SETTINGS.maxIterations,
   };
   return {
+    ...(parseSource(d.source) ? { source: parseSource(d.source) } : {}),
     id: typeof d.id === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(d.id) ? d.id : newPresetId(),
     name: d.name.trim(),
     revision: Number.isInteger(d.revision) && (d.revision as number) >= 1 ? (d.revision as number) : 1,
     savedAt: typeof d.savedAt === "string" ? d.savedAt : new Date().toISOString(),
     settings,
   };
+}
+
+const SOURCE_KINDS: SourceKind[] = ["tpch", "db", "files"];
+
+/** A preset file's source, or undefined if it has none (or one this version can't use). */
+function parseSource(value: unknown): PresetSource | undefined {
+  const s = value as Record<string, unknown> | undefined;
+  if (!s || typeof s !== "object" || !SOURCE_KINDS.includes(s.kind as SourceKind)) return undefined;
+  if (s.kind === "tpch" && typeof s.tpchScale === "number" && s.tpchScale > 0) return { kind: "tpch", tpchScale: s.tpchScale };
+  if (s.kind === "db" && typeof s.dbPath === "string" && s.dbPath.trim()) return { kind: "db", dbPath: s.dbPath };
+  if (s.kind === "files" && Array.isArray(s.files) && s.files.length && s.files.every((f) => typeof f === "string")) {
+    return { kind: "files", files: s.files as string[] };
+  }
+  return undefined;
 }
 
 /** Sort for the menu: by name, ignoring case. */

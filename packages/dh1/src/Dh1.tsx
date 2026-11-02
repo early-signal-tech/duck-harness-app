@@ -298,6 +298,8 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
             threshold={settings.contextEditing ? settings.contextTriggerTokens : null}
             selected={focus}
             onSelect={selectIteration}
+            open={layout.timelineOpen}
+            onToggle={() => setLayout((l) => ({ ...l, timelineOpen: !l.timelineOpen }))}
           />
           <ol className="log" ref={log}>
             {view.activity.map((line, i) => (

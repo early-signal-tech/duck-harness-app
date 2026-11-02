@@ -11,9 +11,11 @@ export const MIN_ACTIVITY_WIDTH = 280;
 export interface Layout {
   answerWidth: number;
   textSize: number;
+  /** The run timeline at the top of Activity: closed by default. */
+  timelineOpen: boolean;
 }
 
-export const DEFAULT_LAYOUT: Layout = { answerWidth: DEFAULT_ANSWER_WIDTH, textSize: DEFAULT_TEXT_SIZE };
+export const DEFAULT_LAYOUT: Layout = { answerWidth: DEFAULT_ANSWER_WIDTH, textSize: DEFAULT_TEXT_SIZE, timelineOpen: false };
 
 const STORAGE_KEY = "dh1.layout";
 

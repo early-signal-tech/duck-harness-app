@@ -179,3 +179,16 @@ describe("iterations for the timeline", () => {
     expect(stepKind(view.iterations[0])).toBe("answer");
   });
 });
+
+describe("the closed timeline's summary", () => {
+  it("counts iterations, clears, and errors", async () => {
+    const { timelineSummary } = await import("../components/Timeline");
+    expect(timelineSummary(IDLE)).toBe("");
+    const view = play(
+      ev({ event: "api_call", iteration: 1, context_tokens: 100, total_cost_usd: 0, total_usage: usage() }),
+      ev({ event: "context_edit", iteration: 2, details: { cleared_input_tokens: 600 } }),
+      ev({ event: "tool_call", iteration: 2, tool: "query_database", label: "Query Database", success: false, error_type: "timeout", duration_ms: 1 }),
+    );
+    expect(timelineSummary(view)).toBe("2 iterations · 1 clear · 1 with errors");
+  });
+});

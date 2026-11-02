@@ -321,3 +321,17 @@
 
 /* the picked iteration's lines in the log */
 .dh1 .log li.focus { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: inset 3px 0 0 var(--accent); padding-left: 6px; }
+.dh1 .timeline.closed { padding-bottom: 6px; }
+.dh1 .timeline-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+}
+.dh1 .timeline-toggle:hover { color: var(--ink); }
+.dh1 .timeline-toggle .chevron { width: 10px; font-size: 10px; }
+.dh1 .timeline-toggle .summary { margin-left: 6px; font-weight: 400; letter-spacing: 0.04em; text-transform: none; }

@@ -2,6 +2,7 @@
 // is that iteration's prompt size, and its fill says what it did (listed tables,
 // described, queried, failed, or answered). A blue tick marks a compressor clear, and
 // the dashed line is the compressor's threshold. Click a bar to find it in the log.
+// Closed by default: then it's one line with a short summary.
 
 import { stepKind, type IterationInfo, type RunView, type StepKind } from "../runState";
 import { kTokens } from "./CompressorPanel";
@@ -40,9 +41,23 @@ interface Props {
   threshold: number | null;
   selected: number | null;
   onSelect: (iteration: number | null) => void;
+  open: boolean;
+  onToggle: () => void;
 }
 
-export function Timeline({ view, maxIterations, threshold, selected, onSelect }: Props) {
+/** The one-line summary shown while the timeline is closed. */
+export function timelineSummary(view: RunView): string {
+  if (view.phase === "idle") return "";
+  const reached = view.iterations.length;
+  const parts = [`${reached} iteration${reached === 1 ? "" : "s"}`];
+  const clears = view.iterations.filter((i) => i.cleared > 0).length;
+  if (clears) parts.push(`${clears} clear${clears === 1 ? "" : "s"}`);
+  const errors = view.iterations.filter((i) => stepKind(i) === "error").length;
+  if (errors) parts.push(`${errors} with errors`);
+  return parts.join(" · ");
+}
+
+export function Timeline({ view, maxIterations, threshold, selected, onSelect, open, onToggle }: Props) {
   const idle = view.phase === "idle";
   const slots = idle ? maxIterations : view.maxIterations;
   const byIteration = new Map(view.iterations.map((i) => [i.iteration, i]));
@@ -52,17 +67,21 @@ export function Timeline({ view, maxIterations, threshold, selected, onSelect }:
   const height = (tokens: number) => `${Math.max(6, (tokens / scale) * 100)}%`;
 
   return (
-    <div className="timeline">
+    <div className={`timeline${open ? "" : " closed"}`}>
       <div className="timeline-head">
-        <span className="caps muted">RUN TIMELINE</span>
-        <div className="legend">
+        <button className="timeline-toggle caps" aria-expanded={open} onClick={onToggle} title={open ? "Hide the timeline" : "Show the timeline"}>
+          <span className="chevron" aria-hidden="true">{open ? "▾" : "▸"}</span>
+          RUN TIMELINE
+          {!open && timelineSummary(view) && <span className="summary">{timelineSummary(view)}</span>}
+        </button>
+        {open && <div className="legend">
           {LEGEND.map(({ kind, label }) => (
             <span key={kind}><i className={`swatch ${kind}`} aria-hidden="true" />{label}</span>
           ))}
           <span><i className="swatch clear" aria-hidden="true" />clear</span>
-        </div>
+        </div>}
       </div>
-      <div className="bars" role="list" aria-label="Iterations">
+      {open && <div className="bars" role="list" aria-label="Iterations">
         {threshold !== null && !idle && (
           <div className="thr" style={{ bottom: `${(threshold / scale) * 100}%` }}>
             <span>THR {kTokens(threshold)}</span>
@@ -88,7 +107,7 @@ export function Timeline({ view, maxIterations, threshold, selected, onSelect }:
             </button>
           );
         })}
-      </div>
+      </div>}
     </div>
   );
 }

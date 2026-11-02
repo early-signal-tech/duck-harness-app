@@ -274,3 +274,64 @@
   .dh1 .flyout-link .short { display: inline; }
   .dh1 .agent .knob .knob-face { stroke-width: 3.4; }
 }
+
+/* --- run timeline (top of Activity) --- */
+.dh1 .timeline { flex: none; display: flex; flex-direction: column; gap: 6px; padding-bottom: 8px; border-bottom: 1px solid var(--rule); }
+.dh1 .timeline-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dh1 .legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font: 400 10px/1 var(--mono); color: var(--muted); }
+.dh1 .legend span { display: flex; align-items: center; gap: 4px; }
+.dh1 .swatch { width: 10px; height: 10px; border: 1px solid var(--edge); }
+.dh1 .bars {
+  position: relative;
+  height: 64px;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  padding-bottom: 3px;
+  border-bottom: 1.5px solid var(--edge);
+}
+.dh1 .slot {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.dh1 .slot.empty { height: 12px; border: 1px dotted var(--field-edge); border-bottom: 0; border-radius: 2px 2px 0 0; cursor: default; }
+.dh1 .slot .bar { position: relative; width: 100%; border: 1px solid var(--edge); border-radius: 2px 2px 0 0; transition: height 0.3s; }
+/* Kinds, as in the wireframe: list light, describe mid, query dark, error dashed. */
+.dh1 .slot.list .bar, .dh1 .swatch.list { background: var(--rule); }
+.dh1 .slot.describe .bar, .dh1 .swatch.describe { background: var(--field-edge); }
+.dh1 .slot.query .bar, .dh1 .swatch.query { background: var(--led-on); }
+.dh1 .slot.error .bar, .dh1 .swatch.error { background: var(--field); border: 1.5px dashed var(--danger); }
+.dh1 .slot.answer .bar, .dh1 .swatch.answer { background: var(--accent); border-color: var(--accent); }
+.dh1 .slot.pending .bar { background: var(--accent); border-color: var(--accent); opacity: 0.5; }
+.dh1 .slot.calling .bar { animation: pulse 0.8s ease-in-out infinite; }
+.dh1 .swatch.clear { border: 0; border-top: 3px solid var(--accent); height: 6px; }
+.dh1 .slot .clear-mark { position: absolute; left: -1px; right: -1px; top: -5px; height: 3px; background: var(--accent); }
+.dh1 .slot:hover .bar { outline: 1.5px solid var(--accent); outline-offset: 1px; }
+.dh1 .slot.selected .bar { outline: 2px solid var(--accent); outline-offset: 1px; }
+.dh1 .thr { position: absolute; left: 0; right: 0; border-top: 1.5px dashed var(--accent); pointer-events: none; }
+.dh1 .thr span { position: absolute; right: 0; top: -13px; font: 600 9px/1 var(--mono); color: var(--accent); background: var(--panel); padding-left: 4px; }
+
+/* the picked iteration's lines in the log */
+.dh1 .log li.focus { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: inset 3px 0 0 var(--accent); padding-left: 6px; }
+.dh1 .timeline.closed { padding-bottom: 6px; }
+.dh1 .timeline-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+}
+.dh1 .timeline-toggle:hover { color: var(--ink); }
+.dh1 .timeline-toggle .chevron { width: 10px; font-size: 10px; }
+.dh1 .timeline-toggle .summary { margin-left: 6px; font-weight: 400; letter-spacing: 0.04em; text-transform: none; }

@@ -110,3 +110,13 @@ describe("the closing activity line", () => {
     expect(last(view.activity)).toMatchObject({ kind: "end", text: "Couldn't run · no answer", hasAnswer: false });
   });
 });
+
+describe("tool lines", () => {
+  it("says 1 row, not 1 rows", () => {
+    const view = play(
+      ev({ event: "tool_call_start", iteration: 1, label: "Query Database", input: { sql: "SELECT 1" } }),
+      ev({ event: "tool_call", iteration: 1, label: "Query Database", success: true, row_count: 1, truncated: false, duration_ms: 3 }),
+    );
+    expect(view.activity[0].text).toBe("Query Database · 1 row · 3 ms");
+  });
+});

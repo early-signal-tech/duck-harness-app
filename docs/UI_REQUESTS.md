@@ -32,6 +32,9 @@ answer had arrived.
 - While Activity is expanded, that line has a "Show answer →" button that switches the
   expanded view to the answer.
 - The log follows new lines, unless you've scrolled up to read something.
+- Also fixed along the way: SQL and thinking boxes now cut cleanly after three lines
+  (ending in "…" with a dashed edge), and a click shows the whole text. "1 rows" now
+  reads "1 row".
 
 ### 3. Drag to resize the Activity and Answer panes — done (PR #2)
 A handle where the two panes meet, dragged left or right to trade width between them.

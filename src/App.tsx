@@ -7,6 +7,7 @@ import {
   applyAppearance, loadAppearance, saveAppearance, watchSystemTheme,
   type Appearance, type DisplayStyle, type ThemeChoice,
 } from "./appearance";
+import { Detail } from "./components/Detail";
 import { Knob } from "./components/Knob";
 import { Markdown } from "./components/Markdown";
 import { MetersPanel } from "./components/MetersPanel";
@@ -388,7 +389,7 @@ export default function App() {
                 <span className="iter">{line.kind === "end" ? "END" : String(line.iteration).padStart(2, "0")}</span>
                 <div>
                   <span className="what">{line.text}</span>
-                  {line.detail && <code className="detail">{line.detail}</code>}
+                  {line.detail && <Detail text={line.detail} />}
                   {line.kind === "end" && line.hasAnswer && expanded === "activity" && (
                     <button className="pane-button show-answer" onClick={() => setExpanded("answer")}>
                       Show answer →

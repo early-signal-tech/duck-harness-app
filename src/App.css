@@ -368,18 +368,26 @@ input:focus { border-color: var(--accent); }
 .log li.error .what { color: var(--danger); }
 .log li.edit .what { color: var(--accent); }
 .log .detail {
-  display: -webkit-box;
   padding: 6px 8px;
-  overflow: hidden;
   border: 1px solid var(--rule);
   border-radius: 4px;
   background: var(--code-bg);
   color: var(--code-ink);
   font: 400 0.86em/1.45 var(--mono);
-  white-space: pre-wrap;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
 }
+.log .detail-text {
+  /* Line clamping hides lines 4+ entirely, so no glyph tops peek through. It works
+     here because this element has no padding (the padded box is .detail). */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.log .detail.clipped { cursor: pointer; border-bottom-style: dashed; }
+.log .detail.open .detail-text { display: block; -webkit-line-clamp: none; }
 .log li.thinking .detail { font-family: var(--sans); font-size: 0.92em; }
 
 .answer { width: var(--answer-width, 520px); flex: none; min-height: 0; gap: 10px; background: var(--bar-bg); color: var(--bar-ink); border-color: var(--bar-bg); }

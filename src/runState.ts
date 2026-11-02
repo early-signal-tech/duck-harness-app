@@ -83,6 +83,8 @@ function setLed(leds: LedState[], iteration: number, state: LedState): LedState[
   return next;
 }
 
+const rows = (n: number) => `${n.toLocaleString()} row${n === 1 ? "" : "s"}`;
+
 function sqlOf(input: Record<string, unknown>): string | undefined {
   const sql = input.sql ?? input.query;
   return typeof sql === "string" ? sql : undefined;
@@ -140,7 +142,7 @@ function applyEvent(view: RunView, event: AgentEvent): RunView {
       // Replace the matching "…" line with the outcome.
       const activity = view.activity.slice();
       const outcome = event.success
-        ? `${event.label} · ${(event.row_count ?? 0).toLocaleString()} rows${event.truncated ? " (truncated)" : ""} · ${event.duration_ms} ms`
+        ? `${event.label} · ${rows(event.row_count ?? 0)}${event.truncated ? " (truncated)" : ""} · ${event.duration_ms} ms`
         : `${event.label} · ${event.error_type ?? "error"}`;
       for (let i = activity.length - 1; i >= 0; i--) {
         if (activity[i].kind === "tool" && activity[i].text === `${event.label}…`) {

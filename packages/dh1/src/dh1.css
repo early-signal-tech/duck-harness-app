@@ -430,12 +430,12 @@
 .dh1 .stepper button:first-child { border-left: 0; }
 .dh1 .stepper button.on { background: var(--sel-bg); color: var(--sel-ink); }
 .dh1 .setlist-count { color: var(--muted); letter-spacing: 0.08em; }
-.dh1 .setlist .run, .dh1 .setlist .stop {
+.dh1 .setlist-head button.run, .dh1 .setlist-head button.stop {
   display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 14px; border-radius: 6px;
   font: 700 11px/1 var(--mono); letter-spacing: 0.12em;
 }
-.dh1 .setlist .run { border: 0; background: var(--accent); color: var(--accent-ink); }
-.dh1 .setlist .stop { border: 1.5px solid var(--edge); background: var(--field); color: var(--ink); }
+.dh1 .setlist-head button.run { border: 0; background: var(--accent); color: var(--accent-ink); }
+.dh1 .setlist-head button.stop { border: 1.5px solid var(--edge); background: var(--field); color: var(--ink); }
 .dh1 .setlist-problem { font-size: 12px; }
 
 .dh1 .setlist-progress { display: flex; align-items: center; gap: 12px; font: 500 12px/1.3 var(--mono); color: var(--muted); }

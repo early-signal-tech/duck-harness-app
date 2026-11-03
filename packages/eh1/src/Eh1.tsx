@@ -11,9 +11,9 @@ import { Menu, MenuItem, MenuSection } from "@dh/ui-kit";
 import {
   describeSource, FACTORY_QUESTION_SETS, hasCheck, parseQuestionSet, questionSetToFile, type QuestionSet,
 } from "@dh/formats";
-import { valueCheck, type Grade, type Grading, type SetlistInfo } from "./engine";
+import { valueCheck, type Grade, type Grading, type Override, type SetlistInfo } from "./engine";
 import {
-  avg, columnsOf, columnSummary, findSet, JUDGE_EFFORTS, JUDGE_MODELS, loadGrader, saveGrader, scorecard,
+  avg, carefulOf, columnsOf, columnSummary, correctOf, findSet, JUDGE_EFFORTS, JUDGE_MODELS, loadGrader, saveGrader, scorecard,
   TOLERANCES, type Cell,
 } from "./scorecard";
 import type { EngineConnection } from "./useEngine";
@@ -206,6 +206,34 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
   const pickedRow = picked ? groups.flatMap((g) => g.rows).find((r) => r.question.id === picked.question) : undefined;
   const pickedCell = pickedRow && picked ? pickedRow.cells[columns.indexOf(picked.column)] : undefined;
 
+  const saveOverride = async (runId: string, value: Omit<Override, "at"> | null) => {
+    if (!client || !setFile) return;
+    setProblem(null);
+    try {
+      await client.override(runId, setFile, grader, value);
+      await loadGrades();
+    } catch (e) {
+      setProblem(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const regradeCell = (runIds: string[]) => {
+    if (!client || !setlist || !setFile || grading) return;
+    setProblem(null);
+    setNotice(null);
+    const g = client.grade(setlist.id, setFile, grader, { regrade: true, runIds, concurrency: 4 });
+    setGrading(g);
+    setProgress({ done: 0, total: runIds.length });
+    g.done
+      .then((summary) => setNotice(`Regraded ${summary.graded} run${summary.graded === 1 ? "" : "s"} · judge ${money(summary.judge_cost_usd)}`))
+      .catch((e) => setProblem(e instanceof Error ? e.message : String(e)))
+      .finally(() => {
+        setGrading(null);
+        setProgress(null);
+        void loadGrades();
+      });
+  };
+
   const ungraded = setlist ? Math.max(0, setlist.runs - grades.length) : 0;
   const judgeModel = JUDGE_MODELS.find((m) => m.id === grader.judge_model)?.label ?? grader.judge_model;
   const withCheck = set ? set.questions.filter(hasCheck).length : 0;
@@ -310,8 +338,8 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
         <section className="panel eh1-meters">
           <h2>METERS</h2>
           <div className="eh1-meter-row">
-            <Meter label="COR" value={avg(grades.map((g) => g.correct))} />
-            <Meter label="CAR" value={avg(grades.map((g) => g.careful))} />
+            <Meter label="COR" value={avg(grades.map(correctOf))} />
+            <Meter label="CAR" value={avg(grades.map(carefulOf))} />
             <Meter label="EFF" value={avg(grades.map((g) => g.efficient))} />
           </div>
           <div className="display">
@@ -391,10 +419,60 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
             <p className="caps muted">COLUMN {picked.column} · {pickedCell.grades.length} repeat{pickedCell.grades.length === 1 ? "" : "s"}</p>
             {pickedCell.grades.length === 0 && <p className="muted">Not graded with these settings yet.</p>}
             {pickedCell.grades.map((g) => (
-              <div key={g.run_id} className="repeat">
+              <RepeatVerdict
+                key={g.run_id}
+                grade={g}
+                busy={!!grading}
+                onOverride={(value) => saveOverride(g.run_id, value)}
+              />
+            ))}
+            {pickedCell.grades.length > 0 && (
+              <div className="verdict-actions">
+                <button className="pane-button" disabled={!!grading || !ready} onClick={() => regradeCell(pickedCell.grades.map((g) => g.run_id))}
+                  title="Ask the judge again for this cell's repeats; your overrides stay">
+                  Regrade this cell
+                </button>
+              </div>
+            )}
+          </aside>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** One repeat in the verdict panel: its scores, reasons, rules, values, and your override. */
+function RepeatVerdict({ grade: g, busy, onOverride }: {
+  grade: Grade;
+  busy: boolean;
+  onOverride: (value: Omit<Override, "at"> | null) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [correct, setCorrect] = useState(g.override?.correct ?? g.correct ?? 1);
+  const [careful, setCareful] = useState(g.override?.careful ?? g.careful ?? 1);
+  const [why, setWhy] = useState(g.override?.why ?? "");
+  const [saving, setSaving] = useState(false);
+  const save = async (value: Omit<Override, "at"> | null) => {
+    setSaving(true);
+    await onOverride(value);
+    setSaving(false);
+    setEditing(false);
+  };
+  const pick = (label: string, value: number, set: (n: number) => void) => (
+    <div className="override-row">
+      <span className="caps">{label}</span>
+      <div className="segmented" role="radiogroup" aria-label={label}>
+        {[0, 1, 2].map((n) => (
+          <button key={n} role="radio" aria-checked={value === n} className={value === n ? "on" : ""} onClick={() => set(n)}>{n}</button>
+        ))}
+      </div>
+    </div>
+  );
+  return (
+              <div className="repeat">
                 <div className="repeat-head">
                   <span>#{g.repeat ?? 1} · {g.status.replace(/_/g, " ")}</span>
-                  <b>{g.correct ?? "–"} · {g.careful ?? "–"} · {g.efficient ?? "–"}</b>
+                  <b>{correctOf(g) ?? "–"} · {carefulOf(g) ?? "–"} · {g.efficient ?? "–"}</b>
                 </div>
                 {g.judge_error && <p className="error">{g.judge_error}</p>}
                 {g.judge_unsure && <p className="unsure">The judge was unsure.</p>}
@@ -429,13 +507,33 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
                     )}
                   </>
                 )}
+                {g.override && !editing && (
+                  <p className="override-note">
+                    ✎ Your call: Correct {g.override.correct}, Careful {g.override.careful} (judge said {g.correct ?? "–"}, {g.careful ?? "–"})
+                    {g.override.why && <> · “{g.override.why}”</>}
+                  </p>
+                )}
+                {editing ? (
+                  <div className="override-form">
+                    {pick("CORRECT", correct, setCorrect)}
+                    {pick("CAREFUL", careful, setCareful)}
+                    <label className="caps muted" htmlFor={`why-${g.run_id}`}>WHY</label>
+                    <input id={`why-${g.run_id}`} value={why} maxLength={500} placeholder="A short reason" onChange={(e) => setWhy(e.currentTarget.value)} />
+                    <div className="override-buttons">
+                      <button className="pane-button" onClick={() => setEditing(false)}>Cancel</button>
+                      <button className="pane-button primary" disabled={saving} onClick={() => void save({ correct, careful, why })}>Save</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="override-buttons">
+                    <button className="pane-button" disabled={busy || g.correct === null && !g.judge_error && !g.override} onClick={() => setEditing(true)}>
+                      {g.override ? "Change override…" : "Override…"}
+                    </button>
+                    {g.override && <button className="pane-button" disabled={busy || saving} onClick={() => void save(null)}>Clear override</button>}
+                  </div>
+                )}
                 <p className="run-id selectable">{g.run_id}</p>
               </div>
-            ))}
-          </aside>
-        )}
-      </div>
-    </div>
   );
 }
 
@@ -474,6 +572,7 @@ function GroupRows({ group, columns, picked, onPick }: {
                       {cell.rulesBroken > 0 && <i className="rule-dot" title="A trace rule broke" />}
                       {cell.judgeErrors > 0 && <span className="flag" title="The judge failed on a repeat">!</span>}
                       {cell.unsure > 0 && <span className="flag" title="The judge was unsure">?</span>}
+                      {cell.overridden > 0 && <span className="flag mine" title="Your override is used here">✎</span>}
                     </>
                   ) : <span className="muted">not graded</span>}
                 </button>

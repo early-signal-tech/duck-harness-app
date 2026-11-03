@@ -12,9 +12,20 @@ export function avg(values: (number | null | undefined)[]): number | null {
   return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
 }
 
-/** A run's total out of 6, when the judge scored it. */
+/** CORRECT and CAREFUL as they count: your override where you set one, else the judge's. */
+export function correctOf(g: Grade): number | null {
+  return g.override ? g.override.correct : g.correct;
+}
+
+export function carefulOf(g: Grade): number | null {
+  return g.override ? g.override.careful : g.careful;
+}
+
+/** A run's total out of 6, when it has CORRECT and CAREFUL (yours or the judge's). */
 export function total(g: Grade): number | null {
-  return g.correct === null || g.careful === null || g.efficient === null ? null : g.correct + g.careful + g.efficient;
+  const c = correctOf(g);
+  const k = carefulOf(g);
+  return c === null || k === null || g.efficient === null ? null : c + k + g.efficient;
 }
 
 export interface Cell {
@@ -26,19 +37,21 @@ export interface Cell {
   rulesBroken: number;
   judgeErrors: number;
   unsure: number;
+  overridden: number;
 }
 
 export function cellOf(grades: Grade[]): Cell {
   const sorted = [...grades].sort((a, b) => (a.repeat ?? 0) - (b.repeat ?? 0));
   return {
     grades: sorted,
-    correct: avg(sorted.map((g) => g.correct)),
-    careful: avg(sorted.map((g) => g.careful)),
+    correct: avg(sorted.map(correctOf)),
+    careful: avg(sorted.map(carefulOf)),
     efficient: avg(sorted.map((g) => g.efficient)),
     total: avg(sorted.map(total)),
     rulesBroken: sorted.filter((g) => g.rules_passed === false).length,
     judgeErrors: sorted.filter((g) => g.judge_error).length,
-    unsure: sorted.filter((g) => g.judge_unsure).length,
+    unsure: sorted.filter((g) => g.judge_unsure && !g.override).length,
+    overridden: sorted.filter((g) => g.override).length,
   };
 }
 

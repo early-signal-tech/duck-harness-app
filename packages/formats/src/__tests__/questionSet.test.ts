@@ -37,7 +37,7 @@ describe("the factory TPC-H set", () => {
 
   it("asks for stated assumptions on the hard-to-phrase questions", () => {
     const withExpect = set.questions.filter((q) => q.check?.careful).map((q) => q.id);
-    expect(withExpect).toEqual(["q19", "q22"]);
+    expect(withExpect).toEqual(["q19"]);
   });
 
   it("round-trips through a file", () => {

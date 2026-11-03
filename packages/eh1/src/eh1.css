@@ -114,3 +114,12 @@
 .eh1-verdict .values tr.differs td:last-child { color: var(--danger); }
 .eh1-verdict .values tr.unverified td { color: var(--muted); }
 .eh1-verdict .unverified-note { font: 400 11px/1.4 var(--sans); color: var(--muted); }
+.eh1 .cell .flag.mine { color: var(--accent); }
+.eh1-verdict .override-note { padding: 6px 8px; border-left: 2px solid var(--accent); background: var(--panel); font: 400 12px/1.4 var(--sans); }
+.eh1-verdict .override-form { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--field-edge); border-radius: 6px; }
+.eh1-verdict .override-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.eh1-verdict .override-row .segmented button { height: 26px; min-width: 32px; }
+.eh1-verdict .override-form input { height: 28px; box-sizing: border-box; padding: 0 8px; border: 1px solid var(--field-edge); border-radius: 4px; background: var(--field); color: var(--ink); font: 400 12px/1 var(--sans); }
+.eh1-verdict .override-buttons { display: flex; gap: 6px; justify-content: flex-start; }
+.eh1-verdict .pane-button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.eh1-verdict .verdict-actions { padding-top: 8px; border-top: 1px solid var(--rule); }

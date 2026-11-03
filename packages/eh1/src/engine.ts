@@ -65,6 +65,14 @@ export function valueCheck(v: JudgedValue): ValueCheck {
   return v.matches ? "matches" : "differs";
 }
 
+/** A person's CORRECT and CAREFUL for a run, kept beside the judge's. */
+export interface Override {
+  correct: number;
+  careful: number;
+  why: string;
+  at?: string;
+}
+
 /** One run's grade under one grader setting (eval_grades, joined with the run). */
 export interface Grade {
   run_id: string;
@@ -84,7 +92,7 @@ export interface Grade {
   rules_passed: boolean | null;
   judge_cost_usd: number | null;
   judge_error: string | null;
-  override: unknown;
+  override: Override | null;
   run_cost_usd: number | null;
 }
 
@@ -190,12 +198,15 @@ export class Engine {
 
   grade(
     setlistRun: string, questionSet: unknown, grader: GraderSettings,
-    options: { regrade?: boolean; concurrency?: number } = {},
+    options: { regrade?: boolean; concurrency?: number; runIds?: string[] } = {},
     onEvent?: (event: GradeEvent) => void,
   ): Grading {
     const id = nextId("grade");
     const done = this.request(
-      { type: "grade", setlist_run: setlistRun, question_set: questionSet, grader, regrade: !!options.regrade, concurrency: options.concurrency ?? 4 },
+      {
+        type: "grade", setlist_run: setlistRun, question_set: questionSet, grader, regrade: !!options.regrade,
+        concurrency: options.concurrency ?? 4, ...(options.runIds ? { run_ids: options.runIds } : {}),
+      },
       id,
       { onEvent, isFinal: (m) => m.type === "result" || m.type === "error" },
     ).then((reply) => {
@@ -203,6 +214,12 @@ export class Engine {
       return reply.result;
     });
     return { id, done, stop: () => this.request({ type: "stop", grade: id }, nextId("stop")).then(() => {}) };
+  }
+
+  /** Set (or, with null, clear) your scores for one graded run. */
+  async override(runId: string, questionSet: unknown, grader: GraderSettings, value: Omit<Override, "at"> | null): Promise<void> {
+    const reply = await this.request({ type: "override", run_id: runId, question_set: questionSet, grader, override: value }, nextId("override"));
+    if (reply.type !== "ok") throw new EngineError(`unexpected reply ${reply.type}`);
   }
 
   private request(body: Record<string, unknown>, id: string, options: Partial<Pick<Pending, "onEvent" | "isFinal">> = {}): Promise<Message> {

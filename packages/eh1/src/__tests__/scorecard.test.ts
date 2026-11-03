@@ -84,3 +84,18 @@ describe("compared values", () => {
     expect(valueCheck({ name: "n", agent: "1", reference: "2", matches: false })).toBe("differs");
   });
 });
+
+describe("overrides", () => {
+  it("count instead of the judge's scores, and are marked", async () => {
+    const { carefulOf, correctOf } = await import("../scorecard");
+    const judged = g("A1", "A", 1, [2, 1, 2]);
+    const mine = { ...judged, override: { correct: 0, careful: 2, why: "wrong nation" } };
+    expect([correctOf(mine), carefulOf(mine), total(mine)]).toEqual([0, 2, 4]);
+    expect(total(judged)).toBe(5);
+    const cell = cellOf([mine, g("A1", "A", 2, [2, 2, 2])]);
+    expect([cell.correct, cell.careful, cell.overridden]).toEqual([1, 2, 1]);
+    expect(columnSummary([mine], "A").fullMarks).toBe(0);
+    // An override settles an unsure judge.
+    expect(cellOf([{ ...mine, judge_unsure: true }]).unsure).toBe(0);
+  });
+});

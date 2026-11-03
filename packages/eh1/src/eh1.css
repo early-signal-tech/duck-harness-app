@@ -11,7 +11,7 @@
 
 .eh1-row { flex: none; display: flex; gap: 12px; height: 300px; }
 .eh1-input { width: 270px; flex: none; gap: 10px; }
-.eh1-scores { flex: 1; min-width: 0; gap: 8px; overflow: hidden; }
+.eh1-scores { flex: 1; min-width: 0; gap: 8px; }
 .eh1-judge { width: 300px; flex: none; gap: 8px; }
 .eh1-meters { width: 220px; flex: none; gap: 10px; }
 
@@ -237,3 +237,51 @@
 .eh1-run .run-judge { flex: none; gap: 8px; }
 .eh1-run .run-judge .segmented button { flex: 1; }
 .eh1-run .save-row .pane-button, .eh1-run .match .pane-button { white-space: nowrap; flex: none; }
+
+/* --- RUBRIC and EFFICIENT flyouts, EXPORT --- */
+.eh1 .panel h2 .h2-tools { margin-left: auto; display: flex; gap: 6px; letter-spacing: 0; }
+.eh1-scorecard h2 .menu-root { margin-left: 10px; }
+.eh1-scorecard h2 .legend { margin-left: auto; }
+.eh1 .flyout-button { height: 24px; padding: 0 8px; font: 700 10px/1 var(--mono); letter-spacing: 0.1em; display: inline-flex; align-items: center; gap: 4px; }
+.eh1 .flyout-button .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.eh1 .flyout-button.row-flyout { height: 22px; padding: 0 7px; letter-spacing: 0; }
+.eh1 .score-row .row-end { display: flex; align-items: center; gap: 6px; }
+.eh1 .menu.eh1-flyout { width: 440px; max-width: calc(100vw - 60px); padding: 12px; font: 400 12px/1.4 var(--sans); letter-spacing: 0; text-transform: none; }
+.eh1-flyout .flyout-body { display: flex; flex-direction: column; gap: 8px; }
+.eh1-flyout .scale { border-collapse: collapse; font: 400 11px/1.3 var(--sans); }
+.eh1-flyout .scale th, .eh1-flyout .scale td { padding: 4px 6px 4px 0; vertical-align: top; text-align: left; border-bottom: 1px solid var(--rule); }
+.eh1-flyout .scale thead th { font: 700 10px/1 var(--mono); color: var(--muted); }
+.eh1-flyout .scale tbody th { font: 700 9px/1.4 var(--mono); letter-spacing: 0.06em; white-space: nowrap; }
+.eh1-flyout textarea { box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--field-edge); border-radius: 4px; background: var(--field);
+  color: var(--ink); resize: vertical; font: 400 12px/1.4 var(--sans); }
+.eh1-flyout .buttons { display: flex; justify-content: flex-end; gap: 6px; }
+.eh1-flyout .pane-button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.eh1-flyout .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.eh1-flyout .setting-row label { font-weight: 700; }
+.eh1-flyout .stepper { display: flex; align-items: center; gap: 6px; }
+.eh1-flyout .stepper output { min-width: 24px; text-align: center; font: 700 13px/1 var(--mono); }
+.eh1-flyout .stepper .pane-button { width: 26px; height: 24px; padding: 0; }
+.eh1-flyout .levels { margin: 0; padding: 8px 10px; list-style: none; border-radius: 6px; background: var(--field); display: flex; flex-direction: column; gap: 3px; }
+.eh1-flyout .levels b { display: inline-block; width: 16px; font-family: var(--mono); }
+
+/* --- HANDBOOK (replaces the face while open) --- */
+.eh1-header { display: flex; align-items: center; gap: 12px; }
+.eh1-header .eh1-modes { margin-left: 0; }
+.eh1-header .help-open { flex: none; height: 32px; padding: 0 12px; font-size: 12px; white-space: nowrap; }
+.eh1-header .help-open[aria-pressed="true"] { background: var(--bar-sel-bg); color: var(--bar-sel-ink); }
+.eh1-help { flex: 1; min-height: 0; gap: 12px; }
+.eh1-help h2 { font-size: 11px; }
+.eh1-help .help-title { display: flex; align-items: center; gap: 10px; }
+.eh1-help .pane-size { min-width: 18px; text-align: center; font: 600 10px/1 var(--mono); opacity: 0.7; align-self: center; }
+.eh1-help .help-note { margin: 0; font: 400 12px/1.4 var(--sans); color: var(--muted); }
+.eh1-help .help-well { flex: 1; min-height: 0; overflow: auto; padding: 24px 28px; border-radius: 6px; background: var(--well-dark);
+  color: var(--well-ink); scroll-padding-top: 16px; }
+.eh1-help .help-doc { max-width: 880px; margin: 0 auto; font: 400 1em/1.6 var(--sans); }
+.eh1-help .help-doc .markdown h1 { margin-top: 0; font-size: 1.7em; letter-spacing: -0.01em; }
+/* Not the panel-title look .panel h2 gives every h2 inside a panel. */
+.eh1-help .help-doc .markdown h2 {
+  display: block; margin: 1.8em 0 0.5em; padding-top: 0.9em; border-top: 1px solid var(--well-rule);
+  font: 700 1.3em/1.3 var(--sans); letter-spacing: -0.005em;
+}
+.eh1-help .help-doc .markdown hr { border: 0; border-top: 1px solid var(--well-rule); margin: 1.4em 0; }
+.eh1-help .help-doc .markdown a.local-link { color: inherit; text-decoration: underline dotted; cursor: pointer; }

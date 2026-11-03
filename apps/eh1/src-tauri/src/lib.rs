@@ -24,6 +24,7 @@ use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Emitter, Manager, RunEvent, State};
 
+mod files;
 mod question_sets;
 mod settings;
 
@@ -170,6 +171,7 @@ pub fn run() {
             settings::traces_shell_open,
             question_sets::question_set_list,
             question_sets::question_set_write,
+            files::file_write,
         ])
         .build(tauri::generate_context!())
         .expect("error while building EH-1")

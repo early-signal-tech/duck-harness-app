@@ -141,6 +141,8 @@ export const DEFAULT_GRADER: GraderSettings = {
   judge_effort: "low",
   tolerance: "±0.5%",
   iteration_budget: 8,
+  instructions: "",
+  waste_for_one: 2,
 };
 
 const GRADER_KEY = "eh1.grader";

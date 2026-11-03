@@ -17,12 +17,26 @@ export interface GraderSettings {
   judge_effort: string;
   tolerance: string;
   iteration_budget: number;
+  /** Your notes to the judge, sent with every question (the Rubric flyout). */
+  instructions?: string;
+  /** EFFICIENT: how much waste still scores 1 (the Efficient flyout). */
+  waste_for_one?: number;
+}
+
+/** One row of the rubric's scale: what earns 2, 1, and 0. */
+export interface ScaleRow {
+  score: string;
+  "2": string;
+  "1": string;
+  "0": string;
 }
 
 export interface Hello {
   protocol: number;
   defaults: GraderSettings;
   judge_models: string[];
+  /** The rubric's scale (older engines don't send it). */
+  scale?: ScaleRow[];
 }
 
 /** The preset one column of a setlist ran, as the runs recorded it. */

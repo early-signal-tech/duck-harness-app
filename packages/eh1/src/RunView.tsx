@@ -315,6 +315,7 @@ function SaveQuestion({ run, check, mine, onSaved, onCancel }: {
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const target = choices.find((s) => s.id === setId) ?? choices[0];
+  const noData = !run.source && !target.source;
 
   const save = async () => {
     setBusy(true);
@@ -352,10 +353,11 @@ function SaveQuestion({ run, check, mine, onSaved, onCancel }: {
           ? `Makes a new set in MINE, ${target.name}.`
           : `Saves ${target.name} as revision ${target.revision + 1}. Grades made with revision ${target.revision} stay, under that revision.`}
       </p>
+      {noData && <p className="warn small">This run didn't record its data and {target.name} has none of its own, so the question would have nothing to run on. Pick a set with data.</p>}
       {problem && <p className="error small">{problem}</p>}
       <div className="buttons">
         <button className="pane-button" onClick={onCancel}>Cancel</button>
-        <button className="pane-button primary" disabled={busy || !title.trim()} onClick={() => void save()}>Save</button>
+        <button className="pane-button primary" disabled={busy || !title.trim() || noData} onClick={() => void save()}>Save</button>
       </div>
     </div>
   );

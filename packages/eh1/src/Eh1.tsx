@@ -2,7 +2,7 @@
 // newest; PICK: any); SCORES says where each score comes from; JUDGE sets the judge;
 // METERS sum it up. GRADE SETLIST grades what isn't graded yet with these settings, and
 // the scorecard shows questions (by category) × preset columns. Pick a cell for its
-// repeats' verdicts (and your override). RUN mode and quick checks come later.
+// repeats' verdicts (and your override). RUN mode (RunView) grades one run at a time.
 
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -10,9 +10,11 @@ import { createPortal } from "react-dom";
 import {
   describeSource, FACTORY_QUESTION_SETS, hasCheck, parseQuestionSet, questionSetToFile, type QuestionSet,
 } from "@dh/formats";
-import { valueCheck, type Grade, type Grading, type Override, type SetlistInfo } from "./engine";
+import { type Grade, type Grading, type Override, type SetlistInfo } from "./engine";
+import { GradeVerdict } from "./Verdict";
 import { nameToStore, cleanText, MAX_NOTE, setlistTitle, suggestedTitle } from "./picker";
 import { RenameForm, SetlistPicker } from "./SetlistPicker";
+import { RunView } from "./RunView";
 import {
   avg, carefulOf, columnsOf, columnSummary, correctOf, findSet, JUDGE_EFFORTS, JUDGE_MODELS, loadGrader, saveGrader, scorecard,
   TOLERANCES, type Cell,
@@ -21,6 +23,7 @@ import type { EngineConnection } from "./useEngine";
 import "./eh1.css";
 
 type InputMode = "follow" | "pick";
+type View = "setlist" | "run";
 
 async function loadSets(): Promise<QuestionSet[]> {
   const mine: QuestionSet[] = [];
@@ -38,11 +41,6 @@ async function loadSets(): Promise<QuestionSet[]> {
   return [...FACTORY_QUESTION_SETS, ...mine];
 }
 
-const CHECK_TEXT = {
-  matches: "Checked: matches the reference",
-  differs: "Checked: differs from the reference",
-  unverified: "Unverified: the question gives no reference for this value",
-} as const;
 
 const fmt = (n: number | null, digits = 1) => (n === null ? "–" : n.toFixed(digits));
 const money = (n: number | null) => (n === null ? "–" : n >= 0.1 ? `$${n.toFixed(3)}` : `$${n.toFixed(4)}`);
@@ -92,10 +90,26 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
     }
   }, [mode]);
 
-  const [sets, setSets] = useState<QuestionSet[]>(FACTORY_QUESTION_SETS);
+  const [view, setView] = useState<View>(() => {
+    try {
+      return localStorage.getItem("eh1.view") === "run" ? "run" : "setlist";
+    } catch {
+      return "setlist";
+    }
+  });
   useEffect(() => {
-    void loadSets().then(setSets);
-  }, []);
+    try {
+      localStorage.setItem("eh1.view", view);
+    } catch {
+      // ignore
+    }
+  }, [view]);
+
+  const [sets, setSets] = useState<QuestionSet[]>(FACTORY_QUESTION_SETS);
+  const reloadSets = useCallback(async () => setSets(await loadSets()), []);
+  useEffect(() => {
+    void reloadSets();
+  }, [reloadSets]);
   const [setlists, setSetlists] = useState<SetlistInfo[]>([]);
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
@@ -218,7 +232,7 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
     if (!client || !setFile) return;
     setProblem(null);
     try {
-      await client.override(runId, setFile, grader, value);
+      await client.override(runId, { questionSet: setFile, grader }, value);
       await loadGrades();
       void refreshSetlists();
     } catch (e) {
@@ -250,14 +264,18 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
 
   const header = (
     <div className="bar-group eh1-modes" role="radiogroup" aria-label="What to grade">
-      <button role="radio" aria-checked="true" className="on">SETLIST</button>
-      <button role="radio" aria-checked="false" disabled title="Grading single runs comes next">RUN</button>
+      <button role="radio" aria-checked={view === "setlist"} className={view === "setlist" ? "on" : ""} onClick={() => setView("setlist")}>SETLIST</button>
+      <button role="radio" aria-checked={view === "run"} className={view === "run" ? "on" : ""} onClick={() => setView("run")}>RUN</button>
     </div>
   );
 
   return (
     <div className="eh1">
       {toolbar ? createPortal(header, toolbar) : <div className="bar">{header}</div>}
+
+      {view === "run" ? (
+        <RunView engine={client} ready={ready} sets={sets} onSetsChanged={reloadSets} grader={grader} setGrader={setGrader} />
+      ) : (<>
 
       <div className="eh1-row">
         <section className="panel eh1-input">
@@ -429,9 +447,10 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
             <p className="caps muted">COLUMN {picked.column} · {pickedCell.grades.length} repeat{pickedCell.grades.length === 1 ? "" : "s"}</p>
             {pickedCell.grades.length === 0 && <p className="muted">Not graded with these settings yet.</p>}
             {pickedCell.grades.map((g) => (
-              <RepeatVerdict
+              <GradeVerdict
                 key={g.run_id}
                 grade={g}
+                heading={`#${g.repeat ?? 1} · ${g.status.replace(/_/g, " ")}`}
                 busy={!!grading}
                 onOverride={(value) => saveOverride(g.run_id, value)}
               />
@@ -447,103 +466,8 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
           </aside>
         )}
       </div>
+      </>)}
     </div>
-  );
-}
-
-/** One repeat in the verdict panel: its scores, reasons, rules, values, and your override. */
-function RepeatVerdict({ grade: g, busy, onOverride }: {
-  grade: Grade;
-  busy: boolean;
-  onOverride: (value: Omit<Override, "at"> | null) => Promise<void>;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [correct, setCorrect] = useState(g.override?.correct ?? g.correct ?? 1);
-  const [careful, setCareful] = useState(g.override?.careful ?? g.careful ?? 1);
-  const [why, setWhy] = useState(g.override?.why ?? "");
-  const [saving, setSaving] = useState(false);
-  const save = async (value: Omit<Override, "at"> | null) => {
-    setSaving(true);
-    await onOverride(value);
-    setSaving(false);
-    setEditing(false);
-  };
-  const pick = (label: string, value: number, set: (n: number) => void) => (
-    <div className="override-row">
-      <span className="caps">{label}</span>
-      <div className="segmented" role="radiogroup" aria-label={label}>
-        {[0, 1, 2].map((n) => (
-          <button key={n} role="radio" aria-checked={value === n} className={value === n ? "on" : ""} onClick={() => set(n)}>{n}</button>
-        ))}
-      </div>
-    </div>
-  );
-  return (
-              <div className="repeat">
-                <div className="repeat-head">
-                  <span>#{g.repeat ?? 1} · {g.status.replace(/_/g, " ")}</span>
-                  <b>{correctOf(g) ?? "–"} · {carefulOf(g) ?? "–"} · {g.efficient ?? "–"}</b>
-                </div>
-                {g.judge_error && <p className="error">{g.judge_error}</p>}
-                {g.judge_unsure && <p className="unsure">The judge was unsure.</p>}
-                <dl>
-                  <dt>CORRECT</dt><dd>{g.correct_reason ?? "–"}</dd>
-                  <dt>CAREFUL</dt><dd>{g.careful_reason ?? "–"}</dd>
-                  <dt>EFFICIENT</dt><dd>{g.efficient_reason ?? "–"}</dd>
-                </dl>
-                {g.rules && g.rules.length > 0 && (
-                  <ul className="rules">
-                    {g.rules.map((r, i) => <li key={i} className={r.passed ? "" : "bad"}>{r.passed ? "✓" : "✕"} {r.label} <span>· {r.detail}</span></li>)}
-                  </ul>
-                )}
-                {g.judge_values && g.judge_values.length > 0 && (
-                  <>
-                    <table className="values">
-                      <thead><tr><th>VALUE</th><th>AGENT</th><th>REF</th><th /></tr></thead>
-                      <tbody>
-                        {g.judge_values.map((v, i) => {
-                          const check = valueCheck(v);
-                          return (
-                            <tr key={i} className={check}>
-                              <td>{v.name}</td><td>{v.agent}</td><td>{check === "unverified" ? "–" : v.reference}</td>
-                              <td title={CHECK_TEXT[check]}>{check === "matches" ? "✓" : check === "differs" ? "✕" : "–"}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                    {g.judge_values.some((v) => valueCheck(v) === "unverified") && (
-                      <p className="unverified-note">– unverified: the question gives no reference for this value. Add one to the question set to check it.</p>
-                    )}
-                  </>
-                )}
-                {g.override && !editing && (
-                  <p className="override-note">
-                    ✎ Your call: Correct {g.override.correct}, Careful {g.override.careful} (judge said {g.correct ?? "–"}, {g.careful ?? "–"})
-                    {g.override.why && <> · “{g.override.why}”</>}
-                  </p>
-                )}
-                {editing ? (
-                  <div className="override-form">
-                    {pick("CORRECT", correct, setCorrect)}
-                    {pick("CAREFUL", careful, setCareful)}
-                    <label className="caps muted" htmlFor={`why-${g.run_id}`}>WHY</label>
-                    <input id={`why-${g.run_id}`} value={why} maxLength={500} placeholder="A short reason" onChange={(e) => setWhy(e.currentTarget.value)} />
-                    <div className="override-buttons">
-                      <button className="pane-button" onClick={() => setEditing(false)}>Cancel</button>
-                      <button className="pane-button primary" disabled={saving} onClick={() => void save({ correct, careful, why })}>Save</button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="override-buttons">
-                    <button className="pane-button" disabled={busy || g.correct === null && !g.judge_error && !g.override} onClick={() => setEditing(true)}>
-                      {g.override ? "Change override…" : "Override…"}
-                    </button>
-                    {g.override && <button className="pane-button" disabled={busy || saving} onClick={() => void save(null)}>Clear override</button>}
-                  </div>
-                )}
-                <p className="run-id selectable">{g.run_id}</p>
-              </div>
   );
 }
 

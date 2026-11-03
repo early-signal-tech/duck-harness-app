@@ -5,6 +5,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import type { SourceSpec } from "@dh/formats";
 
 export const PROTOCOL_VERSION = 1;
 
@@ -119,6 +120,73 @@ export interface Grade {
   run_cost_usd: number | null;
 }
 
+// --- RUN mode: one run at a time ---
+
+export type RunKind = "all" | "single" | "ab" | "setlist";
+
+/** A run in the RUNS list (newest first from `runs`). */
+export interface RunSummary {
+  run_id: string;
+  started_at: string | null;
+  prompt: string;
+  status: string;
+  preset: string | null;
+  preset_modified: boolean;
+  /** setlist, setlist_run, question, column, repeat for setlist runs; ab and pair for A/B. */
+  labels: Record<string, string | number | boolean | null>;
+  cost_usd: number | null;
+  /** Its newest grade, under any settings ("quick" for a quick check). */
+  grade: { question_set: string; question: string | null; total: number | null; rules_passed: boolean | null } | null;
+}
+
+export interface RunDetail {
+  run_id: string;
+  started_at: string | null;
+  prompt: string;
+  answer: string;
+  status: string;
+  iterations: number;
+  labels: Record<string, string | number | boolean | null>;
+  preset: { id?: string; name?: string; revision?: number; modified?: boolean } | null;
+  model: string | null;
+  effort: string | null;
+  cost_usd: number | null;
+  duration_ms: number | null;
+  /** The data it ran on, as a question set source; null when an older run didn't say. */
+  source: SourceSpec | null;
+  /** The agent recorded what it was asked for (newer runs); else it's from the path DuckDB reported. */
+  source_recorded: boolean;
+  tool_calls: number;
+  failed_calls: number;
+}
+
+export interface QuickCheck {
+  correct: string;
+  careful?: string;
+  sql?: string[];
+}
+
+export interface ReferenceResult {
+  sql: string;
+  rows: number | null;
+  columns: string[] | null;
+  preview: string | null;
+  error: string | null;
+}
+
+/** A grade of one run, under any settings (from `run` and `grade_run`). */
+export interface RunGrade extends Omit<Grade, "column" | "repeat" | "question"> {
+  grader_key: string;
+  graded_at: string | null;
+  question_set: string;
+  question_set_revision: number | null;
+  question: string | null;
+  grader: GraderSettings | null;
+  quick_check: (QuickCheck & { source: SourceSpec | null }) | null;
+  judge_model: string | null;
+  reference: ReferenceResult[] | null;
+}
+
 export interface GradeSummary {
   setlist_run: string;
   grader_key: string;
@@ -148,6 +216,9 @@ type Message =
   | ({ id: string; type: "event" } & GradeEvent)
   | { id: string; type: "result"; result: GradeSummary }
   | { id: string; type: "ok" }
+  | { id: string; type: "runs"; runs: RunSummary[] }
+  | { id: string; type: "run"; run: RunDetail; grades: RunGrade[] }
+  | { id: string; type: "result"; grade: RunGrade }
   | { id: string | null; type: "error"; error: string };
 
 export class EngineError extends Error {}
@@ -236,16 +307,44 @@ export class Engine {
       id,
       { onEvent, isFinal: (m) => m.type === "result" || m.type === "error" },
     ).then((reply) => {
-      if (reply.type !== "result") throw new EngineError(`unexpected reply ${reply.type}`);
+      if (reply.type !== "result" || !("result" in reply)) throw new EngineError(`unexpected reply ${reply.type}`);
       return reply.result;
     });
     return { id, done, stop: () => this.request({ type: "stop", grade: id }, nextId("stop")).then(() => {}) };
   }
 
-  /** Set (or, with null, clear) your scores for one graded run. */
-  async override(runId: string, questionSet: unknown, grader: GraderSettings, value: Omit<Override, "at"> | null): Promise<void> {
-    const reply = await this.request({ type: "override", run_id: runId, question_set: questionSet, grader, override: value }, nextId("override"));
+  /** Set (or, with null, clear) your scores for one graded run. The grade is the one under
+   *  these settings and set, or (for a quick check) the one with this grader key. */
+  async override(runId: string, which: { questionSet: unknown; grader: GraderSettings } | { graderKey: string }, value: Omit<Override, "at"> | null): Promise<void> {
+    const target = "graderKey" in which ? { grader_key: which.graderKey } : { question_set: which.questionSet, grader: which.grader };
+    const reply = await this.request({ type: "override", run_id: runId, ...target, override: value }, nextId("override"));
     if (reply.type !== "ok") throw new EngineError(`unexpected reply ${reply.type}`);
+  }
+
+  /** Recent runs, newest first. */
+  async runs(kind: RunKind, search: string, limit = 150): Promise<RunSummary[]> {
+    const reply = await this.request({ type: "runs", kind, search, limit }, nextId("runs"));
+    if (reply.type !== "runs") throw new EngineError(`unexpected reply ${reply.type}`);
+    return reply.runs;
+  }
+
+  /** One run, and every grade of it (newest first). */
+  async run(runId: string): Promise<{ run: RunDetail; grades: RunGrade[] }> {
+    const reply = await this.request({ type: "run", run_id: runId }, nextId("run"));
+    if (reply.type !== "run") throw new EngineError(`unexpected reply ${reply.type}`);
+    return { run: reply.run, grades: reply.grades };
+  }
+
+  /** Grade one run against a question of a set, or against your quick check. */
+  async gradeRun(runId: string, grader: GraderSettings,
+    against: { questionSet: unknown; question: string } | { quickCheck: QuickCheck }): Promise<RunGrade> {
+    const body = "quickCheck" in against
+      ? { quick_check: against.quickCheck }
+      : { question_set: against.questionSet, question: against.question };
+    const reply = await this.request({ type: "grade_run", run_id: runId, grader, ...body }, nextId("grade-run"),
+      { isFinal: (m) => m.type === "result" || m.type === "error" });
+    if (reply.type !== "result" || !("grade" in reply)) throw new EngineError(`unexpected reply ${reply.type}`);
+    return reply.grade;
   }
 
   /** Your name and note for a setlist (null or blank shows DH-1's again). */

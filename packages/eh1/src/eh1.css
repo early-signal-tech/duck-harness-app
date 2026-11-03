@@ -3,7 +3,7 @@
 .eh1 .panel h2 { gap: 10px; }
 .eh1 .muted { color: var(--muted); }
 .eh1 .caps.muted { color: var(--muted); }
-.eh1-modes { display: flex; margin-left: 12px; border: 1px solid var(--bar-edge); border-radius: 6px; overflow: hidden; }
+.eh1-modes { display: flex; gap: 0; margin-left: 12px; border: 1px solid var(--bar-edge); border-radius: 6px; overflow: hidden; }
 .eh1-modes button { height: 32px; padding: 0 12px; border: 0; background: transparent; color: var(--bar-ink); font: 700 11px/1 var(--mono); letter-spacing: 0.1em; }
 .eh1-modes button + button { border-left: 1px solid var(--bar-edge); }
 .eh1-modes button.on { background: var(--bar-sel-bg); color: var(--bar-sel-ink); }
@@ -172,3 +172,68 @@
 .eh1-rename .name-row .pane-button { height: 28px; }
 .eh1-rename .buttons { display: flex; gap: 6px; justify-content: flex-end; margin-top: 4px; }
 .eh1-rename .pane-button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+/* --- the verdict's reference results --- */
+.eh1-verdict .reference { display: flex; flex-direction: column; gap: 4px; }
+.eh1-verdict .reference summary { cursor: pointer; font: 400 11px/1.4 var(--mono); }
+.eh1-verdict .reference pre { margin: 4px 0 0; padding: 6px 8px; max-height: 220px; overflow: auto; border-radius: 4px;
+  background: var(--panel); font: 400 10px/1.4 var(--mono); white-space: pre; }
+
+/* --- RUN mode --- */
+.eh1 .small { font: 400 11px/1.4 var(--sans); }
+.eh1 .warn.small { margin: 0; padding: 4px 6px; }
+.eh1-run { flex: 1; min-height: 0; display: flex; gap: 12px; }
+.eh1-run .run-list { width: 300px; flex: none; min-height: 0; gap: 10px; }
+.eh1-run .run-list .segmented button { flex: 1; height: 28px; font: 700 10px/1 var(--mono); letter-spacing: 0.08em; }
+.eh1-run .run-search { height: 30px; box-sizing: border-box; padding: 0 8px; border: 1px solid var(--field-edge); border-radius: 6px;
+  background: var(--field); color: var(--ink); font: 400 12px/1 var(--sans); }
+.eh1-run .run-items { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
+.eh1-run .run-item { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; text-align: left; border: 1px solid var(--rule);
+  border-radius: 6px; background: transparent; color: var(--ink); font: inherit; }
+.eh1-run .run-item:hover { background: var(--field); }
+.eh1-run .run-item.on { background: var(--field); border: 1.5px solid var(--edge); }
+.eh1-run .run-item-head { display: flex; justify-content: space-between; gap: 8px; font: 400 10px/1.2 var(--mono); color: var(--muted); }
+.eh1-run .run-item-head span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eh1-run .run-item-head b { flex: none; color: var(--ink); }
+.eh1-run .run-item-prompt { font: 500 12px/1.3 var(--sans); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+.eh1-run .run-main { flex: 1; min-width: 0; min-height: 0; gap: 10px; }
+.eh1-run .run-main-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.eh1-run .run-facts { font: 400 11px/1.2 var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eh1-run .run-prompt { margin: 0; font: 500 15px/1.4 var(--sans); }
+.eh1-run .match { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 1px solid var(--edge); border-radius: 6px; background: var(--field); }
+.eh1-run .match.none { border-style: dashed; }
+.eh1-run .match .caps { flex: none; font-weight: 700; color: var(--muted); }
+.eh1-run .match-text { flex: 1; min-width: 0; font: 400 12px/1.3 var(--sans); }
+.eh1-run .match .menu { max-height: 60vh; min-width: 360px; }
+.eh1-run .run-columns { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.eh1-run .run-answer, .eh1-run .run-check { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+/* Room for the focus ring: the column scrolls, which would clip it at the edges. */
+.eh1-run .run-check { overflow: auto; padding: 3px; margin: -3px; }
+.eh1-run .answer-box { flex: 1; min-height: 0; overflow: auto; padding: 12px; border-radius: 6px; background: var(--display-bg); color: var(--display-ink); font-size: 13px; }
+.eh1-run .run-check label { margin-top: 4px; font-weight: 700; }
+.eh1-run .run-check label .muted { font-weight: 400; letter-spacing: 0; text-transform: none; }
+.eh1-run .run-check textarea, .eh1-run .save-form input, .eh1-run .save-form select {
+  box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--field-edge); border-radius: 4px; background: var(--field);
+  color: var(--ink); resize: vertical; font: 400 12px/1.4 var(--sans); }
+.eh1-run .run-check textarea.mono { font: 400 11px/1.4 var(--mono); }
+.eh1-run .save-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.eh1-run .save-form { display: flex; flex-direction: column; gap: 5px; margin-top: 6px; padding: 8px; border: 1px solid var(--field-edge); border-radius: 6px; }
+.eh1-run .save-form .buttons { display: flex; justify-content: flex-end; gap: 6px; }
+.eh1-run .save-form .pane-button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.eh1-run .q-check { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; margin: 0; font: 400 12px/1.4 var(--sans); }
+.eh1-run .q-check dt { font: 700 9px/1.7 var(--mono); letter-spacing: 0.1em; color: var(--muted); }
+.eh1-run .q-check dd { margin: 0; }
+.eh1-run .q-check pre { margin: 0; white-space: pre-wrap; font: 400 11px/1.4 var(--mono); }
+
+.eh1-run .run-side { width: 340px; flex: none; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+.eh1-run .run-verdict { flex: 1; min-height: 0; gap: 8px; }
+.eh1-run .verdict-body { width: auto; flex: 1; min-height: 0; background: transparent; }
+.eh1-run .total-badge { margin-left: auto; padding: 4px 8px; border-radius: 4px; background: var(--edge); color: var(--panel); font: 700 11px/1 var(--mono); letter-spacing: 0; }
+.eh1-run .run-verdict .verdict-actions { flex: none; padding-top: 8px; border-top: 1px solid var(--rule); }
+.eh1-run .run-verdict .run { height: 34px; padding: 0 16px; border: 0; border-radius: 6px; background: var(--accent); color: var(--accent-ink);
+  font: 700 12px/1 var(--mono); letter-spacing: 0.12em; }
+.eh1-run .run-verdict .run:disabled { opacity: 0.4; }
+.eh1-run .run-judge { flex: none; gap: 8px; }
+.eh1-run .run-judge .segmented button { flex: 1; }
+.eh1-run .save-row .pane-button, .eh1-run .match .pane-button { white-space: nowrap; flex: none; }

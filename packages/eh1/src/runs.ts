@@ -131,6 +131,10 @@ export function nextQuestionId(set: QuestionSet, prefix = "QC"): string {
  *  The question keeps the run's data when the set's is different (or the set has none). */
 export function addQuickCheckQuestion(set: QuestionSet, run: Pick<RunDetail, "prompt" | "source">, check: QuickCheck,
   options: { title: string; category?: string }, now = new Date()): { set: QuestionSet; question: Question } {
+  if (!run.source && !set.source) {
+    // Every question needs data to run on: its own, or its set's.
+    throw new Error(`This run didn't record its data, and ${set.name} has no data of its own, so the question would have nothing to run on. Save it to a set with data instead.`);
+  }
   const question: Question = {
     id: nextQuestionId(set),
     title: options.title.replace(/\s+/g, " ").trim() || run.prompt.slice(0, 60),

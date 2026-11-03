@@ -76,5 +76,9 @@ describe("RUN mode", () => {
     const fresh = addQuickCheckQuestion(newQuickSet(), run, { correct: "x" }, { title: "" });
     expect([fresh.set.revision, fresh.set.id, fresh.question.title]).toEqual([1, "quick-checks", run.prompt.slice(0, 60)]);
     expect(parseQuestionSet(questionSetToFile(fresh.set)).name).toBe("Quick checks");
+    // A run with no recorded data can't go into a set without data: it wouldn't load.
+    expect(() => addQuickCheckQuestion(newQuickSet(), { prompt: "q", source: null }, { correct: "x" }, { title: "t" }))
+      .toThrow(/didn't record its data/);
+    expect(addQuickCheckQuestion(tpch, { prompt: "q", source: null }, { correct: "x" }, { title: "t" }).question.source).toBeUndefined();
   });
 });

@@ -15,6 +15,11 @@ import { GradeVerdict } from "./Verdict";
 import { nameToStore, cleanText, MAX_NOTE, setlistTitle, suggestedTitle } from "./picker";
 import { RenameForm, SetlistPicker } from "./SetlistPicker";
 import { RunView } from "./RunView";
+import { EfficientFlyout, RubricFlyout } from "./Flyouts";
+import { HelpView } from "./HelpView";
+import { csvFileName, gradesCsv, gradesSql } from "./exportGrades";
+import { Menu, MenuItem } from "@dh/ui-kit";
+import { save } from "@tauri-apps/plugin-dialog";
 import {
   avg, carefulOf, columnsOf, columnSummary, correctOf, findSet, JUDGE_EFFORTS, JUDGE_MODELS, loadGrader, saveGrader, scorecard,
   TOLERANCES, type Cell,
@@ -105,6 +110,9 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
     }
   }, [view]);
 
+  const [help, setHelp] = useState(false);
+  const closeHelp = useCallback(() => setHelp(false), []);
+
   const [sets, setSets] = useState<QuestionSet[]>(FACTORY_QUESTION_SETS);
   const reloadSets = useCallback(async () => setSets(await loadSets()), []);
   useEffect(() => {
@@ -166,6 +174,7 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
 
   // The grades for this setlist under these settings.
   const [grades, setGrades] = useState<Grade[]>([]);
+  const [graderKey, setGraderKey] = useState<string | null>(null);
   const setFile = useMemo(() => (set ? JSON.parse(questionSetToFile(set)) : null), [set]);
   const loadGrades = useCallback(async () => {
     if (!client || status !== "ready" || !setlist || !setFile) {
@@ -173,7 +182,9 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
       return;
     }
     try {
-      setGrades((await client.grades(setlist.id, setFile, grader)).grades);
+      const reply = await client.grades(setlist.id, setFile, grader);
+      setGrades(reply.grades);
+      setGraderKey(reply.graderKey);
     } catch (e) {
       setProblem(e instanceof Error ? e.message : String(e));
     }
@@ -258,14 +269,54 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
       });
   };
 
+  // Getting grades out.
+  const [exportMenu, setExportMenu] = useState(false);
+  const exportCsv = async () => {
+    if (!setlist || !set) return;
+    setProblem(null);
+    try {
+      const path = await save({ defaultPath: csvFileName(setlist), filters: [{ name: "CSV", extensions: ["csv"] }] });
+      if (!path) return;
+      await invoke("file_write", { path, contents: gradesCsv(setlist, set, grades) });
+      setNotice(`Saved ${grades.length} grades to ${path}`);
+    } catch (e) {
+      setProblem(e instanceof Error ? e.message : String(e));
+    }
+  };
+  const openShell = async () => {
+    if (!setlist || !graderKey) return;
+    setProblem(null);
+    const sql = gradesSql(setlist.id, graderKey);
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(sql);
+      copied = true;
+    } catch {
+      // No clipboard: the notice says where the query is.
+    }
+    try {
+      await invoke("traces_shell_open");
+      setNotice(copied
+        ? "Opened the DuckDB shell on the traces. The query for this scorecard is on your clipboard: paste it there."
+        : `Opened the DuckDB shell on the traces. Query: ${sql.split("\n").slice(1).join(" ")}`);
+    } catch (e) {
+      setProblem(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const ungraded = setlist ? Math.max(0, setlist.runs - grades.length) : 0;
   const judgeModel = JUDGE_MODELS.find((m) => m.id === grader.judge_model)?.label ?? grader.judge_model;
   const withCheck = set ? set.questions.filter(hasCheck).length : 0;
 
   const header = (
+    <div className="eh1-header">
     <div className="bar-group eh1-modes" role="radiogroup" aria-label="What to grade">
       <button role="radio" aria-checked={view === "setlist"} className={view === "setlist" ? "on" : ""} onClick={() => setView("setlist")}>SETLIST</button>
       <button role="radio" aria-checked={view === "run"} className={view === "run" ? "on" : ""} onClick={() => setView("run")}>RUN</button>
+    </div>
+    <button className="bar-button help-open" aria-pressed={help} onClick={() => setHelp(!help)} title="The EH-1 handbook: every feature, briefly">
+      Handbook
+    </button>
     </div>
   );
 
@@ -273,7 +324,9 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
     <div className="eh1">
       {toolbar ? createPortal(header, toolbar) : <div className="bar">{header}</div>}
 
-      {view === "run" ? (
+      {help ? (
+        <HelpView onBack={closeHelp} />
+      ) : view === "run" ? (
         <RunView engine={client} ready={ready} sets={sets} onSetsChanged={reloadSets} grader={grader} setGrader={setGrader} />
       ) : (<>
 
@@ -323,17 +376,22 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
         </section>
 
         <section className="panel eh1-scores">
-          <h2>SCORES · 0–2 EACH</h2>
+          <h2>SCORES · 0–2 EACH
+            <span className="h2-tools"><RubricFlyout scale={engine.hello?.scale} grader={grader} disabled={!!grading} onApply={setGrader} /></span>
+          </h2>
           {[
             ["CORRECT", "Facts match the reference SQL's results", "JUDGE + SQL"],
-            ["CAREFUL", "States the assumptions and caveats needed", "JUDGE"],
-            ["EFFICIENT", `Iterations (budget ${grader.iteration_budget}), waste, limits`, "TRACES · FREE"],
+            ["CAREFUL", grader.instructions?.trim() ? "States the assumptions and caveats needed · with your notes" : "States the assumptions and caveats needed", "JUDGE"],
+            ["EFFICIENT", `Iterations (budget ${grader.iteration_budget}), waste (1 point at ≤ ${grader.waste_for_one ?? 2}), limits`, "TRACES · FREE"],
             ["TRACE RULES", "Pass/fail checks on what the run did", "TRACES · FREE"],
           ].map(([name, what, by]) => (
             <div key={name} className="score-row">
               <span className="caps">{name}</span>
               <span className="what">{what}</span>
-              <span className={`by${by.includes("FREE") ? " free" : ""}`}>{by}</span>
+              <span className="row-end">
+                {name === "EFFICIENT" && <EfficientFlyout grader={grader} disabled={!!grading} onApply={setGrader} />}
+                <span className={`by${by.includes("FREE") ? " free" : ""}`}>{by}</span>
+              </span>
             </div>
           ))}
         </section>
@@ -407,6 +465,11 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
           <h2>
             SCORECARD
             <span className="legend">each cell: CORRECT · CAREFUL · EFFICIENT averaged over repeats · <i className="rule-dot" /> a trace rule broke</span>
+            <Menu open={exportMenu} onClose={() => setExportMenu(false)} label="Export" align="right"
+              anchor={<button className="pane-button" aria-haspopup="menu" disabled={!setlist || !set} onClick={() => setExportMenu(!exportMenu)}>EXPORT ▾</button>}>
+              <MenuItem disabled={!grades.length} hint={`${grades.length} rows`} onSelect={() => { setExportMenu(false); void exportCsv(); }}>Export scorecard as CSV…</MenuItem>
+              <MenuItem disabled={!graderKey} onSelect={() => { setExportMenu(false); void openShell(); }}>Open grades in DuckDB shell</MenuItem>
+            </Menu>
           </h2>
           {!set ? <p className="muted">{setlist ? "No question set for this setlist." : "No setlist yet."}</p> : (
             <div className="table-wrap">

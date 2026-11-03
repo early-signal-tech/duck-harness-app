@@ -123,3 +123,51 @@
 .eh1-verdict .override-buttons { display: flex; gap: 6px; justify-content: flex-start; }
 .eh1-verdict .pane-button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .eh1-verdict .verdict-actions { padding-top: 8px; border-top: 1px solid var(--rule); }
+
+/* --- the setlist picker (INPUT · PICK) --- */
+.eh1 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.eh1-input .sub { font: 400 11px/1.2 var(--mono); color: var(--muted); }
+.eh1-input > * { flex-shrink: 0; }
+.eh1-input .id-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: -4px; }
+.eh1-input .id-row .sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eh1-input .link-button { flex: none; font: 500 11px/1 var(--sans); }
+.eh1-input .link-button:disabled { opacity: 0.5; cursor: default; }
+.eh1-picker-root { width: 100%; }
+.eh1 .menu.eh1-picker { width: 700px; max-width: calc(100vw - 60px); max-height: min(560px, 75vh); display: flex; flex-direction: column; gap: 6px; padding: 10px; }
+.eh1-picker .picker-top { display: flex; gap: 8px; align-items: center; }
+.eh1-picker .picker-top input { flex: 1; min-width: 0; height: 30px; box-sizing: border-box; padding: 0 8px; border: 1px solid var(--field-edge);
+  border-radius: 6px; background: var(--field); color: var(--ink); font: 400 12px/1 var(--sans); }
+.eh1-picker .picker-top .segmented button { height: 28px; font: 700 10px/1 var(--mono); letter-spacing: 0.08em; white-space: nowrap; }
+.eh1-picker .picker-group { display: flex; flex-direction: column; gap: 4px; }
+.eh1-picker .picker-group-head { display: flex; justify-content: space-between; gap: 10px; padding: 8px 4px 4px; border-top: 1px solid var(--rule);
+  font: 700 10px/1 var(--mono); letter-spacing: 0.12em; color: var(--muted); }
+.eh1-picker .picker-item { display: flex; flex-direction: column; border: 1.5px solid transparent; border-radius: 6px; }
+.eh1-picker .picker-item.selected { background: var(--field); border-color: var(--edge); }
+.eh1-picker .picker-pick { width: 100%; display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 4px 10px; align-items: start;
+  padding: 8px 10px; text-align: left; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--ink); font: inherit; }
+.eh1-picker .picker-pick:hover, .eh1-picker .picker-pick:focus-visible { background: var(--field); outline: none; border-color: var(--field-edge); }
+.eh1-picker .picker-item.selected .picker-pick { border-color: transparent; }
+.eh1-picker .check { font: 700 12px/1.2 var(--mono); }
+.eh1-picker .body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.eh1-picker .name { font: 600 13px/1.25 var(--sans); }
+.eh1-picker .name .tag { margin-left: 8px; padding: 2px 5px; border: 1px solid var(--edge); border-radius: 3px; font: 700 9px/1 var(--mono); letter-spacing: 0.08em; vertical-align: 1px; }
+.eh1-picker .note { font: italic 400 12px/1.3 var(--sans); color: var(--muted); }
+.eh1-picker .meta { font: 400 11px/1.35 var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eh1-picker .meta b { font-weight: 400; color: var(--ink); }
+.eh1-picker .badges { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.eh1-picker .badge { padding: 3px 6px; border: 1px solid var(--edge); border-radius: 3px; font: 700 10px/1 var(--mono); letter-spacing: 0.06em; white-space: nowrap; }
+.eh1-picker .badge.run-stopped, .eh1-picker .badge.run-running { border-style: dashed; }
+.eh1-picker .badge.grade-graded { background: var(--edge); color: var(--panel); }
+.eh1-picker .badge.grade-partial { background: var(--sel-bg); color: var(--sel-ink); }
+.eh1-picker .badge.grade-other { color: var(--muted); border-color: var(--field-edge); }
+.eh1-picker .picker-rename { align-self: flex-start; height: 24px; margin: -2px 0 8px 36px; font-size: 11px; }
+.eh1-picker .picker-empty { margin: 6px 4px; font: 400 12px/1.4 var(--sans); color: var(--muted); }
+.eh1-picker .picker-foot { margin: 0; padding: 8px 4px 0; border-top: 1px solid var(--rule); font: 400 11px/1.3 var(--sans); color: var(--muted); }
+
+.eh1-rename { display: flex; flex-direction: column; gap: 5px; padding: 8px; border: 1px solid var(--field-edge); border-radius: 6px; background: var(--field); }
+.eh1-rename input { height: 28px; min-width: 0; flex: 1; box-sizing: border-box; padding: 0 8px; border: 1px solid var(--field-edge); border-radius: 4px;
+  background: var(--panel); color: var(--ink); font: 400 12px/1 var(--sans); }
+.eh1-rename .name-row { display: flex; gap: 4px; }
+.eh1-rename .name-row .pane-button { height: 28px; }
+.eh1-rename .buttons { display: flex; gap: 6px; justify-content: flex-end; margin-top: 4px; }
+.eh1-rename .pane-button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }

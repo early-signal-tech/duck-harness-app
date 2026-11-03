@@ -1,7 +1,7 @@
 // A drop-down panel under a button, like the wireframe's flyouts. Closes on Esc, on a
 // click outside, or when an item calls close().
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 
 interface Props {
   open: boolean;
@@ -13,9 +13,8 @@ interface Props {
   align?: "left" | "right";
 }
 
-export function Menu({ open, onClose, anchor, children, label, align = "left" }: Props) {
-  const root = useRef<HTMLDivElement>(null);
-
+/** Close a panel on Esc or a click outside `root` (for menus and other drop-downs). */
+export function useDismiss(root: RefObject<HTMLElement | null>, open: boolean, onClose: () => void): void {
   useEffect(() => {
     if (!open) return;
     const onPointer = (e: PointerEvent) => {
@@ -35,7 +34,12 @@ export function Menu({ open, onClose, anchor, children, label, align = "left" }:
       document.removeEventListener("pointerdown", onPointer);
       window.removeEventListener("keydown", onKey, true);
     };
-  }, [open, onClose]);
+  }, [root, open, onClose]);
+}
+
+export function Menu({ open, onClose, anchor, children, label, align = "left" }: Props) {
+  const root = useRef<HTMLDivElement>(null);
+  useDismiss(root, open, onClose);
 
   return (
     <div className="menu-root" ref={root}>

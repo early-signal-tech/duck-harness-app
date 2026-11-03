@@ -111,3 +111,6 @@
 .eh1-verdict .values th { color: var(--muted); font-size: 9px; letter-spacing: 0.1em; }
 .eh1-verdict .unsure { color: var(--warn); font: 400 12px/1.3 var(--sans); }
 .eh1-verdict .run-id { font: 400 10px/1 var(--mono); color: var(--muted); }
+.eh1-verdict .values tr.differs td:last-child { color: var(--danger); }
+.eh1-verdict .values tr.unverified td { color: var(--muted); }
+.eh1-verdict .unverified-note { font: 400 11px/1.4 var(--sans); color: var(--muted); }

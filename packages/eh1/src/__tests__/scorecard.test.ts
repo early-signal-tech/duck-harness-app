@@ -75,3 +75,12 @@ describe("finding a setlist's question set and naming it", () => {
     expect(setlistTitle(setlist(), "Eval")).toBe("Eval · 2 presets × 1 · Nov 2, 18:19");
   });
 });
+
+describe("compared values", () => {
+  it("read the judge's check, or the old flag", async () => {
+    const { valueCheck } = await import("../engine");
+    expect(valueCheck({ name: "n", agent: "1", reference: "", check: "unverified" })).toBe("unverified");
+    expect(valueCheck({ name: "n", agent: "1", reference: "1", matches: true })).toBe("matches");
+    expect(valueCheck({ name: "n", agent: "1", reference: "2", matches: false })).toBe("differs");
+  });
+});

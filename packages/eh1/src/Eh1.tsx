@@ -11,7 +11,7 @@ import { Menu, MenuItem, MenuSection } from "@dh/ui-kit";
 import {
   describeSource, FACTORY_QUESTION_SETS, hasCheck, parseQuestionSet, questionSetToFile, type QuestionSet,
 } from "@dh/formats";
-import type { Grade, Grading, SetlistInfo } from "./engine";
+import { valueCheck, type Grade, type Grading, type SetlistInfo } from "./engine";
 import {
   avg, columnsOf, columnSummary, findSet, JUDGE_EFFORTS, JUDGE_MODELS, loadGrader, saveGrader, scorecard,
   TOLERANCES, type Cell,
@@ -47,6 +47,12 @@ export function setlistTitle(s: SetlistInfo, setName?: string): string {
   const shape = `${s.columns} preset${s.columns === 1 ? "" : "s"} × ${s.repeats ?? 1}`;
   return [setName ?? s.question_set, shape, time].filter(Boolean).join(" · ");
 }
+
+const CHECK_TEXT = {
+  matches: "Checked: matches the reference",
+  differs: "Checked: differs from the reference",
+  unverified: "Unverified: the question gives no reference for this value",
+} as const;
 
 const fmt = (n: number | null, digits = 1) => (n === null ? "–" : n.toFixed(digits));
 const money = (n: number | null) => (n === null ? "–" : n >= 0.1 ? `$${n.toFixed(3)}` : `$${n.toFixed(4)}`);
@@ -403,14 +409,25 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
                   </ul>
                 )}
                 {g.judge_values && g.judge_values.length > 0 && (
-                  <table className="values">
-                    <thead><tr><th>VALUE</th><th>AGENT</th><th>REF</th><th /></tr></thead>
-                    <tbody>
-                      {g.judge_values.map((v, i) => (
-                        <tr key={i}><td>{v.name}</td><td>{v.agent}</td><td>{v.reference}</td><td className={v.matches ? "" : "bad"}>{v.matches ? "✓" : "✕"}</td></tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <>
+                    <table className="values">
+                      <thead><tr><th>VALUE</th><th>AGENT</th><th>REF</th><th /></tr></thead>
+                      <tbody>
+                        {g.judge_values.map((v, i) => {
+                          const check = valueCheck(v);
+                          return (
+                            <tr key={i} className={check}>
+                              <td>{v.name}</td><td>{v.agent}</td><td>{check === "unverified" ? "–" : v.reference}</td>
+                              <td title={CHECK_TEXT[check]}>{check === "matches" ? "✓" : check === "differs" ? "✕" : "–"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    {g.judge_values.some((v) => valueCheck(v) === "unverified") && (
+                      <p className="unverified-note">– unverified: the question gives no reference for this value. Add one to the question set to check it.</p>
+                    )}
+                  </>
                 )}
                 <p className="run-id selectable">{g.run_id}</p>
               </div>

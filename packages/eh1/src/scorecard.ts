@@ -13,11 +13,13 @@ export function avg(values: (number | null | undefined)[]): number | null {
 }
 
 /** CORRECT and CAREFUL as they count: your override where you set one, else the judge's. */
-export function correctOf(g: Grade): number | null {
+type Scored = Pick<Grade, "correct" | "careful" | "override">;
+
+export function correctOf(g: Scored): number | null {
   return g.override ? g.override.correct : g.correct;
 }
 
-export function carefulOf(g: Grade): number | null {
+export function carefulOf(g: Scored): number | null {
   return g.override ? g.override.careful : g.careful;
 }
 

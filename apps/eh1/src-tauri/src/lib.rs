@@ -169,6 +169,7 @@ pub fn run() {
             settings::traces_db_set,
             settings::traces_shell_open,
             question_sets::question_set_list,
+            question_sets::question_set_write,
         ])
         .build(tauri::generate_context!())
         .expect("error while building EH-1")

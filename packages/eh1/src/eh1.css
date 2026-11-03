@@ -3,7 +3,7 @@
 .eh1 .panel h2 { gap: 10px; }
 .eh1 .muted { color: var(--muted); }
 .eh1 .caps.muted { color: var(--muted); }
-.eh1-modes { display: flex; margin-left: 12px; border: 1px solid var(--bar-edge); border-radius: 6px; overflow: hidden; }
+.eh1-modes { display: flex; gap: 0; margin-left: 12px; border: 1px solid var(--bar-edge); border-radius: 6px; overflow: hidden; }
 .eh1-modes button { height: 32px; padding: 0 12px; border: 0; background: transparent; color: var(--bar-ink); font: 700 11px/1 var(--mono); letter-spacing: 0.1em; }
 .eh1-modes button + button { border-left: 1px solid var(--bar-edge); }
 .eh1-modes button.on { background: var(--bar-sel-bg); color: var(--bar-sel-ink); }
@@ -208,7 +208,8 @@
 .eh1-run .match .menu { max-height: 60vh; min-width: 360px; }
 .eh1-run .run-columns { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 .eh1-run .run-answer, .eh1-run .run-check { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
-.eh1-run .run-check { overflow: auto; }
+/* Room for the focus ring: the column scrolls, which would clip it at the edges. */
+.eh1-run .run-check { overflow: auto; padding: 3px; margin: -3px; }
 .eh1-run .answer-box { flex: 1; min-height: 0; overflow: auto; padding: 12px; border-radius: 6px; background: var(--display-bg); color: var(--display-ink); font-size: 13px; }
 .eh1-run .run-check label { margin-top: 4px; font-weight: 700; }
 .eh1-run .run-check label .muted { font-weight: 400; letter-spacing: 0; text-transform: none; }

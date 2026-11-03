@@ -9,6 +9,6 @@ export { Toggle } from "./Toggle";
 export type { KnobProps } from "./Knob";
 export { Markdown, slugify } from "./Markdown";
 export { Splitter, splitWidthAt, SPLITTER_GUTTER } from "./Splitter";
-export { Menu, MenuDivider, MenuItem, MenuSection } from "./Menu";
+export { Menu, MenuDivider, MenuItem, MenuSection, useDismiss } from "./Menu";
 export { SettingsMenu } from "./Settings";
 export type { SettingsEngine, TracesControls, TracesInfo } from "./Settings";

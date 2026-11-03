@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { QuestionSet } from "@dh/formats";
 import type { Grade, SetlistInfo } from "../engine";
 import { cellOf, columnsOf, columnSummary, findSet, scorecard, total } from "../scorecard";
-import { setlistTitle } from "../Eh1";
+import { setlistTitle } from "../picker";
 
 const set: QuestionSet = {
   id: "eval", name: "Eval", description: "", revision: 2, savedAt: "",

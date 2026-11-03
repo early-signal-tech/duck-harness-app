@@ -24,21 +24,44 @@ export interface Hello {
   judge_models: string[];
 }
 
+/** The preset one column of a setlist ran, as the runs recorded it. */
+export interface SetlistPreset {
+  column: string;
+  name: string | null;
+  /** Its knobs were changed after loading it. */
+  modified: boolean;
+  /** The agent config the runs used (model, effort, max_iterations, …). */
+  config: Record<string, unknown>;
+}
+
+/** How much of a setlist is graded with the grader settings `setlists` was asked about. */
+export interface SetlistGrading {
+  graded: number;
+  /** Average total out of 6 over those grades (your overrides counted). */
+  total: number | null;
+  /** How many other grader settings (judge, tolerance, set revision, …) have graded it. */
+  other_settings: number;
+}
+
 /** A setlist in the traces (newest first from `setlists`). */
 export interface SetlistInfo {
   id: string;
   question_set: string;
   revision: number | null;
+  /** Your name from EH-1, else the one DH-1 labelled the runs with. */
   name: string | null;
   note: string | null;
   concurrency: number | null;
   runs: number;
   completed: number;
+  cancelled?: number;
   columns: number;
   repeats: number | null;
   cost_usd: number | null;
   started_at: string | null;
   ended_at: string | null;
+  presets?: SetlistPreset[];
+  grading?: SetlistGrading;
 }
 
 export interface RuleResult {
@@ -183,8 +206,11 @@ export class Engine {
     return hello;
   }
 
-  async setlists(): Promise<SetlistInfo[]> {
-    const reply = await this.request({ type: "setlists" }, nextId("setlists"));
+  /** The setlists in the traces. With grader settings (and the question sets the face has,
+   *  so the engine grades with the same revision), each says how much is graded. */
+  async setlists(grader?: GraderSettings, questionSets?: { id: string; revision: number }[]): Promise<SetlistInfo[]> {
+    const body = grader ? { type: "setlists", grader, question_sets: questionSets ?? [] } : { type: "setlists" };
+    const reply = await this.request(body, nextId("setlists"));
     if (reply.type !== "setlists") throw new EngineError(`unexpected reply ${reply.type}`);
     return reply.setlists;
   }
@@ -219,6 +245,12 @@ export class Engine {
   /** Set (or, with null, clear) your scores for one graded run. */
   async override(runId: string, questionSet: unknown, grader: GraderSettings, value: Omit<Override, "at"> | null): Promise<void> {
     const reply = await this.request({ type: "override", run_id: runId, question_set: questionSet, grader, override: value }, nextId("override"));
+    if (reply.type !== "ok") throw new EngineError(`unexpected reply ${reply.type}`);
+  }
+
+  /** Your name and note for a setlist (null or blank shows DH-1's again). */
+  async rename(setlistRun: string, name: string | null, note: string | null): Promise<void> {
+    const reply = await this.request({ type: "rename", setlist_run: setlistRun, name, note }, nextId("rename"));
     if (reply.type !== "ok") throw new EngineError(`unexpected reply ${reply.type}`);
   }
 

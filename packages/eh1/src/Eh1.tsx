@@ -2,16 +2,17 @@
 // newest; PICK: any); SCORES says where each score comes from; JUDGE sets the judge;
 // METERS sum it up. GRADE SETLIST grades what isn't graded yet with these settings, and
 // the scorecard shows questions (by category) × preset columns. Pick a cell for its
-// repeats' verdicts. RUN mode, quick checks, and overrides come later.
+// repeats' verdicts (and your override). RUN mode and quick checks come later.
 
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Menu, MenuItem, MenuSection } from "@dh/ui-kit";
 import {
   describeSource, FACTORY_QUESTION_SETS, hasCheck, parseQuestionSet, questionSetToFile, type QuestionSet,
 } from "@dh/formats";
 import { valueCheck, type Grade, type Grading, type Override, type SetlistInfo } from "./engine";
+import { nameToStore, cleanText, MAX_NOTE, setlistTitle, suggestedTitle } from "./picker";
+import { RenameForm, SetlistPicker } from "./SetlistPicker";
 import {
   avg, carefulOf, columnsOf, columnSummary, correctOf, findSet, JUDGE_EFFORTS, JUDGE_MODELS, loadGrader, saveGrader, scorecard,
   TOLERANCES, type Cell,
@@ -35,17 +36,6 @@ async function loadSets(): Promise<QuestionSet[]> {
     // No native side (a browser preview): built-in sets only.
   }
   return [...FACTORY_QUESTION_SETS, ...mine];
-}
-
-/** A setlist's title: its name, or its facts. */
-export function setlistTitle(s: SetlistInfo, setName?: string): string {
-  if (s.name) return s.name;
-  const when = s.started_at ? new Date(s.started_at) : null;
-  const time = when
-    ? `${when.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`
-    : "";
-  const shape = `${s.columns} preset${s.columns === 1 ? "" : "s"} × ${s.repeats ?? 1}`;
-  return [setName ?? s.question_set, shape, time].filter(Boolean).join(" · ");
 }
 
 const CHECK_TEXT = {
@@ -108,18 +98,21 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
   }, []);
   const [setlists, setSetlists] = useState<SetlistInfo[]>([]);
   const [pickedId, setPickedId] = useState<string | null>(null);
-  const [menu, setMenu] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  // Each setlist with how much of it is graded with these settings (and the set revisions
+  // this face would grade with).
+  const setRefs = useMemo(() => sets.map((s) => ({ id: s.id, revision: s.revision })), [sets]);
   const refreshSetlists = useCallback(async () => {
     if (!client || status !== "ready") return;
     try {
-      setSetlists(await client.setlists());
+      setSetlists(await client.setlists(grader, setRefs));
     } catch (e) {
       setProblem(e instanceof Error ? e.message : String(e));
     }
-  }, [client, status]);
+  }, [client, status, grader, setRefs]);
   useEffect(() => {
     void refreshSetlists();
   }, [refreshSetlists]);
@@ -132,6 +125,20 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
 
   const setlist = mode === "follow" ? setlists[0] ?? null : setlists.find((s) => s.id === pickedId) ?? setlists[0] ?? null;
   const { set, revisionMismatch } = findSet(sets, setlist);
+  const setOf = useCallback((s: SetlistInfo) => findSet(sets, s).set, [sets]);
+  useEffect(() => setRenaming(false), [setlist?.id]);
+
+  const rename = async (name: string, note: string) => {
+    if (!client || !setlist) return;
+    setProblem(null);
+    try {
+      await client.rename(setlist.id, nameToStore(name, setlist, set?.name), cleanText(note, MAX_NOTE) || null);
+      setRenaming(false);
+      await refreshSetlists();
+    } catch (e) {
+      setProblem(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   // A new setlist arriving while following: say so.
   const lastFollowed = useRef<string | null>(null);
@@ -195,6 +202,7 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
         setProgress(null);
         setRegrade(false);
         void loadGrades();
+        void refreshSetlists();
       });
   };
   const stop = () => void grading?.stop().catch(() => {});
@@ -212,6 +220,7 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
     try {
       await client.override(runId, setFile, grader, value);
       await loadGrades();
+      void refreshSetlists();
     } catch (e) {
       setProblem(e instanceof Error ? e.message : String(e));
     }
@@ -231,6 +240,7 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
         setGrading(null);
         setProgress(null);
         void loadGrades();
+        void refreshSetlists();
       });
   };
 
@@ -259,39 +269,39 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
           {mode === "follow" ? (
             <div className="eh1-setlist">
               <span className="title">{setlist ? setlistTitle(setlist, set?.name) : "No setlists yet"}{setlist && <span className="tag">LATEST</span>}</span>
-              <span className="sub">{setlist ? setlist.id : "Run one in DH-1's Setlist."}</span>
+              {!setlist && <span className="sub">Run one in DH-1's Setlist.</span>}
             </div>
           ) : (
-            <Menu
-              open={menu}
-              onClose={() => setMenu(false)}
-              label="Setlists"
-              anchor={
-                <button className="field-button" aria-haspopup="menu" onClick={() => setMenu(!menu)}>
-                  <span>{setlist ? setlistTitle(setlist, set?.name) : "Pick a setlist"}</span><span aria-hidden="true">▾</span>
-                </button>
-              }
-            >
-              {[...new Set(setlists.map((s) => s.question_set))].map((qs) => (
-                <MenuSection key={qs} title={(sets.find((s) => s.id === qs)?.name ?? qs).toUpperCase()}>
-                  {setlists.filter((s) => s.question_set === qs).map((s) => (
-                    <MenuItem key={s.id} checked={s.id === setlist?.id} hint={`${s.runs} runs`} onSelect={() => { setPickedId(s.id); setMenu(false); }}>
-                      {setlistTitle(s, sets.find((x) => x.id === qs)?.name)}
-                    </MenuItem>
-                  ))}
-                </MenuSection>
-              ))}
-            </Menu>
+            <>
+              <SetlistPicker setlists={setlists} selected={setlist} setOf={setOf} onPick={setPickedId}
+                onRename={() => setRenaming(true)} onOpen={() => void refreshSetlists()} />
+            </>
+          )}
+          {renaming && setlist ? (
+            <RenameForm key={setlist.id} setlist={setlist} suggested={suggestedTitle(setlist, set?.name)}
+              onSave={rename} onCancel={() => setRenaming(false)} />
+          ) : (
+            <>
+          {setlist && (
+            <div className="id-row">
+              <span className="sub selectable" title={setlist.id}>{setlist.id}</span>
+              <button className="link-button" onClick={() => setRenaming(true)} disabled={!ready}>Rename…</button>
+            </div>
           )}
           {setlist?.note && <span className="note">“{setlist.note}”</span>}
           <dl className="facts">
-            <dt>QUESTION SET</dt><dd>{set ? `${set.name} · r${set.revision}` : setlist ? `${setlist.question_set} (not found)` : "–"}</dd>
+            <dt>QUESTION SET</dt>
+            <dd className={revisionMismatch ? "changed" : undefined}
+              title={revisionMismatch ? `The question set has changed since this setlist ran (revision ${setlist?.revision}); grading uses revision ${set?.revision}.` : undefined}>
+              {set ? `${set.name} · r${set.revision}${revisionMismatch ? ` · ran r${setlist?.revision}` : ""}` : setlist ? `${setlist.question_set} (not found)` : "–"}
+            </dd>
             <dt>DATA</dt><dd>{set?.source ? describeSource(set.source) : "–"}</dd>
             <dt>RUNS</dt><dd>{setlist ? `${setlist.completed}/${setlist.runs} completed` : "–"}</dd>
             <dt>WITH A CHECK</dt><dd>{set ? `${withCheck} / ${set.questions.length}` : "–"}</dd>
           </dl>
           {setlist && !set && <p className="warn">This setlist's question set isn't in BUILT-IN or MINE. Open it in DH-1's Setlist first.</p>}
-          {revisionMismatch && <p className="warn">The question set has changed since this setlist ran (revision {setlist?.revision}); grading uses the current one.</p>}
+            </>
+          )}
         </section>
 
         <section className="panel eh1-scores">

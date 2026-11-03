@@ -1,0 +1,19 @@
+{
+  "name": "@dh/eh1",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The EH-1 device: grade DH-1's setlists from a plugin-style face.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@dh/formats": "*",
+    "@dh/ui-kit": "*",
+    "@tauri-apps/api": "^2"
+  },
+  "peerDependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}

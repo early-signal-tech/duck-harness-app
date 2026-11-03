@@ -99,6 +99,17 @@ export function questionSource(set: QuestionSet, question: Question): SourceSpec
   return question.source ?? set.source;
 }
 
+/** The questions in scorecard order: by category, in the set's category order, then any
+ *  without one. A set without categories is one group. */
+export function questionGroups(set: QuestionSet): { category?: Category; questions: Question[] }[] {
+  if (!set.categories.length) return [{ questions: set.questions }];
+  const groups: { category?: Category; questions: Question[] }[] = set.categories
+    .map((category) => ({ category, questions: set.questions.filter((q) => q.category === category.id) }))
+    .filter((g) => g.questions.length);
+  const loose = set.questions.filter((q) => !q.category);
+  return loose.length ? [...groups, { questions: loose }] : groups;
+}
+
 /** The tables to preload for a question: its own, or the set's; undefined means none. */
 export function questionTables(set: QuestionSet, question: Question): string[] | undefined {
   return question.tables ?? set.tables;

@@ -1,0 +1,113 @@
+/* EH-1: the same flat plugin look as DH-1 (tokens from the kit). Scoped under .eh1. */
+.eh1 { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+.eh1 .panel h2 { gap: 10px; }
+.eh1 .muted { color: var(--muted); }
+.eh1 .caps.muted { color: var(--muted); }
+.eh1-modes { display: flex; margin-left: 12px; border: 1px solid var(--bar-edge); border-radius: 6px; overflow: hidden; }
+.eh1-modes button { height: 32px; padding: 0 12px; border: 0; background: transparent; color: var(--bar-ink); font: 700 11px/1 var(--mono); letter-spacing: 0.1em; }
+.eh1-modes button + button { border-left: 1px solid var(--bar-edge); }
+.eh1-modes button.on { background: var(--bar-sel-bg); color: var(--bar-sel-ink); }
+.eh1-modes button:disabled { opacity: 0.4; }
+
+.eh1-row { flex: none; display: flex; gap: 12px; height: 300px; }
+.eh1-input { width: 270px; flex: none; gap: 10px; }
+.eh1-scores { flex: 1; min-width: 0; gap: 8px; overflow: hidden; }
+.eh1-judge { width: 300px; flex: none; gap: 8px; }
+.eh1-meters { width: 220px; flex: none; gap: 10px; }
+
+.eh1 .segmented button { padding: 0 8px; }
+.eh1 .segmented button:disabled { opacity: 0.5; }
+.eh1 .field-button {
+  width: 100%; height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 10px;
+  border: 1px solid var(--field-edge); border-radius: 6px; background: var(--field); color: var(--ink); font: 600 12px/1 var(--sans);
+}
+.eh1 .field-button span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eh1 .menu { min-width: 380px; }
+.eh1-setlist { display: flex; flex-direction: column; gap: 4px; }
+.eh1-setlist .title { font: 600 13px/1.3 var(--sans); }
+.eh1-setlist .tag { margin-left: 6px; padding: 2px 5px; border: 1px solid var(--edge); border-radius: 3px; font: 700 9px/1 var(--mono); letter-spacing: 0.08em; vertical-align: 2px; }
+.eh1-setlist .sub { font: 400 11px/1.2 var(--mono); color: var(--muted); }
+.eh1-input .note { font: italic 400 12px/1.3 var(--sans); color: var(--muted); }
+.eh1 .facts { display: grid; grid-template-columns: auto 1fr; gap: 0; margin: 0; border-top: 1px solid var(--rule); font: 400 11px/1.3 var(--mono); }
+.eh1 .facts dt, .eh1 .facts dd { margin: 0; padding: 5px 0; border-bottom: 1px solid var(--rule); }
+.eh1 .facts dt { color: var(--muted); padding-right: 10px; }
+.eh1 .facts dd { text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eh1 .warn { margin: 0; padding: 6px 8px; border: 1px dashed var(--warn); border-radius: 5px; font: 400 11px/1.35 var(--sans); }
+
+.eh1 .score-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; padding: 7px 10px;
+  background: var(--field); border: 1px solid var(--field-edge); border-radius: 6px; }
+.eh1 .score-row .caps { font-weight: 700; }
+.eh1 .score-row .what { grid-column: 1 / -1; grid-row: 2; font: 400 12px/1.3 var(--sans); color: var(--muted); }
+.eh1 .score-row .by { padding: 4px 6px; border: 1px solid var(--edge); border-radius: 3px; font: 700 9px/1 var(--mono); letter-spacing: 0.08em; white-space: nowrap; }
+.eh1 .score-row .by.free { background: var(--sel-bg); color: var(--sel-ink); }
+.eh1-judge .hint { margin-top: auto; font: 400 11px/1.35 var(--sans); color: var(--muted); }
+
+.eh1-meter-row { display: flex; justify-content: center; gap: 24px; }
+.eh1-meter { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.eh1-meter-bar { position: relative; width: 22px; height: 84px; border: 1.5px solid var(--edge); border-radius: 3px; background: var(--field); overflow: hidden; }
+.eh1-meter-bar .fill { position: absolute; left: 0; right: 0; bottom: 0; background: var(--meter); transition: height 0.3s; }
+.eh1-meter .small { font: 400 10px/1 var(--mono); color: var(--muted); }
+.eh1 .display { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 12px; border-radius: 6px;
+  background: var(--display-bg); color: var(--display-ink); }
+.eh1 .display .caps { color: var(--display-label); }
+.eh1 .display-value { font: 700 18px/1 var(--mono); }
+.eh1 .graded { margin-top: auto; display: flex; flex-direction: column; gap: 5px; }
+.eh1 .row-between { display: flex; justify-content: space-between; }
+.eh1 .graded .track { height: 8px; border: 1.5px solid var(--edge); border-radius: 4px; overflow: hidden; background: var(--field); }
+.eh1 .graded .fill { height: 100%; background: var(--edge); }
+
+.eh1-gradebar { flex: none; flex-direction: row; align-items: center; gap: 12px; height: 52px; padding: 0 12px; }
+.eh1-gradebar .caps { font-weight: 700; }
+.eh1-gradebar .what { flex: 1; min-width: 0; font: 400 13px/1.3 var(--sans); color: var(--muted); }
+.eh1-gradebar .regrade { display: flex; align-items: center; gap: 6px; font: 400 12px/1 var(--sans); }
+.eh1-gradebar .run, .eh1-gradebar .stop { height: 34px; padding: 0 16px; border-radius: 6px; font: 700 12px/1 var(--mono); letter-spacing: 0.12em; }
+.eh1-gradebar .run { border: 0; background: var(--accent); color: var(--accent-ink); }
+.eh1-gradebar .run:disabled { opacity: 0.4; }
+.eh1-gradebar .stop { border: 1.5px solid var(--edge); background: var(--field); color: var(--ink); }
+.eh1-message { margin: -4px 4px 0; font: 400 12px/1.4 var(--sans); color: var(--muted); }
+.eh1-message.error { color: var(--danger); }
+
+.eh1-bottom { flex: 1; min-height: 0; display: flex; gap: 12px; }
+.eh1-scorecard { flex: 1; min-width: 0; min-height: 0; gap: 8px; }
+.eh1-scorecard .legend { margin-left: 10px; font: 400 11px/1 var(--sans); letter-spacing: 0; color: var(--muted); }
+.eh1 .table-wrap { flex: 1; min-height: 0; overflow: auto; }
+.eh1-scorecard table { width: 100%; border-collapse: separate; border-spacing: 0 4px; font: 400 12px/1.3 var(--sans); }
+.eh1-scorecard thead th { position: sticky; top: 0; z-index: 1; padding: 6px 8px; background: var(--panel); text-align: left;
+  border-bottom: 1.5px solid var(--edge); font: 700 10px/1 var(--mono); letter-spacing: 0.12em; }
+.eh1-scorecard th.q { width: 260px; text-align: left; font-weight: 400; padding-right: 8px; }
+.eh1-scorecard td { padding: 0 4px; }
+.eh1-scorecard .category-row th, .eh1-scorecard .category-row td { padding-top: 10px; font: 700 10px/1 var(--mono); letter-spacing: 0.12em; }
+.eh1-scorecard .q-title { font: 500 12px/1.3 var(--sans); }
+.eh1-scorecard .cat-total { display: inline-flex; align-items: center; gap: 6px; padding-left: 10px; }
+.eh1 .cell { width: 100%; height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 10px; text-align: left;
+  border: 1px solid var(--field-edge); border-radius: 6px; background: var(--field); color: var(--ink); }
+.eh1 .cell.empty { border-style: dotted; background: transparent; }
+.eh1 .cell.picked { outline: 2px solid var(--edge); outline-offset: 1px; }
+.eh1 .cell .total { margin-left: auto; font: 500 11px/1 var(--mono); }
+.eh1 .cell .flag { font: 700 11px/1 var(--mono); color: var(--warn); }
+.eh1 .score-bars { display: flex; gap: 6px; }
+.eh1 .score-bar { display: flex; gap: 2px; }
+.eh1 .score-bar i { width: 11px; height: 10px; box-sizing: border-box; border: 1px solid var(--edge); background: var(--field); }
+.eh1 .score-bar i.on { background: var(--edge); }
+.eh1 .score-bar i.half { background: var(--field-edge); }
+.eh1 .rule-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+.eh1-scorecard tfoot td { padding: 10px 8px; border-top: 1.5px solid var(--edge); font: 400 11px/1.5 var(--mono); vertical-align: top; }
+.eh1-scorecard tfoot th { padding-top: 10px; border-top: 1.5px solid var(--edge); font: 700 10px/1 var(--mono); letter-spacing: 0.12em; vertical-align: top; }
+.eh1-scorecard tfoot td span, .eh1-scorecard tfoot td b { display: block; }
+.eh1 .bad { color: var(--danger); }
+
+.eh1-verdict { width: 360px; flex: none; min-height: 0; overflow: auto; gap: 8px; background: var(--field); }
+.eh1-verdict p { margin: 0; }
+.eh1-verdict .q-title { font: 600 13px/1.3 var(--sans); }
+.eh1-verdict .repeat { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--rule); }
+.eh1-verdict .repeat-head { display: flex; justify-content: space-between; font: 600 11px/1 var(--mono); }
+.eh1-verdict dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; margin: 0; font: 400 12px/1.4 var(--sans); }
+.eh1-verdict dt { font: 700 9px/1.6 var(--mono); letter-spacing: 0.1em; color: var(--muted); }
+.eh1-verdict dd { margin: 0; }
+.eh1-verdict .rules { margin: 0; padding: 0; list-style: none; font: 400 11px/1.4 var(--mono); }
+.eh1-verdict .rules span { color: var(--muted); }
+.eh1-verdict .values { border-collapse: collapse; font: 400 11px/1.3 var(--mono); }
+.eh1-verdict .values th, .eh1-verdict .values td { padding: 2px 6px 2px 0; text-align: left; }
+.eh1-verdict .values th { color: var(--muted); font-size: 9px; letter-spacing: 0.1em; }
+.eh1-verdict .unsure { color: var(--warn); font: 400 12px/1.3 var(--sans); }
+.eh1-verdict .run-id { font: 400 10px/1 var(--mono); color: var(--muted); }

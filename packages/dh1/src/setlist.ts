@@ -6,11 +6,13 @@
 // numbers the grid shows. useSetlist.ts runs it; components/SetlistView.tsx draws it.
 
 import {
-  FACTORY_QUESTION_SETS, hasCheck, questionSource, questionTables, type Category, type Question, type QuestionSet,
+  FACTORY_QUESTION_SETS, hasCheck, questionGroups, questionSource, questionTables, type Question, type QuestionSet,
 } from "@dh/formats";
 import type { AgentResult, RunRequest } from "./harness";
 import { applyPreset, type Preset } from "./presets";
 import { requestOf, type FaceSettings } from "./settings";
+
+export { questionGroups } from "@dh/formats";
 
 export const COLUMN_KEYS = ["A", "B", "C", "D"] as const;
 export const MAX_COLUMNS = COLUMN_KEYS.length;
@@ -112,17 +114,6 @@ export function cleanName(text: string, max: number): string {
 
 export function jobCount(plan: Pick<SetlistPlan, "set" | "columns" | "repeats">): number {
   return plan.set.questions.length * plan.columns.length * plan.repeats;
-}
-
-/** The questions in scorecard order: by category, in the set's category order, then any
- *  without one. A set without categories is one group. */
-export function questionGroups(set: QuestionSet): { category?: Category; questions: Question[] }[] {
-  if (!set.categories.length) return [{ questions: set.questions }];
-  const groups: { category?: Category; questions: Question[] }[] = set.categories
-    .map((category) => ({ category, questions: set.questions.filter((q) => q.category === category.id) }))
-    .filter((g) => g.questions.length);
-  const loose = set.questions.filter((q) => !q.category);
-  return loose.length ? [...groups, { questions: loose }] : groups;
 }
 
 /** The order runs go in: question by question, and within a question, repeat by repeat

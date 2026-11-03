@@ -1,6 +1,9 @@
-// SETTINGS (the gear in the header bar): the Anthropic API key, the traces database, the
-// traces server, opening or resetting the traces, and the appearance (theme, displays). Host-level, not part of the DH-1
-// device: EH-1 and the rack will use the same key and traces.
+// SETTINGS (the gear in the header bar): the appearance (theme, displays), the Anthropic
+// API key, the traces database, and, when the host's engine can manage them, the traces
+// server and resetting the traces. Host-level and shared: DH-1, EH-1, and the rack use the
+// same key and traces. The host passes its engine's status and restart, and `traces` if
+// its engine is the one that runs the traces server (DH-1's agent does; EH-1's grader
+// only reads).
 //
 // The key and the traces path apply when the engine starts, so changing either restarts
 // it (runs in progress stop). Storage is on the Rust side (src-tauri/src/settings.rs).
@@ -8,8 +11,30 @@
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useState } from "react";
-import { AppearanceControls, Menu, type Appearance } from "@dh/ui-kit";
-import type { EngineConnection, TracesInfo } from "@dh/dh1";
+import type { Appearance } from "./appearance";
+import { AppearanceControls } from "./HostBar";
+import { Menu } from "./Menu";
+
+/** Where traces go, and whether the background traces server is up (DH-1's agent reports it). */
+export interface TracesInfo {
+  enabled: boolean;
+  db: string | null;
+  exists: boolean;
+  size_bytes: number | null;
+  server: { running: boolean; uri: string | null; pid: number | null } | null;
+}
+
+/** What the host's engine can do with the traces. */
+export interface TracesControls {
+  info: () => Promise<TracesInfo>;
+  stop: () => Promise<unknown>;
+  reset: () => Promise<unknown>;
+}
+
+export interface SettingsEngine {
+  status: "connecting" | "ready" | "down";
+  restart: () => Promise<void>;
+}
 
 interface SettingsView {
   apiKeySource: "keychain" | "environment" | "env-file" | "none";
@@ -35,12 +60,14 @@ function size(bytes: number | null): string {
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 interface Props {
-  engine: EngineConnection;
+  engine: SettingsEngine;
+  /** Left out when the engine doesn't manage the traces server. */
+  traces?: TracesControls;
   appearance: Appearance;
   onAppearance: (appearance: Appearance) => void;
 }
 
-export function SettingsMenu({ engine, appearance, onAppearance }: Props) {
+export function SettingsMenu({ engine, traces: tracesControls, appearance, onAppearance }: Props) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<SettingsView | null>(null);
   const [traces, setTraces] = useState<TracesInfo | null>(null);
@@ -56,12 +83,12 @@ export function SettingsMenu({ engine, appearance, onAppearance }: Props) {
 
   const refresh = useCallback(async () => {
     setView(await invoke<SettingsView>("settings_get"));
-    if (engine.harness && engine.status === "ready") {
-      setTraces(await engine.harness.traces().catch(() => null));
+    if (tracesControls && engine.status === "ready") {
+      setTraces(await tracesControls.info().catch(() => null));
     } else {
       setTraces(null);
     }
-  }, [engine.harness, engine.status]);
+  }, [tracesControls, engine.status]);
 
   useEffect(() => {
     if (open) void refresh().catch((e) => setNote({ text: message(e), error: true }));
@@ -186,7 +213,7 @@ export function SettingsMenu({ engine, appearance, onAppearance }: Props) {
           </div>
         </section>
 
-        <section>
+        {tracesControls && <section>
           <span className="settings-label">TRACES SERVER</span>
           <div className="settings-row spread">
             <span className="settings-server">
@@ -196,7 +223,7 @@ export function SettingsMenu({ engine, appearance, onAppearance }: Props) {
             {server?.running && (
               <button className="pane-button" disabled={working !== null}
                 onClick={() => void act("server", async () => {
-                  await engine.harness!.tracesStop();
+                  await tracesControls!.stop();
                   return "Traces server stopped.";
                 })}>
                 Stop
@@ -204,7 +231,7 @@ export function SettingsMenu({ engine, appearance, onAppearance }: Props) {
             )}
           </div>
           <p className="settings-hint">Lets other programs read the traces while runs write them.</p>
-        </section>
+        </section>}
 
         <section className="settings-actions">
           <button className="pane-button wide" disabled={working !== null}
@@ -214,7 +241,7 @@ export function SettingsMenu({ engine, appearance, onAppearance }: Props) {
             })}>
             Open traces in DuckDB shell
           </button>
-          {!confirmReset ? (
+          {tracesControls && (!confirmReset ? (
             <button className="pane-button wide danger" disabled={!ready || !traces?.exists || working !== null} onClick={() => setConfirmReset(true)}>
               Reset traces…
             </button>
@@ -225,7 +252,7 @@ export function SettingsMenu({ engine, appearance, onAppearance }: Props) {
                 <button className="pane-button" onClick={() => setConfirmReset(false)}>Cancel</button>
                 <button className="pane-button danger" disabled={working !== null}
                   onClick={() => void act("reset", async () => {
-                    await engine.harness!.tracesReset();
+                    await tracesControls!.reset();
                     setConfirmReset(false);
                     return "Traces deleted. The next run starts a fresh file.";
                   })}>
@@ -233,7 +260,7 @@ export function SettingsMenu({ engine, appearance, onAppearance }: Props) {
                 </button>
               </div>
             </div>
-          )}
+          ))}
         </section>
 
         {(working || note) && (

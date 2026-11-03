@@ -23,8 +23,11 @@ packages/
             (docs/QUESTION_SETS.md), plus the built-in TPC-H set
   dh1/      the DH-1 device: its face, run state, settings, and the client for the
             agent server's protocol
+  eh1/      the EH-1 device: grading a setlist, the scorecard, and the client for the
+            grader's protocol (eh1-grader)
 apps/
   dh1/      DH-1 as a standalone app: a Tauri window (src-tauri/) around the device
+  eh1/      EH-1 as a standalone app (npm run eh1), starting eh1-grader's eh1-serve
 ```
 
 Each plugin is a **device** (a component that takes an engine connection) inside a
@@ -124,6 +127,8 @@ To use a checkout somewhere else, set `DH1_AGENT_DIR`. If `uv` isn't on your PAT
 - [x] A/B compare: two sets of settings, RUN A+B, and a side-by-side view
 - [x] Setlist: a question set × preset columns × repeats, run a few at a time, with
       medians and spread per cell; every run labelled for EH-1 (docs/QUESTION_SETS.md)
-- [ ] EH-1: grades agent runs from the traces (its engine in its own repo)
+- [x] EH-1, first build: grade a DH-1 setlist (FOLLOW DH-1 or PICK), judge settings,
+      scorecard by category and preset, verdicts per repeat; engine in eh1-grader
+- [ ] EH-1 next: RUN mode and quick checks, overrides, the rubric flyout
 - [ ] The rack: DH-1 and EH-1 side by side
 - [ ] Packaging: bundle Python with the app, signing and notarization

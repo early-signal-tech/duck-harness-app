@@ -1,22 +1,26 @@
 // The DH-1 standalone app: a host window around the DH-1 device.
 
 import { Dh1, useEngine } from "@dh/dh1";
-import { HostBar, useAppearance } from "@dh/ui-kit";
-import { useState } from "react";
-import { SettingsMenu } from "./Settings";
+import { HostBar, SettingsMenu, useAppearance, type TracesControls } from "@dh/ui-kit";
+import { useMemo, useState } from "react";
 
 export default function App() {
   const [appearance, setAppearance] = useAppearance();
   const engine = useEngine();
   // A slot in the header bar for the device's own controls (DH-1's preset bar).
   const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
+  // DH-1's agent runs the traces server, so its Settings can show and manage it.
+  const harness = engine.harness;
+  const traces = useMemo<TracesControls | undefined>(() => harness
+    ? { info: () => harness.traces(), stop: () => harness.tracesStop(), reset: () => harness.tracesReset() }
+    : undefined, [harness]);
   return (
     <div className="host">
       <HostBar
         name="DH-1"
         tagline="SQL ANALYTICS AGENT"
         engine={{ status: engine.status, error: engine.error }}
-        settings={<SettingsMenu engine={engine} appearance={appearance} onAppearance={setAppearance} />}
+        settings={<SettingsMenu engine={engine} traces={traces} appearance={appearance} onAppearance={setAppearance} />}
       >
         <div className="host-slot" ref={setToolbar} />
       </HostBar>

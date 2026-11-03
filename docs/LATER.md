@@ -73,20 +73,14 @@ to another monitor.
 - Needs the live run state streamed to a second window.
 - Worth doing once there's more live state to watch (timeline, compressor).
 
-## EH-1, the evaluator
-Grades agent runs from the traces. Its engine lives in its own repo; its UI is a device
-in this repo.
-
-- Next step when DH-1 is filled out: a wireframe artboard for what it measures and how
-  pass/fail is decided (reference SQL from EVAL_QUESTIONS.md / TPCH_QUESTIONS.md, a
-  judge model, or by hand).
-
 ## The rack
 DH-1 and EH-1 side by side in one window, like an Ableton device chain.
 
 - Also decides the device size question: fixed-size devices that can fold to a title
   bar, versus faces that stretch.
-- Depends on: EH-1.
+- EH-1's RUN mode wireframe has an "Open in DH-1" button (load a run's settings and
+  prompt into DH-1). It needs both devices in one host, so it waits for the rack.
+- Depends on: EH-1 (done).
 
 ## Run on the face while a setlist runs
 For now a setlist has the engine to itself: RUN and RUN A+B are disabled while it's going,
@@ -95,3 +89,41 @@ so its timings and costs aren't skewed by other runs competing for API capacity.
 - Later: let RUN work alongside it (the engine can already handle concurrent runs),
   with the header chip showing the setlist is still going.
 - Probably a toggle, since clean timing data is the reason to keep it exclusive.
+
+## MotherDuck as a source
+Connect a MotherDuck account and query its databases with the same SQL as local DuckDB.
+
+- **Blocked:** the MotherDuck extension doesn't load on DuckDB 2.0.0 yet ("not yet
+  supported by MotherDuck. The latest supported version is v1.5.6", checked
+  2026-11-03). The agent and traces need 2.0 (VARIANT columns, the Quack server), so
+  going back to 1.5 isn't an option.
+- **Once it's supported, it's small:** LINE IN already attaches any path read-only, so
+  `md:my_db` should mostly just work. Left to do:
+  - a MotherDuck token in Settings, kept in the Keychain like the API key and passed to
+    the agent as `MOTHERDUCK_TOKEN`
+  - checking that a read-only attach works on MotherDuck
+  - a Handbook section
+- Waiting for: MotherDuck support for DuckDB 2.0, and someone asking for it.
+
+## Preload table schemas from the face
+Give the agent the chosen tables' `DESCRIBE` output in its first message, so it skips
+the discovery calls.
+
+- **The agent already does this:** its `tables` option, used by question sets (the
+  analytics eval preloads `events_rich_ml_gold`). DH-1's face never sends it, so face
+  runs from LINE IN and SAMPLER always start with `list_tables` and `describe_table`.
+- **What the traces suggest** (2026-11-03; different questions, so not a fair comparison):
+
+  | Runs | Discovery calls per run | Tool calls | Iterations |
+  |---|---|---|---|
+  | Analytics eval, preloaded | ~0 | 3.1 | 3.1 |
+  | TPC-H setlists, not preloaded | 1 list + 1.6 describe | 5.2 | 4.0 |
+  | Face runs, not preloaded | 0.8 list + 2.4 describe | 9.4 | 4.9 |
+
+  Discovery is about 2–3 tool calls and one iteration per run. The cost is context:
+  wide tables, or many of them (TPC-H has 8), are re-sent on every turn.
+- **Shape when picked up:** after LINE IN connects or SAMPLER loads, SOURCE lists the
+  tables as chips to tick for preloading, with none ticked by default. Possibly also a
+  preset setting (none / ticked / all tables), so a setlist can compare preloading
+  against not preloading on the same questions and EH-1 grades both.
+- Waiting for: someone asking for it. It's extra UI before there's a need.

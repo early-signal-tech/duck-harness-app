@@ -290,13 +290,16 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
           )}
           {setlist?.note && <span className="note">“{setlist.note}”</span>}
           <dl className="facts">
-            <dt>QUESTION SET</dt><dd>{set ? `${set.name} · r${set.revision}` : setlist ? `${setlist.question_set} (not found)` : "–"}</dd>
+            <dt>QUESTION SET</dt>
+            <dd className={revisionMismatch ? "changed" : undefined}
+              title={revisionMismatch ? `The question set has changed since this setlist ran (revision ${setlist?.revision}); grading uses revision ${set?.revision}.` : undefined}>
+              {set ? `${set.name} · r${set.revision}${revisionMismatch ? ` · ran r${setlist?.revision}` : ""}` : setlist ? `${setlist.question_set} (not found)` : "–"}
+            </dd>
             <dt>DATA</dt><dd>{set?.source ? describeSource(set.source) : "–"}</dd>
             <dt>RUNS</dt><dd>{setlist ? `${setlist.completed}/${setlist.runs} completed` : "–"}</dd>
             <dt>WITH A CHECK</dt><dd>{set ? `${withCheck} / ${set.questions.length}` : "–"}</dd>
           </dl>
           {setlist && !set && <p className="warn">This setlist's question set isn't in BUILT-IN or MINE. Open it in DH-1's Setlist first.</p>}
-          {revisionMismatch && <p className="warn">The question set has changed since this setlist ran (revision {setlist?.revision}); grading uses the current one.</p>}
             </>
           )}
         </section>

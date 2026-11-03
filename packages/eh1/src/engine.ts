@@ -47,11 +47,22 @@ export interface RuleResult {
   detail: string;
 }
 
+export type ValueCheck = "matches" | "differs" | "unverified";
+
 export interface JudgedValue {
   name: string;
   agent: string;
   reference: string;
-  matches: boolean;
+  /** Judge version 2: matches / differs / unverified (no reference gives the value). */
+  check?: ValueCheck;
+  /** Judge version 1 grades: a flag, with no way to say "unverified". */
+  matches?: boolean;
+}
+
+/** A value's check, for grades from either judge version. */
+export function valueCheck(v: JudgedValue): ValueCheck {
+  if (v.check) return v.check;
+  return v.matches ? "matches" : "differs";
 }
 
 /** One run's grade under one grader setting (eval_grades, joined with the run). */

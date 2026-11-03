@@ -212,8 +212,11 @@ node scripts/tpch-question-set.mjs ../duckdb-analytics-agent/TPCH_QUESTIONS.md
 ```
 
 - Every question has the reference SQL and its TPC-H number.
-- Q19 and Q22 also have a `careful` note (state your assumptions), since they're hard
-  to phrase exactly.
+- Q19 also has a `careful` note (state your assumptions), since it's hard to phrase
+  exactly.
+- **Revision 2** (2026-11-03) rewords Q8, Q12, Q18, and Q22 to say everything their
+  reference SQL assumes. EH-1's first grades showed every preset answering the old
+  wording differently from the reference. Grades of revision 1 runs stay separate.
 - Each reference query was run at 0.01 and returns the same number of rows as the
   published answer.
 - **Q17's right answer at 0.01 is "none"**: no parts qualify, so the result is NULL.

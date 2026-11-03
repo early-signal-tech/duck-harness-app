@@ -4,8 +4,8 @@
   "id": "tpch",
   "name": "TPC-H",
   "description": "The 22 standard TPC-H decision-support queries, asked in plain language. Each has DuckDB's reference SQL and a published answer at scale 0.01, 0.1, and 1.",
-  "revision": 1,
-  "savedAt": "2026-11-02T00:00:00Z",
+  "revision": 2,
+  "savedAt": "2026-11-03T00:00:00Z",
   "source": {
     "kind": "tpch",
     "tpchScale": 0.01
@@ -98,7 +98,7 @@
     {
       "id": "q8",
       "title": "National market share",
-      "prompt": "What is BRAZIL's share of 1995 and 1996 revenue for ECONOMY ANODIZED STEEL parts sold to customers in the AMERICA region, by year?",
+      "prompt": "For ECONOMY ANODIZED STEEL parts sold to customers in the AMERICA region in 1995 and 1996, what share of that revenue came from suppliers in BRAZIL, by year?",
       "tags": [
         "conditional ratio"
       ],
@@ -146,7 +146,7 @@
     {
       "id": "q12",
       "title": "Shipping modes and order priority",
-      "prompt": "For MAIL and SHIP shipments received in 1994 after their commit date, how many orders were high priority versus not, by ship mode?",
+      "prompt": "For MAIL and SHIP line items received in 1994 that were shipped before their commit date but received after it, how many were on high-priority orders (1-URGENT or 2-HIGH) versus other orders, by ship mode?",
       "tags": [
         "basic"
       ],
@@ -218,7 +218,7 @@
     {
       "id": "q18",
       "title": "Large volume customer",
-      "prompt": "Which 100 customers placed orders with a total quantity over 300? Show the largest orders first.",
+      "prompt": "Which orders have line items totaling more than 300 units? For up to 100 of them, show the customer, order key, order date, total price, and total quantity, largest total price first.",
       "tags": [
         "IN with grouped HAVING"
       ],
@@ -267,14 +267,13 @@
     {
       "id": "q22",
       "title": "Global sales opportunity",
-      "prompt": "Among customers in specific country codes with above-average balances and no orders, how many are there and what is their total balance, by country code?",
+      "prompt": "Among customers whose phone number starts with country code 13, 31, 23, 29, 30, 18, or 17 and who have never placed an order, how many have an account balance above the average positive balance of customers in those codes, and what is their total balance, by country code?",
       "tags": [
         "substring, scalar subquery, anti-join"
       ],
       "check": {
         "sql": "SELECT\n    cntrycode,\n    count(*) AS numcust,\n    sum(c_acctbal) AS totacctbal\nFROM (\n    SELECT\n        substring(c_phone FROM 1 FOR 2) AS cntrycode,\n        c_acctbal\n    FROM\n        customer\n    WHERE\n        substring(c_phone FROM 1 FOR 2) IN ('13', '31', '23', '29', '30', '18', '17')\n        AND c_acctbal > (\n            SELECT\n                avg(c_acctbal)\n            FROM\n                customer\n            WHERE\n                c_acctbal > 0.00\n                AND substring(c_phone FROM 1 FOR 2) IN ('13', '31', '23', '29', '30', '18', '17'))\n            AND NOT EXISTS (\n                SELECT\n                    *\n                FROM\n                    orders\n                WHERE\n                    o_custkey = c_custkey)) AS custsale\nGROUP BY\n    cntrycode\nORDER BY\n    cntrycode;",
-        "tpchQuery": 22,
-        "careful": "The question is hard to state exactly, so the answer should say what it assumed."
+        "tpchQuery": 22
       }
     }
   ]

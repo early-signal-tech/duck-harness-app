@@ -23,7 +23,11 @@ const hardPart = new Map();
 for (const m of md.matchAll(/^\| (\d+) \| [^|]+ \| ([^|]+) \|$/gm)) hardPart.set(Number(m[1]), m[2].trim());
 
 // Questions whose wording leaves room for interpretation (per the doc's "Checking an answer").
-const AMBIGUOUS = new Set([19, 22]);
+const AMBIGUOUS = new Set([19]);
+
+// Raise it whenever the questions change, so grades of runs on the old wording stay apart.
+// 2: Q8, Q12, Q18, Q22 reworded to match their reference SQL (2026-11-03).
+const REVISION = 2;
 
 const sections = md.split(/^## Q(?=\d+\. )/m).slice(1);
 const questions = sections.map((section) => {
@@ -53,8 +57,8 @@ const set = {
   name: "TPC-H",
   description: "The 22 standard TPC-H decision-support queries, asked in plain language. "
     + "Each has DuckDB's reference SQL and a published answer at scale 0.01, 0.1, and 1.",
-  revision: 1,
-  savedAt: "2026-11-02T00:00:00Z",
+  revision: REVISION,
+  savedAt: "2026-11-03T00:00:00Z",
   source: { kind: "tpch", tpchScale: 0.01 },
   questions,
 };

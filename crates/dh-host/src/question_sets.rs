@@ -1,10 +1,13 @@
-//! Your question sets (MINE): EH-1 reads the same folder DH-1 keeps them in,
-//! ~/Library/Application Support/Duck Harness/Question Sets/<id>.json, to find the set a
-//! setlist ran, and writes to it when you save a quick check as a question. Adding and
-//! removing whole sets happens in DH-1's Setlist. (The same code as DH-1's.)
+//! Your own question sets: JSON files in
+//! ~/Library/Application Support/Duck Harness/Question Sets/<id>.json, shared by every
+//! Duck Harness app (DH-1 runs them, EH-1 grades against them and saves quick checks
+//! into them). The built-in sets ship inside the app; these are the ones tied to your
+//! data, like an eval on your own lake.
+//! The web side owns the format; this only lists, writes, deletes, and reveals files.
 
 use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
 
 use tauri::{AppHandle, Manager};
 
@@ -45,4 +48,40 @@ pub fn question_set_write(app: AppHandle, id: String, contents: String) -> Resul
     let temp = dir.join(format!(".{id}.json.tmp"));
     fs::write(&temp, contents).map_err(|e| format!("could not save the question set: {e}"))?;
     fs::rename(&temp, &path).map_err(|e| format!("could not save the question set: {e}"))
+}
+
+#[tauri::command]
+pub fn question_set_delete(app: AppHandle, id: String) -> Result<(), String> {
+    let path = sets_dir(&app)?.join(format!("{}.json", safe_id(&id)?));
+    match fs::remove_file(&path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(format!("could not remove {}: {e}", path.display())),
+    }
+}
+
+/// Show a set's file in Finder (or the folder, if the file isn't there).
+#[tauri::command]
+pub fn question_set_reveal(app: AppHandle, id: String) -> Result<(), String> {
+    let dir = sets_dir(&app)?;
+    fs::create_dir_all(&dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
+    let file = dir.join(format!("{}.json", safe_id(&id)?));
+    let target = if file.exists() { file } else { dir };
+    Command::new("open").arg("-R").arg(&target).status().map_err(|e| format!("could not open Finder: {e}"))?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::safe_id;
+
+    #[test]
+    fn ids_are_safe_file_names() {
+        assert!(safe_id("analytics-eval").is_ok());
+        assert!(safe_id("tpch.v2").is_ok());
+        assert!(safe_id("../etc").is_err());
+        assert!(safe_id(".hidden").is_err());
+        assert!(safe_id("a/b").is_err());
+        assert!(safe_id("").is_err());
+    }
 }

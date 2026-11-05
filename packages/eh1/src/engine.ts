@@ -1,10 +1,9 @@
 // Client for EH-1's engine (eh1-grader's eh1-serve), JSON Lines like DH-1's agent. The
-// Rust host starts it and relays lines: requests go out through `harness_send`, replies
-// come back as `harness-message` events, and `harness-exit` carries the start's
-// generation so a restarted engine's predecessor is ignored.
+// host starts it and relays lines through an EngineTransport (the engine named "eh1"):
+// requests go out with `send`, replies come back through `onMessage`, and `onExit`
+// carries the start's generation so a restarted engine's predecessor is ignored.
 
-import { invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import type { EngineTransport } from "@dh/ui-kit";
 import type { SourceSpec } from "@dh/formats";
 
 export const PROTOCOL_VERSION = 1;
@@ -256,20 +255,22 @@ export interface Grading {
 
 export class Engine {
   private pending = new Map<string, Pending>();
-  private unlisten: UnlistenFn[] = [];
+  private unlisten: (() => void)[] = [];
   private exited = false;
   private generation = 0;
   onExit: () => void = () => {};
 
-  static async connect(): Promise<Engine> {
-    const engine = new Engine();
+  private constructor(private transport: EngineTransport) {}
+
+  static async connect(transport: EngineTransport): Promise<Engine> {
+    const engine = new Engine(transport);
     engine.unlisten.push(
-      await listen<string>("harness-message", ({ payload }) => engine.receive(payload)),
-      await listen<number>("harness-exit", ({ payload }) => {
-        if (payload === engine.generation) engine.serverExited();
+      await transport.onMessage((line) => engine.receive(line)),
+      await transport.onExit((generation) => {
+        if (generation === engine.generation) engine.serverExited();
       }),
     );
-    engine.generation = await invoke<number>("engine_generation");
+    engine.generation = await transport.generation();
     return engine;
   }
 
@@ -371,7 +372,7 @@ export class Engine {
     if (this.exited) return Promise.reject(new EngineError("the grader is not running"));
     return new Promise<Message>((resolve, reject) => {
       this.pending.set(id, { resolve, reject, onEvent: options.onEvent, isFinal: options.isFinal ?? (() => true) });
-      invoke("harness_send", { line: JSON.stringify({ id, ...body }) }).catch((e) => {
+      this.transport.send(JSON.stringify({ id, ...body })).catch((e) => {
         this.pending.delete(id);
         reject(new EngineError(String(e)));
       });

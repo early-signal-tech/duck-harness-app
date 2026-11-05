@@ -28,10 +28,13 @@ packages/
 apps/
   dh1/      DH-1 as a standalone app: a Tauri window (src-tauri/) around the device
   eh1/      EH-1 as a standalone app (npm run eh1), starting eh1-grader's eh1-serve
+crates/
+  dh-host/  the native side every app shares: the engines, settings, presets,
+            question sets; each app's src-tauri only says which engines it runs
 ```
 
 Each plugin is a **device** (a component that takes an engine connection) inside a
-thin **host** (the window chrome, theme, and engine process). A standalone app is one
+thin **host** (the window chrome, theme, and engine processes). A standalone app is one
 host with one device; the rack will be one host with several. Each device's styles are
 scoped under its own class (`.dh1`), so devices can sit side by side.
 
@@ -41,14 +44,17 @@ The engines are Python and live in their own repos. DH-1's is
 ### DH-1
 
 ```
-React (packages/dh1)  ──invoke("harness_send")──▶  Rust (apps/dh1/src-tauri)  ──stdin──▶  duck-harness-serve
-       ▲                                                  │                           (Python agent)
-       └────────── "harness-message" events ◀─────────────┴────────── stdout ◀────────────────┘
+React (packages/dh1)  ──engine_send("dh1", line)──▶  Rust (crates/dh-host)  ──stdin──▶  duck-harness-serve
+       ▲                                                   │                        (Python agent)
+       └──── "engine-message" {engine: "dh1"} ◀────────────┴──────── stdout ◀───────────────┘
 ```
 
-- **`apps/dh1/src-tauri/src/lib.rs`** starts `duck-harness-serve` when the app opens
-  and relays its JSON Lines protocol. Closing the app closes the server's input, which
-  stops any runs, and the server exits.
+- **`crates/dh-host/src/engines.rs`** starts each engine the host runs (`dh1`, `eh1`)
+  when the app opens and relays its JSON Lines protocol. Every command and event names
+  its engine, so one host can run several (the rack). Closing the app closes each
+  engine's input, which stops its work, and it exits.
+- **`EngineTransport`** (packages/ui-kit) is how a device's client reaches its engine;
+  the host passes `tauriTransport("dh1")`.
 - **`packages/dh1/src/harness.ts`** is the TypeScript client for the protocol:
   `hello()`, `run()` (with live events), and `stop()`. Its types mirror
   `duckdb_agent/serve.py` and the `EventCallback` events in `duckdb_agent/loop.py`.

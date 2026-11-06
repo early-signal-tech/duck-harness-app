@@ -4,7 +4,7 @@
 
 import { Eh1, useEngine } from "@dh/eh1";
 import { HostBar, SettingsMenu, tauriTransport, useAppearance } from "@dh/ui-kit";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 // EH-1's engine, the grader, as the host crate names it.
 const transport = tauriTransport("eh1");
@@ -12,6 +12,8 @@ const transport = tauriTransport("eh1");
 export default function App() {
   const [appearance, setAppearance] = useAppearance();
   const engine = useEngine(transport);
+  // Settings shows the engine's version from its hello.
+  const settingsEngine = useMemo(() => ({ ...engine, versions: { eh1: engine.hello?.version } }), [engine]);
   const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
   return (
     <div className="host">
@@ -19,7 +21,7 @@ export default function App() {
         name="EH-1"
         tagline="ANSWER EVALUATOR"
         engine={{ status: engine.status, error: engine.error }}
-        settings={<SettingsMenu engine={engine} appearance={appearance} onAppearance={setAppearance} />}
+        settings={<SettingsMenu engine={settingsEngine} appearance={appearance} onAppearance={setAppearance} />}
       >
         <div className="host-slot" ref={setToolbar} />
       </HostBar>

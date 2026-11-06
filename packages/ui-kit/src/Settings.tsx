@@ -21,7 +21,9 @@ export interface TracesInfo {
   db: string | null;
   exists: boolean;
   size_bytes: number | null;
-  server: { running: boolean; uri: string | null; pid: number | null } | null;
+  /** `current` is false when the running server was started by another version (a
+   *  different traces schema): runs are refused until it's stopped. */
+  server: { running: boolean; uri: string | null; pid: number | null; current?: boolean | null } | null;
 }
 
 /** What the host's engine can do with the traces. */
@@ -34,6 +36,8 @@ export interface TracesControls {
 export interface SettingsEngine {
   status: "connecting" | "ready" | "down";
   restart: () => Promise<void>;
+  /** Each engine's version from its hello, by engine name. */
+  versions?: Record<string, string | undefined>;
 }
 
 interface SettingsView {
@@ -131,8 +135,11 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
     }
   };
 
+  // The version engines.json gave, else the one the engine said in hello.
+  const versionOf = (e: StartedEngine) => e.version ?? engine.versions?.[e.engine];
   const tracesPath = traces?.db ?? view?.tracesPath ?? view?.tracesDb ?? view?.defaultTracesDb ?? "";
   const server = traces?.server;
+  const outdated = server?.running && server.current === false;
   const ready = engine.status === "ready";
 
   return (
@@ -240,6 +247,7 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
             <span className="settings-server">
               <span className={`dot${server?.running ? " on" : ""}`} aria-hidden="true" />
               {!ready ? "Engine offline" : server?.running ? `Quack ${server.uri?.replace(/^quack:/, "") ?? ""}` : "Not running · starts with the next run"}
+              {outdated && " · another version"}
             </span>
             {server?.running && (
               <button className="pane-button" disabled={working !== null}
@@ -251,7 +259,9 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
               </button>
             )}
           </div>
-          <p className="settings-hint">Lets other programs read the traces while runs write them.</p>
+          {outdated
+            ? <p className="settings-hint warn">Started by another version of the agent, so runs are refused. Stop it and the next run starts a new one.</p>
+            : <p className="settings-hint">Lets other programs read the traces while runs write them.</p>}
         </section>}
 
         {view && view.engines.length > 0 && <section>
@@ -260,7 +270,7 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
             <div key={e.engine} className="settings-engine">
               <span className="settings-row spread">
                 <span className="settings-engine-name">{ENGINE_NAMES[e.engine] ?? e.engine}</span>
-                <span className="settings-hint">{ENGINE_SOURCE[e.source]}{e.version ? ` · ${e.version}` : ""}</span>
+                <span className="settings-hint">{ENGINE_SOURCE[e.source]}{versionOf(e) ? ` · ${versionOf(e)}` : ""}</span>
               </span>
               <p className="settings-path selectable" title={e.command}>{e.command}</p>
             </div>

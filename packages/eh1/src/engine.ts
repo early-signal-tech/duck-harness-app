@@ -32,6 +32,12 @@ export interface ScaleRow {
 
 export interface Hello {
   protocol: number;
+  /** The eh1-grader package version (absent from older engines). */
+  version?: string;
+  /** The agent traces schema it reads; must match the agent's. */
+  traces_schema?: string;
+  /** EH-1's own tables (eval_grades, eval_setlists). */
+  grades_schema?: string;
   defaults: GraderSettings;
   judge_models: string[];
   /** The rubric's scale (older engines don't send it). */

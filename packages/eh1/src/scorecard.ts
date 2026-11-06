@@ -137,7 +137,9 @@ export const TOLERANCES = ["±0.1%", "±0.5%", "±1%", "±5%"] as const;
 export const DEFAULT_GRADER: GraderSettings = {
   name: "Standard rubric",
   revision: 1,
-  judge_model: "claude-sonnet-5-5",
+  // Haiku at low effort: cheap enough to grade every setlist run (AUTO-GRADE). Matches
+  // the engine's default (eh1_grader/judge.py).
+  judge_model: "claude-haiku-5-5",
   judge_effort: "low",
   tolerance: "±0.5%",
   iteration_budget: 8,

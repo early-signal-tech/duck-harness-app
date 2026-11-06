@@ -139,8 +139,10 @@ repeated identical queries, and truncated results after the first.
 The judge model (**HAIKU**, **SONNET**, **OPUS**), its **EFFORT**, and the
 **TOLERANCE** for numbers (within ±0.5% of the reference counts as matching, by
 default). The judge answers in a fixed JSON shape: both scores, a reason for each,
-whether it was unsure, and the values it compared. Haiku costs about a tenth of a cent
-per run; Sonnet a little under a cent.
+whether it was unsure, and the values it compared. It starts on **HAIKU** at **LOW**
+effort: about a tenth of a cent per run, cheap enough for AUTO-GRADE to grade every
+setlist run. Sonnet costs a little under a cent per run; switch to it (or Opus) when a
+grade needs a closer read.
 
 ## 9. METERS
 

@@ -1,15 +1,19 @@
-// The DH-1 device: SOURCE, AGENT, and METERS; the prompt bar; then the run's activity
-// and the answer. A host (the standalone app, later the rack) gives it an engine
-// connection (useEngine) and draws the window chrome around it. If the host gives it a
-// toolbar element (a slot in its header bar), the preset bar goes there; otherwise the
-// device shows it in a strip of its own.
+// The DH-1 device's face: SOURCE, AGENT, and METERS; the prompt bar; then the run's
+// activity and the answer. It draws a model (useDh1), which holds the settings, the runs,
+// and starting and stopping them, so other views (the rack's transport and compact card)
+// can show the same device.
+//
+// `Dh1` is the whole device for a host that just wants it: a model and its face. A host
+// gives it an engine connection (useEngine) and draws the window chrome around it. If the
+// host gives it a toolbar element (a slot in its header bar), the preset bar goes there;
+// otherwise the device shows it in a strip of its own. A host with its own transport (the
+// rack) uses `Dh1Face` with `promptBar={false}`.
 
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { keyForOtherDevice, Markdown, Splitter } from "@dh/ui-kit";
 import { questionSource } from "@dh/formats";
-import { copyToOther, settingsForSlot, switchSlot, type Slot } from "./ab";
 import { AbSwitch } from "./components/AbSwitch";
 import { AgentPanel } from "./components/AgentPanel";
 import { CompareView } from "./components/CompareView";
@@ -22,19 +26,15 @@ import { answerText, isAnswer, StructuredAnswer } from "./components/StructuredA
 import { SetlistView } from "./components/SetlistView";
 import { SourcePanel } from "./components/SourcePanel";
 import { Timeline } from "./components/Timeline";
-import type { Run } from "./harness";
 import {
   DEFAULT_ANSWER_WIDTH, DEFAULT_TEXT_SIZE, loadLayout, MIN_ACTIVITY_WIDTH, MIN_ANSWER_WIDTH, saveLayout, stepTextSize,
   type Layout,
 } from "./layout";
-import { applyPreset, presetRef } from "./presets";
-import { IDLE, runReducer, type RunAction } from "./runState";
+import { applyPreset } from "./presets";
 import { progressOf } from "./setlist";
-import { loadSettings, requestOf, saveSettings, sourceProblem, type FaceSettings } from "./settings";
 import "./dh1.css";
 import type { EngineConnection } from "./useEngine";
-import { usePresets } from "./usePresets";
-import { useSetlist } from "./useSetlist";
+import { useDh1, type Dh1Model } from "./useDh1";
 
 const DATA_FILE = /\.(csv|tsv|parquet|json|jsonl|ndjson)(\.gz)?$/i;
 
@@ -92,18 +92,59 @@ function useNow(active: boolean): number {
   return now;
 }
 
+/** The whole device: its model and its face. */
 export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: HTMLElement | null }) {
-  const { harness, status: server, hello } = engine;
+  const model = useDh1(engine);
+  return <Dh1Face model={model} toolbar={toolbar} />;
+}
 
-  const [settings, setSettings] = useState<FaceSettings>(loadSettings);
-  const update = useCallback((patch: Partial<FaceSettings>) => setSettings((s) => ({ ...s, ...patch })), []);
-  useEffect(() => saveSettings(settings), [settings]);
+/** The prompt, RUN, STOP, and RUN A+B: the face's own, or a host's transport. */
+export function Dh1PromptBar({ model }: { model: Dh1Model }) {
+  const { settings, update, start, startBoth, stop, canRun, canRunBoth, anyBusy, views, problem, slot } = model;
+  return (
+    <div className="panel prompt">
+      <label className="title" htmlFor="prompt">PROMPT</label>
+      <input
+        id="prompt"
+        value={settings.prompt}
+        spellCheck
+        placeholder="Ask a question about your data…"
+        onChange={(e) => update({ prompt: e.currentTarget.value })}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            start();
+          }
+        }}
+      />
+      <button className="run" disabled={!canRun} onClick={start} title={problem ?? `Run ${slot} (↵)`}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 4l14 8-14 8z" /></svg>
+        RUN
+      </button>
+      <button
+        className="stop"
+        disabled={!anyBusy || (views.A.phase !== "running" && views.B.phase !== "running")}
+        onClick={stop}
+        title="Stop (Esc)"
+      >
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4" y="4" width="16" height="16" /></svg>
+        STOP
+      </button>
+      <button className="run-ab" disabled={!canRunBoth} onClick={startBoth} title={problem ?? "Run A and B at the same time, then compare"}>
+        RUN A+B
+      </button>
+    </div>
+  );
+}
 
-  const presets = usePresets(settings, setSettings);
-
-  const addFiles = useCallback((paths: string[]) => {
-    setSettings((s) => ({ ...s, sourceKind: "files", files: [...new Set([...s.files, ...paths])] }));
-  }, []);
+/** DH-1's face. `promptBar={false}` leaves out the prompt bar, for a host with a transport. */
+export function Dh1Face({ model, toolbar, promptBar = true }: { model: Dh1Model; toolbar?: HTMLElement | null; promptBar?: boolean }) {
+  const {
+    server, hello, settings, setSettings, update, presets, addFiles, views, slot, view, busy, anyBusy, setlist,
+    problem, priced, start, stop,
+  } = model;
+  const viewA = views.A;
+  const viewB = views.B;
 
   const [layout, setLayout] = useState<Layout>(loadLayout);
   useEffect(() => saveLayout(layout), [layout]);
@@ -118,24 +159,13 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
   const screens = useRef<HTMLDivElement>(null);
   const log = useRef<HTMLOListElement>(null);
 
-  // A/B: each slot has its own run; the face shows the active slot's.
-  const [viewA, dispatchA] = useReducer(runReducer, IDLE);
-  const [viewB, dispatchB] = useReducer(runReducer, IDLE);
-  const views = { A: viewA, B: viewB };
-  const dispatchers: Record<Slot, (action: RunAction) => void> = { A: dispatchA, B: dispatchB };
-  const runs = useRef<Record<Slot, Run | null>>({ A: null, B: null });
-  const slot = settings.abSlot;
-  const view = views[slot];
-  const isBusy = (v: typeof viewA) => v.phase === "running" || v.phase === "stopping";
-  const busy = isBusy(view);
-  const anyBusy = isBusy(viewA) || isBusy(viewB);
   // Compare, Setlist, and the Handbook take over the face until you go back.
   const [screen, setScreen] = useState<Screen>("face");
   const comparing = screen === "compare";
   const setlistOpen = screen === "setlist";
   const toggleScreen = (next: Screen) => setScreen((current) => (current === next ? "face" : next));
-  // A running setlist has the engine to itself: RUN and RUN A+B wait.
-  const setlist = useSetlist(harness, settings);
+  // A new run starts with nothing picked on the timeline.
+  useEffect(() => setFocus(null), [model.runStarts]);
 
   // Keep the newest activity in view, unless you've scrolled up to read something.
   const following = useRef(true);
@@ -191,60 +221,6 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
     };
   }, [addFiles]);
 
-  const problem = setlist.busy
-    ? "A setlist is running"
-    : !settings.prompt.trim() ? "Type a question" : sourceProblem(settings);
-  const canRun = server === "ready" && !busy && !problem;
-  const canRunBoth = server === "ready" && !anyBusy && !problem;
-
-  /** Run one slot, or both at once (an A/B pair, tagged so its runs can be found together). */
-  const startSlots = useCallback(
-    (slots: Slot[]) => {
-      const h = harness;
-      if (!h) return;
-      const pair = slots.length > 1 ? `ab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}` : null;
-      setFocus(null);
-      for (const s of slots) {
-        const dispatch = dispatchers[s];
-        const face = settingsForSlot(settings, s);
-        dispatch({ type: "start", maxIterations: face.maxIterations, at: Date.now() });
-        const r = h.run(
-          requestOf(face, presetRef(face, presets.all), pair ? { ab: s, pair } : undefined),
-          (event) => dispatch({ type: "event", event }),
-        );
-        runs.current[s] = r;
-        r.done
-          .then((result) => dispatch({ type: "finished", result, at: Date.now() }))
-          .catch((e) => dispatch({ type: "failed", error: e instanceof Error ? e.message : String(e), at: Date.now() }))
-          .finally(() => {
-            if (runs.current[s] === r) runs.current[s] = null;
-          });
-      }
-    },
-    // dispatchers are stable (useReducer), so they're left out.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [harness, settings, presets.all],
-  );
-
-  const start = useCallback(() => {
-    if (canRun) startSlots([slot]);
-  }, [canRun, slot, startSlots]);
-
-  const startBoth = useCallback(() => {
-    if (canRunBoth) startSlots(["A", "B"]);
-  }, [canRunBoth, startSlots]);
-
-  /** STOP stops whatever is running, in either slot. */
-  const stop = useCallback(() => {
-    for (const s of ["A", "B"] as Slot[]) {
-      const r = runs.current[s];
-      if (!r) continue;
-      dispatchers[s]({ type: "stopping" });
-      r.stop().catch(() => {});
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // Enter (in the prompt) or ⌘↵ runs. Esc leaves an expanded pane, otherwise stops a
   // run. ⌘+ / ⌘− / ⌘0 change the Activity and Answer text size.
   useEffect(() => {
@@ -274,7 +250,6 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
   }, [start, stop, anyBusy, expanded, screen, changeTextSize]);
 
   const elapsed = view.startedAt ? (view.endedAt ?? now) - view.startedAt : 0;
-  const priced = hello ? hello.priced_models.includes(settings.model) : true;
   const result = view.result;
 
   let status: string;
@@ -297,10 +272,10 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
         slot={slot}
         phases={{ A: viewA.phase, B: viewB.phase }}
         onSwitch={() => {
-          setSettings(switchSlot);
+          model.switchSlot();
           setFocus(null);
         }}
-        onCopy={() => setSettings(copyToOther)}
+        onCopy={model.copyToOther}
         canCompare={Boolean(viewA.result || viewB.result)}
         onCompare={() => {
           setScreen("compare");
@@ -371,38 +346,7 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
         <MetersPanel view={view} maxIterations={settings.maxIterations} priced={priced} status={status} statusTone={tone} />
       </div>
 
-      <div className="panel prompt">
-        <label className="title" htmlFor="prompt">PROMPT</label>
-        <input
-          id="prompt"
-          value={settings.prompt}
-          spellCheck
-          placeholder="Ask a question about your data…"
-          onChange={(e) => update({ prompt: e.currentTarget.value })}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) {
-              e.preventDefault();
-              start();
-            }
-          }}
-        />
-        <button className="run" disabled={!canRun} onClick={start} title={problem ?? `Run ${slot} (↵)`}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 4l14 8-14 8z" /></svg>
-          RUN
-        </button>
-        <button
-          className="stop"
-          disabled={!anyBusy || (viewA.phase !== "running" && viewB.phase !== "running")}
-          onClick={stop}
-          title="Stop (Esc)"
-        >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4" y="4" width="16" height="16" /></svg>
-          STOP
-        </button>
-        <button className="run-ab" disabled={!canRunBoth} onClick={startBoth} title={problem ?? "Run A and B at the same time, then compare"}>
-          RUN A+B
-        </button>
-      </div>
+      {promptBar && <Dh1PromptBar model={model} />}
 
       <div
         className="screens"

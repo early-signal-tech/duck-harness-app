@@ -1,55 +1,34 @@
-// The EH-1 device: grade a DH-1 setlist. INPUT picks the setlist (FOLLOW DH-1: always the
-// newest; PICK: any); SCORES says where each score comes from; JUDGE sets the judge;
-// METERS sum it up. GRADE SETLIST grades what isn't graded yet with these settings, and
-// the scorecard shows questions (by category) × preset columns. Pick a cell for its
-// repeats' verdicts (and your override). RUN mode (RunView) grades one run at a time.
+// The EH-1 device's face: grade a DH-1 setlist. INPUT picks the setlist (FOLLOW DH-1:
+// always the newest; PICK: any); SCORES says where each score comes from; JUDGE sets the
+// judge; METERS sum it up. GRADE SETLIST grades what isn't graded yet with these
+// settings, and the scorecard shows questions (by category) × preset columns. Pick a cell
+// for its repeats' verdicts (and your override). RUN mode (RunView) grades one run at a time.
+//
+// It draws a model (useEh1), which holds the settings, setlists, grades, and grading, so
+// other views (the rack's compact card, AUTO GRADER) can show the same device. `Eh1` is
+// the whole device: a model and its face.
 
-import { invoke } from "@tauri-apps/api/core";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import {
-  describeSource, FACTORY_QUESTION_SETS, hasCheck, parseQuestionSet, questionSetToFile, type QuestionSet,
-} from "@dh/formats";
-import { type FollowEvent, type Grade, type Grading, type Override, type SetlistInfo } from "./engine";
-import { IDLE, onFollowEvent, type ChainControl, type FollowStatus } from "./chain";
-import { GradeVerdict } from "./Verdict";
-import { nameToStore, cleanText, MAX_NOTE, setlistTitle, suggestedTitle } from "./picker";
-import { RenameForm, SetlistPicker } from "./SetlistPicker";
-import { RunView } from "./RunView";
+import { describeSource, hasCheck } from "@dh/formats";
+import { Menu, MenuItem } from "@dh/ui-kit";
+import type { ChainControl } from "./chain";
 import { EfficientFlyout, RubricFlyout } from "./Flyouts";
 import { HelpView } from "./HelpView";
-import { csvFileName, gradesCsv, gradesSql } from "./exportGrades";
-import { Menu, MenuItem } from "@dh/ui-kit";
-import { save } from "@tauri-apps/plugin-dialog";
+import { setlistTitle, suggestedTitle } from "./picker";
+import { RunView } from "./RunView";
 import {
-  avg, carefulOf, columnsOf, columnSummary, correctOf, findSet, JUDGE_EFFORTS, JUDGE_MODELS, loadGrader, saveGrader, scorecard,
-  TOLERANCES, type Cell,
+  avg, carefulOf, columnsOf, columnSummary, correctOf, JUDGE_EFFORTS, JUDGE_MODELS, scorecard, TOLERANCES, type Cell,
 } from "./scorecard";
+import { RenameForm, SetlistPicker } from "./SetlistPicker";
 import type { EngineConnection } from "./useEngine";
+import { money, useEh1, type Eh1Model } from "./useEh1";
+import { GradeVerdict } from "./Verdict";
 import "./eh1.css";
 
-type InputMode = "follow" | "pick";
 type View = "setlist" | "run";
 
-async function loadSets(): Promise<QuestionSet[]> {
-  const mine: QuestionSet[] = [];
-  try {
-    for (const text of await invoke<string[]>("question_set_list")) {
-      try {
-        mine.push(parseQuestionSet(text));
-      } catch (e) {
-        console.warn("Skipping a question set file:", e);
-      }
-    }
-  } catch {
-    // No native side (a browser preview): built-in sets only.
-  }
-  return [...FACTORY_QUESTION_SETS, ...mine];
-}
-
-
 const fmt = (n: number | null, digits = 1) => (n === null ? "–" : n.toFixed(digits));
-const money = (n: number | null) => (n === null ? "–" : n >= 0.1 ? `$${n.toFixed(3)}` : `$${n.toFixed(4)}`);
 
 /** Two segments per score, filled by its average (0–2). */
 function Bars({ cell }: { cell: Cell }) {
@@ -75,31 +54,23 @@ function Meter({ label, value }: { label: string; value: number | null }) {
   );
 }
 
+/** The whole device: its model and its face. */
 export function Eh1({ engine, toolbar, chain }: {
   engine: EngineConnection;
   toolbar?: HTMLElement | null;
   /** Set when EH-1 sits in a chain (the rack), after DH-1. */
   chain?: ChainControl;
 }) {
-  const { engine: client, status } = engine;
-  const ready = status === "ready" && client !== null;
+  const model = useEh1(engine, chain);
+  return <Eh1Face model={model} toolbar={toolbar} chained={!!chain} />;
+}
 
-  const [grader, setGrader] = useState(loadGrader);
-  useEffect(() => saveGrader(grader), [grader]);
-  const [mode, setMode] = useState<InputMode>(() => {
-    try {
-      return localStorage.getItem("eh1.input") === "pick" ? "pick" : "follow";
-    } catch {
-      return "follow";
-    }
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem("eh1.input", mode);
-    } catch {
-      // ignore
-    }
-  }, [mode]);
+/** EH-1's face. `chained`: it sits in a chain, so FOLLOW DH-1 reads FOLLOW CHAIN. */
+export function Eh1Face({ model, toolbar, chained = false }: { model: Eh1Model; toolbar?: HTMLElement | null; chained?: boolean }) {
+  const {
+    client, hello, ready, grader, setGrader, mode, setMode, sets, reloadSets, setlists, refreshSetlists, setPickedId,
+    setlist, set, revisionMismatch, setOf, grades, graderKey, grading, progress, regrade, setRegrade, grade, problem, notice,
+  } = model;
 
   const [view, setView] = useState<View>(() => {
     try {
@@ -117,168 +88,13 @@ export function Eh1({ engine, toolbar, chain }: {
   }, [view]);
 
   const [help, setHelp] = useState(false);
-  const closeHelp = useCallback(() => setHelp(false), []);
-
-  const [sets, setSets] = useState<QuestionSet[]>(FACTORY_QUESTION_SETS);
-  const reloadSets = useCallback(async () => setSets(await loadSets()), []);
-  useEffect(() => {
-    void reloadSets();
-  }, [reloadSets]);
-  const [setlists, setSetlists] = useState<SetlistInfo[]>([]);
-  const [pickedId, setPickedId] = useState<string | null>(null);
+  const closeHelp = () => setHelp(false);
   const [renaming, setRenaming] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-
-  // Each setlist with how much of it is graded with these settings (and the set revisions
-  // this face would grade with).
-  const setRefs = useMemo(() => sets.map((s) => ({ id: s.id, revision: s.revision })), [sets]);
-  const refreshSetlists = useCallback(async () => {
-    if (!client || status !== "ready") return;
-    try {
-      setSetlists(await client.setlists(grader, setRefs));
-    } catch (e) {
-      setProblem(e instanceof Error ? e.message : String(e));
-    }
-  }, [client, status, grader, setRefs]);
-  useEffect(() => {
-    void refreshSetlists();
-  }, [refreshSetlists]);
-  // FOLLOW DH-1: look for a newer setlist every 15 s.
-  useEffect(() => {
-    if (mode !== "follow" || !ready) return;
-    const timer = setInterval(() => void refreshSetlists(), 15_000);
-    return () => clearInterval(timer);
-  }, [mode, ready, refreshSetlists]);
-
-  const setlist = mode === "follow" ? setlists[0] ?? null : setlists.find((s) => s.id === pickedId) ?? setlists[0] ?? null;
-  const { set, revisionMismatch } = findSet(sets, setlist);
-  const setOf = useCallback((s: SetlistInfo) => findSet(sets, s).set, [sets]);
   useEffect(() => setRenaming(false), [setlist?.id]);
-
   const rename = async (name: string, note: string) => {
-    if (!client || !setlist) return;
-    setProblem(null);
-    try {
-      await client.rename(setlist.id, nameToStore(name, setlist, set?.name), cleanText(note, MAX_NOTE) || null);
-      setRenaming(false);
-      await refreshSetlists();
-    } catch (e) {
-      setProblem(e instanceof Error ? e.message : String(e));
-    }
+    if (await model.rename(name, note)) setRenaming(false);
   };
-
-  // A new setlist arriving while following: say so.
-  const autoGrade = !!chain?.autoGrade;
-  const lastFollowed = useRef<string | null>(null);
-  useEffect(() => {
-    if (mode !== "follow" || !setlist) return;
-    if (lastFollowed.current && lastFollowed.current !== setlist.id) {
-      setNotice(autoGrade
-        ? `New setlist from DH-1: “${setlistTitle(setlist, set?.name)}”. AUTO-GRADE is grading it as it plays.`
-        : `New setlist from DH-1: “${setlistTitle(setlist, set?.name)}”. Press GRADE SETLIST to grade it.`);
-    }
-    lastFollowed.current = setlist.id;
-  }, [mode, setlist, set, autoGrade]);
-
-  // The grades for this setlist under these settings.
-  const [grades, setGrades] = useState<Grade[]>([]);
-  const [graderKey, setGraderKey] = useState<string | null>(null);
-  const setFile = useMemo(() => (set ? JSON.parse(questionSetToFile(set)) : null), [set]);
-  const loadGrades = useCallback(async () => {
-    if (!client || status !== "ready" || !setlist || !setFile) {
-      setGrades([]);
-      return;
-    }
-    try {
-      const reply = await client.grades(setlist.id, setFile, grader);
-      setGrades(reply.grades);
-      setGraderKey(reply.graderKey);
-    } catch (e) {
-      setProblem(e instanceof Error ? e.message : String(e));
-    }
-  }, [client, status, setlist, setFile, grader]);
-  useEffect(() => {
-    void loadGrades();
-  }, [loadGrades]);
-
-  // AUTO-GRADE (in a chain): the engine grades setlist runs as DH-1 finishes them, with
-  // this face's judge settings and every set it has. A settings change starts a new follow,
-  // which replaces the old one. Grades landing refresh the scorecard (at most once a second).
-  const refreshRef = useRef({ loadGrades, refreshSetlists });
-  refreshRef.current = { loadGrades, refreshSetlists };
-  const onFollowRef = useRef(chain?.onFollow);
-  onFollowRef.current = chain?.onFollow;
-  const followStatus = useRef<FollowStatus>(IDLE);
-  const report = useCallback((next: FollowStatus) => {
-    followStatus.current = next;
-    onFollowRef.current?.(next);
-  }, []);
-  const setFiles = useMemo(() => sets.map((s) => JSON.parse(questionSetToFile(s))), [sets]);
-  useEffect(() => {
-    if (!autoGrade || !ready || !client) {
-      if (followStatus.current.active) report({ ...followStatus.current, active: false });
-      return;
-    }
-    let pending: ReturnType<typeof setTimeout> | null = null;
-    const refreshSoon = () => {
-      if (pending) return;
-      pending = setTimeout(() => {
-        pending = null;
-        void refreshRef.current.loadGrades();
-        void refreshRef.current.refreshSetlists();
-      }, 1000);
-    };
-    const following = client.follow(grader, setFiles, (event: FollowEvent) => {
-      report(onFollowEvent(followStatus.current, event));
-      if (event.event === "graded") refreshSoon();
-    });
-    following.done.catch((e) => report({ ...followStatus.current, active: false, problem: e instanceof Error ? e.message : String(e) }));
-    return () => {
-      if (pending) clearTimeout(pending);
-      void following.stop().catch(() => {});
-      report({ ...followStatus.current, active: false });
-    };
-  }, [autoGrade, ready, client, grader, setFiles, report]);
-
-  // Grading.
-  const [grading, setGrading] = useState<Grading | null>(null);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
-  const [regrade, setRegrade] = useState(false);
-  const grade = () => {
-    if (!client || !setlist || !setFile || grading) return;
-    setProblem(null);
-    setNotice(null);
-    let done = 0;
-    const g = client.grade(setlist.id, setFile, grader, { regrade, concurrency: 4 }, (event) => {
-      if (event.event === "grade_start") setProgress({ done: 0, total: event.to_grade });
-      if (event.event === "graded" || event.event === "grade_error") {
-        done += 1;
-        setProgress((p) => (p ? { ...p, done } : p));
-        if (done % 4 === 0) void loadGrades();
-      }
-    });
-    setGrading(g);
-    g.done
-      .then((summary) => {
-        setNotice(
-          `${summary.cancelled ? "Stopped" : "Done"}: graded ${summary.graded}` +
-          (summary.skipped ? `, ${summary.skipped} already graded` : "") +
-          (summary.unmatched ? `, ${summary.unmatched} not in the set` : "") +
-          ` · judge ${money(summary.judge_cost_usd)}` +
-          (summary.errors.length ? ` · ${summary.errors.length} errors` : ""),
-        );
-      })
-      .catch((e) => setProblem(e instanceof Error ? e.message : String(e)))
-      .finally(() => {
-        setGrading(null);
-        setProgress(null);
-        setRegrade(false);
-        void loadGrades();
-        void refreshSetlists();
-      });
-  };
-  const stop = () => void grading?.stop().catch(() => {});
+  const stop = model.stopGrading;
 
   // Scorecard.
   const columns = columnsOf(setlist, grades);
@@ -286,71 +102,13 @@ export function Eh1({ engine, toolbar, chain }: {
   const [picked, setPicked] = useState<{ question: string; column: string } | null>(null);
   const pickedRow = picked ? groups.flatMap((g) => g.rows).find((r) => r.question.id === picked.question) : undefined;
   const pickedCell = pickedRow && picked ? pickedRow.cells[columns.indexOf(picked.column)] : undefined;
-
-  const saveOverride = async (runId: string, value: Omit<Override, "at"> | null) => {
-    if (!client || !setFile) return;
-    setProblem(null);
-    try {
-      await client.override(runId, { questionSet: setFile, grader }, value);
-      await loadGrades();
-      void refreshSetlists();
-    } catch (e) {
-      setProblem(e instanceof Error ? e.message : String(e));
-    }
-  };
-
-  const regradeCell = (runIds: string[]) => {
-    if (!client || !setlist || !setFile || grading) return;
-    setProblem(null);
-    setNotice(null);
-    const g = client.grade(setlist.id, setFile, grader, { regrade: true, runIds, concurrency: 4 });
-    setGrading(g);
-    setProgress({ done: 0, total: runIds.length });
-    g.done
-      .then((summary) => setNotice(`Regraded ${summary.graded} run${summary.graded === 1 ? "" : "s"} · judge ${money(summary.judge_cost_usd)}`))
-      .catch((e) => setProblem(e instanceof Error ? e.message : String(e)))
-      .finally(() => {
-        setGrading(null);
-        setProgress(null);
-        void loadGrades();
-        void refreshSetlists();
-      });
-  };
+  const saveOverride = model.saveOverride;
+  const regradeCell = model.regradeCell;
 
   // Getting grades out.
   const [exportMenu, setExportMenu] = useState(false);
-  const exportCsv = async () => {
-    if (!setlist || !set) return;
-    setProblem(null);
-    try {
-      const path = await save({ defaultPath: csvFileName(setlist), filters: [{ name: "CSV", extensions: ["csv"] }] });
-      if (!path) return;
-      await invoke("file_write", { path, contents: gradesCsv(setlist, set, grades) });
-      setNotice(`Saved ${grades.length} grades to ${path}`);
-    } catch (e) {
-      setProblem(e instanceof Error ? e.message : String(e));
-    }
-  };
-  const openShell = async () => {
-    if (!setlist || !graderKey) return;
-    setProblem(null);
-    const sql = gradesSql(setlist.id, graderKey);
-    let copied = false;
-    try {
-      await navigator.clipboard.writeText(sql);
-      copied = true;
-    } catch {
-      // No clipboard: the notice says where the query is.
-    }
-    try {
-      await invoke("traces_shell_open");
-      setNotice(copied
-        ? "Opened the DuckDB shell on the traces. The query for this scorecard is on your clipboard: paste it there."
-        : `Opened the DuckDB shell on the traces. Query: ${sql.split("\n").slice(1).join(" ")}`);
-    } catch (e) {
-      setProblem(e instanceof Error ? e.message : String(e));
-    }
-  };
+  const exportCsv = model.exportCsv;
+  const openShell = model.openShell;
 
   const ungraded = setlist ? Math.max(0, setlist.runs - grades.length) : 0;
   const judgeModel = JUDGE_MODELS.find((m) => m.id === grader.judge_model)?.label ?? grader.judge_model;
@@ -382,7 +140,7 @@ export function Eh1({ engine, toolbar, chain }: {
         <section className="panel eh1-input">
           <h2>INPUT</h2>
           <div className="segmented" role="radiogroup" aria-label="Which setlist">
-            <button role="radio" aria-checked={mode === "follow"} className={mode === "follow" ? "on" : ""} onClick={() => setMode("follow")}>{chain ? "FOLLOW CHAIN" : "FOLLOW DH-1"}</button>
+            <button role="radio" aria-checked={mode === "follow"} className={mode === "follow" ? "on" : ""} onClick={() => setMode("follow")}>{chained ? "FOLLOW CHAIN" : "FOLLOW DH-1"}</button>
             <button role="radio" aria-checked={mode === "pick"} className={mode === "pick" ? "on" : ""} onClick={() => setMode("pick")}>PICK</button>
           </div>
           {mode === "follow" ? (
@@ -425,7 +183,7 @@ export function Eh1({ engine, toolbar, chain }: {
 
         <section className="panel eh1-scores">
           <h2>SCORES · 0–2 EACH
-            <span className="h2-tools"><RubricFlyout scale={engine.hello?.scale} grader={grader} disabled={!!grading} onApply={setGrader} /></span>
+            <span className="h2-tools"><RubricFlyout scale={hello?.scale} grader={grader} disabled={!!grading} onApply={setGrader} /></span>
           </h2>
           {[
             ["CORRECT", "Facts match the reference SQL's results", "JUDGE + SQL"],

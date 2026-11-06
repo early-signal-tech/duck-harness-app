@@ -334,8 +334,13 @@ export default function App() {
       <section className={`rack-dock${layout.rackCollapsed ? " folded" : ""}`} aria-label="Rack">
         <div className="rack-bar">
           <button className="rack-handle" onClick={toggleRack} aria-expanded={!layout.rackCollapsed}
+            aria-label={layout.rackCollapsed ? "Show the rack" : "Fold the rack"}
             title={layout.rackCollapsed ? "Show the rack (⌘B)" : "Fold the rack (⌘B)"}>
-            {layout.rackCollapsed ? "▴" : "▾"} RACK <span className="muted">⌘B</span>
+            <svg className={`rack-handle-chevron${layout.rackCollapsed ? " up" : ""}`} width="14" height="14" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M5 9l7 7 7-7" />
+            </svg>
+            <span className="rack-handle-key">⌘B</span>
           </button>
           {layout.rackCollapsed && (
             <div className="rack-chips">

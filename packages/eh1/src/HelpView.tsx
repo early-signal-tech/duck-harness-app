@@ -3,7 +3,7 @@
 // contents links jump to their sections; QUESTION_SETS.md and DH-1's handbook are
 // bundled too, and other links name the repo file.
 
-import { Markdown } from "@dh/ui-kit";
+import { keyForOtherDevice, Markdown } from "@dh/ui-kit";
 import { useEffect, useRef, useState } from "react";
 import eh1Handbook from "../../../docs/EH1_HANDBOOK.md?raw";
 import dh1Handbook from "../../../docs/HANDBOOK.md?raw";
@@ -50,7 +50,7 @@ export function HelpView({ onBack }: { onBack: () => void }) {
   }, [size]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !e.defaultPrevented) onBack();
+      if (e.key === "Escape" && !e.defaultPrevented && !keyForOtherDevice(e, "eh1")) onBack();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

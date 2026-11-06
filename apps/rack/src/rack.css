@@ -1,0 +1,72 @@
+/* The rack: devices side by side in a horizontal chain that scrolls sideways. */
+
+.rack-chain {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Each device keeps a fixed width, like a device in an Ableton chain; the chain scrolls. */
+.device-frame {
+  flex: none;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--edge);
+  border-radius: 12px;
+}
+.device-frame.dh1 { width: 1320px; }
+.device-frame.eh1 { width: 1240px; }
+
+/* FULL FACE: this device takes the window; the others stay mounted, out of sight. */
+.device-frame.full { flex: 1; width: auto; min-width: 0; }
+.device-frame.behind { display: none; }
+
+.device-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.device-frame.folded .device-body { display: none; }
+
+/* The title bar: the standalone app's header bar, a little shorter. */
+.device-bar { height: 44px; gap: 12px; padding: 0 10px; }
+.device-bar .wordmark { font-size: 13px; }
+.device-bar .host-slot { margin-left: 4px; min-width: 0; }
+.device-bar .engine .dot, .device-strip .engine .dot { width: 9px; height: 9px; }
+
+/* Folded: a narrow strip with the name running up it. */
+.device-frame.folded { width: 52px; padding: 6px; }
+.device-strip {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  background: var(--bar-bg);
+  color: var(--bar-ink);
+  border-radius: 8px;
+}
+.device-strip .bar-button { width: 28px; height: 28px; padding: 0; }
+.device-strip-name {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font: 700 12px/1 var(--mono);
+  letter-spacing: 0.18em;
+  white-space: nowrap;
+}
+
+/* Engines that don't belong together. */
+.rack-problem {
+  flex: none;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1.5px solid var(--danger);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font: 500 12px/1.4 var(--sans);
+}

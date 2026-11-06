@@ -321,7 +321,7 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
   );
 
   return (
-    <div className="eh1">
+    <div data-device="eh1" className="eh1">
       {toolbar ? createPortal(header, toolbar) : <div className="bar">{header}</div>}
 
       {help ? (

@@ -144,28 +144,31 @@ its full path. Engine logs show up in the terminal, prefixed `[agent]` or `[grad
 
 ## The Rack
 
-`apps/rack` is one host running both engines (`dh1` and `eh1`), with DH-1 and EH-1 side
-by side in a horizontal chain that scrolls sideways, like an Ableton device chain. Each
-device sits in a frame whose title bar holds its own controls (DH-1's preset bar, EH-1's
-SETLIST / RUN), a fold button, and FULL FACE:
+`apps/rack` (`npm run rack`) is one window running both engines (`dh1` and `eh1`), laid
+out like a DAW (wireframes: the "RACK v3" boards on the design canvas):
 
-- **Fold** shrinks a device to a narrow strip. It keeps running: a run or a grading
-  carries on.
-- **FULL FACE** gives one device the whole window; BACK TO RACK returns.
-- The header has one light per engine. Settings belong to the host: changing the key or
-  the traces file restarts both engines.
-- If the two engines were built for different traces schemas, a banner says which is
-  which (`engineProblems` in ui-kit).
+- **The transport** across the top plays the chain: the prompt, what PLAY makes (RUN,
+  A/B, or SETLIST), PLAY and STOP, then Settings and one light per engine. SETLIST opens
+  DH-1's Setlist to pick the questions and presets; while one plays, the transport shows
+  its progress.
+- **The panel** shows the chain's output (the latest take: a run's answer, an A/B's two
+  answers, or a setlist's progress) or, when you open a device, its full editor. ✕ goes
+  back to the output.
+- **The rack** along the bottom holds the chain as compact cards: DH-1, AUTO-GRADE, EH-1,
+  with + slots for devices to come. A card has a vertical strip (its engine light, ⤢ to
+  open it), a tile per section showing its current value (a tile opens the editor at that
+  section), and a few essentials (DH-1: preset, model, EFFORT, cost; EH-1: a heat map of
+  the scorecard, its meters, how much is graded). Double-click a strip to collapse the
+  card to just the strip; it keeps working.
+- **AUTO-GRADE** is a utility card whose power button is its switch: on, EH-1's engine
+  grades each setlist run as it finishes (eh1-grader's `follow`), with EH-1's judge, and
+  the card counts what it graded and the judge's cost. It starts off each time.
 
-A key pressed inside one device only reaches that device (`keyForOtherDevice`), so Esc
-in EH-1 doesn't stop a DH-1 run.
-
-**The chain.** Between the devices is a cable. EH-1's input becomes FOLLOW CHAIN, and
-the cable's **AUTO-GRADE** switch has EH-1's engine grade each setlist run as it
-finishes, with EH-1's current judge settings, so the scorecard fills in live. The cable
-counts the runs graded and the judge's cost this session. Only setlists are
-auto-graded; AUTO-GRADE starts off each time the rack opens. The grading runs in the
-engine (eh1-grader's `follow`), so `eh1-grade --follow` does the same from a terminal.
+Each device is a model plus views (`useDh1` / `useEh1`, drawn by `Dh1Card` / `Eh1Card`,
+`Dh1Face` / `Eh1Face`, and `Dh1Output`). The rack keeps the models, so a device keeps
+running whatever the panel shows. A key pressed inside one device only reaches that
+device (`keyForOtherDevice`), so Esc in EH-1 doesn't stop a DH-1 run. If the two engines
+were built for different traces schemas, a banner says which is which (`engineProblems`).
 
 ## Status
 
@@ -186,7 +189,8 @@ engine (eh1-grader's `follow`), so `eh1-grade --follow` does the same from a ter
 - [x] EH-1, first build: grade a DH-1 setlist (FOLLOW DH-1 or PICK), judge settings,
       scorecard by category and preset, verdicts per repeat; engine in eh1-grader
 - [ ] EH-1 next: RUN mode and quick checks, overrides, the rubric flyout
-- [x] The rack: DH-1 and EH-1 side by side (fold, FULL FACE)
+- [x] The rack: DH-1 and EH-1 side by side (fold, FULL FACE), then v3: transport, one
+      panel, compact cards
 - [x] The rack: chaining DH-1 into EH-1, with AUTO-GRADE for setlists
 - [ ] The rack: the chain lane, Open in DH-1, rack presets
 - [ ] Packaging: bundle Python with the app, signing and notarization

@@ -1,25 +1,39 @@
-// What the rack's window looks like: which devices are folded, and which one (if any)
-// fills the window. A per-window convenience, kept in localStorage; it isn't app data,
-// so it doesn't belong in the shared files the CLI reads.
+// What the rack's window looks like: which devices are collapsed to their strips, what
+// the top panel shows (the chain's output, or one device's editor), and what PLAY makes
+// (a RUN, an A/B, or a SETLIST). A per-window convenience, kept in localStorage; it isn't
+// app data, so it doesn't belong in the shared files the CLI reads.
 
 import type { EngineStatus } from "@dh/ui-kit";
 
+export type Open = "output" | "dh1" | "eh1";
+export type Take = "run" | "ab" | "setlist";
+
 export interface RackLayout {
-  folded: string[];
-  full: string | null;
+  collapsed: string[];
+  open: Open;
+  take: Take;
 }
 
-const KEY = "rack.layout";
-export const DEFAULT_LAYOUT: RackLayout = { folded: [], full: null };
+const KEY = "rack.layout.v3";
+export const DEFAULT_LAYOUT: RackLayout = { collapsed: [], open: "output", take: "run" };
+
+const OPENS: Open[] = ["output", "dh1", "eh1"];
+const TAKES: Take[] = ["run", "ab", "setlist"];
+
+/** A saved layout, cleaned: anything unknown falls back to the default. */
+export function parseLayout(saved: unknown): RackLayout {
+  if (!saved || typeof saved !== "object") return DEFAULT_LAYOUT;
+  const s = saved as Record<string, unknown>;
+  return {
+    collapsed: Array.isArray(s.collapsed) ? s.collapsed.filter((d): d is string => typeof d === "string") : [],
+    open: OPENS.includes(s.open as Open) ? (s.open as Open) : "output",
+    take: TAKES.includes(s.take as Take) ? (s.take as Take) : "run",
+  };
+}
 
 export function loadLayout(): RackLayout {
   try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? "null");
-    if (!saved || typeof saved !== "object") return DEFAULT_LAYOUT;
-    return {
-      folded: Array.isArray(saved.folded) ? saved.folded.filter((d: unknown) => typeof d === "string") : [],
-      full: typeof saved.full === "string" ? saved.full : null,
-    };
+    return parseLayout(JSON.parse(localStorage.getItem(KEY) ?? "null"));
   } catch {
     return DEFAULT_LAYOUT;
   }
@@ -33,21 +47,12 @@ export function saveLayout(layout: RackLayout): void {
   }
 }
 
-/** Fold or unfold a device. A device that fills the window can't be folded, so folding it
- *  goes back to the rack first. */
-export function setFolded(layout: RackLayout, device: string, folded: boolean): RackLayout {
-  const others = layout.folded.filter((d) => d !== device);
-  return {
-    folded: folded ? [...others, device] : others,
-    full: folded && layout.full === device ? null : layout.full,
-  };
-}
-
-/** Give a device the whole window (unfolding it), or go back to the rack. */
-export function setFull(layout: RackLayout, device: string, full: boolean): RackLayout {
-  return full
-    ? { folded: layout.folded.filter((d) => d !== device), full: device }
-    : { ...layout, full: layout.full === device ? null : layout.full };
+/** Collapse a device to its strip, or expand it. */
+export function toggleCollapsed(layout: RackLayout, device: string): RackLayout {
+  const collapsed = layout.collapsed.includes(device)
+    ? layout.collapsed.filter((d) => d !== device)
+    : [...layout.collapsed, device];
+  return { ...layout, collapsed };
 }
 
 /** One status for several engines, for Settings: down if any is, then starting, else ready. */

@@ -331,7 +331,7 @@ export default function App() {
         )}
       </section>
 
-      <section className={`rack${layout.rackCollapsed ? " folded" : ""}`} aria-label="Rack">
+      <section className={`rack-dock${layout.rackCollapsed ? " folded" : ""}`} aria-label="Rack">
         <div className="rack-bar">
           <button className="rack-handle" onClick={toggleRack} aria-expanded={!layout.rackCollapsed}
             title={layout.rackCollapsed ? "Show the rack (⌘B)" : "Fold the rack (⌘B)"}>

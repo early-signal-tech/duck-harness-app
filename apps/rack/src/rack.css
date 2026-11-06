@@ -160,7 +160,8 @@
 :root[data-theme="dark"] .rack-row { --rack-bg: #1a1a1a; }
 
 /* --- PR 3: the chain as instances, menus, and folding the rack --- */
-.rack { flex: none; display: flex; flex-direction: column; gap: 4px; }
+/* The rack's dock (its own class: the app root is .host.rack, so .rack would match it too). */
+.rack-dock { flex: none; display: flex; flex-direction: column; gap: 4px; }
 .rack-bar { display: flex; align-items: center; gap: 10px; min-height: 22px; }
 .rack-handle {
   height: 26px;
@@ -194,10 +195,10 @@
 .rack-item > .menu-root { display: flex; }
 .rack-item.misplaced .rack-card { opacity: 0.6; border-style: dashed; }
 /* The rack sits at the bottom of the window: its menus open upward. */
-.rack .menu { top: auto; bottom: calc(100% + 6px); }
+.rack-dock .menu { top: auto; bottom: calc(100% + 6px); }
 .rack-slot { cursor: pointer; border-radius: 4px; }
 .rack-slot:hover, .rack-slot.open { background: var(--panel); color: var(--ink); }
-.rack .menu-root:has(> .rack-slot) { align-self: center; }
+.rack-dock .menu-root:has(> .rack-slot) { align-self: center; }
 .slot-choice .menu-empty { padding-top: 0; }
 .autograder-card .rack-essentials { width: 196px; }
 .autograder-last { display: flex; flex-direction: column; gap: 4px; }

@@ -66,7 +66,8 @@
   overflow: hidden;
   background: var(--bg);
 }
-.rack-panel.editor { border-color: var(--accent); border-width: 2px; }
+/* An open device's panel: a dark-grey border, not blue (blue means PLAY and engines). */
+.rack-panel.editor { border-color: var(--picked); border-width: 2px; }
 .rack-panel .panel-head {
   flex: none;
   height: 44px;
@@ -152,8 +153,12 @@
   font: 500 12px/1.4 var(--sans);
 }
 
-/* The devices' faces inside the panel: they fill it, below its header. */
+/* The devices' faces inside the panel: they fill it, below its header. When the panel is
+   short (the rack open on a small window), they scroll rather than squeeze: EH-1's
+   scorecard keeps room for its rows. */
 .rack-panel .dh1, .rack-panel .eh1 { flex: 1; min-height: 0; }
+.rack-panel .eh1 { min-height: 640px; }
+.rack-panel .eh1 .eh1-bottom { min-height: 280px; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .rack-row { --rack-bg: #1a1a1a; }
 }

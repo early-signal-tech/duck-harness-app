@@ -18,6 +18,7 @@
   --ink-strong: #2a2a2a;
   --muted: #555553;
   --sel-bg: #2a2a2a;         /* a selected segment */
+  --picked: #5a5a58;         /* the rack: a selected card, the open device, a tile's section */
   --sel-ink: #f2f2f0;
   --meter: #555553;
   --led-on: #2a2a2a;
@@ -70,6 +71,7 @@
   --ink-strong: #f2f2f0;
   --muted: #a3a3a0;
   --sel-bg: #f2f2f0;
+  --picked: #9a9a98;
   --sel-ink: #1f1f1f;
   --meter: #a3a3a0;
   --led-on: #f2f2f0;
@@ -445,7 +447,7 @@ input:focus { border-color: var(--accent); }
   overflow: hidden;
 }
 .rack-card.collapsed { background: var(--bar-bg); }
-.rack-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent); }
+.rack-card.selected { box-shadow: 0 0 0 2px var(--picked); }
 .device-strip {
   width: 38px;
   flex: none;

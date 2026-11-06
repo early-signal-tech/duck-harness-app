@@ -7,7 +7,7 @@
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Markdown, Splitter } from "@dh/ui-kit";
+import { keyForOtherDevice, Markdown, Splitter } from "@dh/ui-kit";
 import { questionSource } from "@dh/formats";
 import { copyToOther, settingsForSlot, switchSlot, type Slot } from "./ab";
 import { AbSwitch } from "./components/AbSwitch";
@@ -249,6 +249,7 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
   // run. ⌘+ / ⌘− / ⌘0 change the Activity and Answer text size.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (keyForOtherDevice(e, "dh1")) return; // in the rack, EH-1's keys are its own
       const command = e.metaKey || e.ctrlKey;
       if (e.key === "Enter" && command) {
         e.preventDefault();
@@ -325,7 +326,7 @@ export function Dh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
   );
 
   return (
-    <div className={`dh1${dragging ? " dragging" : ""}${expanded ? ` expanded-${expanded}` : ""}${screen !== "face" ? ` screen-${screen}` : ""}`}>
+    <div data-device="dh1" className={`dh1${dragging ? " dragging" : ""}${expanded ? ` expanded-${expanded}` : ""}${screen !== "face" ? ` screen-${screen}` : ""}`}>
       {toolbar ? createPortal(deviceToolbar, toolbar) : <div className="bar dh1-toolbar">{deviceToolbar}</div>}
 
       {comparing && <CompareView

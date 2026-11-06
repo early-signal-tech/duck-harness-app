@@ -73,14 +73,27 @@ to another monitor.
 - Needs the live run state streamed to a second window.
 - Worth doing once there's more live state to watch (timeline, compressor).
 
-## The rack
-DH-1 and EH-1 side by side in one window, like an Ableton device chain.
+## A power button on each rack device
+The wireframe's title bar has power, like an Ableton device's on/off.
 
-- Also decides the device size question: fixed-size devices that can fold to a title
-  bar, versus faces that stretch.
-- EH-1's RUN mode wireframe has an "Open in DH-1" button (load a run's settings and
-  prompt into DH-1). It needs both devices in one host, so it waits for the rack.
-- Depends on: EH-1 (done).
+- What "off" means isn't decided. For EH-1 it could be "stop following the chain" (no
+  auto-grade, no new setlists picked up). For DH-1 there's no obvious meaning: a device
+  with nothing upstream has nothing to bypass.
+- Depends on: the chain (rack PR 5), which is what EH-1's power would switch off.
+
+## Shared face state (rule 4)
+Each device's current knob positions live in the app's browser storage, so the
+standalone apps and the rack each keep their own. The rack opened with EH-1 on the
+Sonnet judge while the standalone EH-1 was on Haiku, so a setlist graded there showed
+"0 graded with these settings".
+
+- Presets, question sets, setlists and grades are already shared (files in the app data
+  folder, rows in the traces). Only "where the knobs are right now" isn't.
+- Fix: a small per-device current-state file in the app data folder
+  (`~/Library/Application Support/Duck Harness/State/<device>.json`), read and written
+  by every host through dh-host, in place of localStorage for device settings. Window
+  layout (rack folds, pane widths, text size) can stay per app.
+- That makes it something the CLI can read too ("grade with the judge I last used").
 
 ## Run on the face while a setlist runs
 For now a setlist has the engine to itself: RUN and RUN A+B are disabled while it's going,

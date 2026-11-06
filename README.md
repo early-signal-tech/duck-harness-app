@@ -28,6 +28,8 @@ packages/
 apps/
   dh1/      DH-1 as a standalone app: a Tauri window (src-tauri/) around the device
   eh1/      EH-1 as a standalone app (npm run eh1), starting eh1-grader's eh1-serve
+  rack/     the Rack (npm run rack): one window running both engines, with DH-1 and
+            EH-1 side by side
 crates/
   dh-host/  the native side every app shares: the engines, settings, presets,
             question sets; each app's src-tauri only says which engines it runs
@@ -108,6 +110,8 @@ Then, from the repo root:
 ```bash
 npm install
 npm run dh1        # DH-1 in development (Tauri + Vite)
+npm run eh1        # EH-1
+npm run rack       # the Rack: DH-1 and EH-1 side by side
 npm test           # unit tests for every package
 npm run typecheck  # type-check every package and app
 ```
@@ -134,6 +138,25 @@ Settings, else `agent_traces.duckdb` in the agent checkout (the CLI's default to
 Settings shows where each engine came from. If `uv` isn't on your PATH, set `DH1_UV` to
 its full path. Engine logs show up in the terminal, prefixed `[agent]` or `[grader]`.
 
+## The Rack
+
+`apps/rack` is one host running both engines (`dh1` and `eh1`), with DH-1 and EH-1 side
+by side in a horizontal chain that scrolls sideways, like an Ableton device chain. Each
+device sits in a frame whose title bar holds its own controls (DH-1's preset bar, EH-1's
+SETLIST / RUN), a fold button, and FULL FACE:
+
+- **Fold** shrinks a device to a narrow strip. It keeps running: a run or a grading
+  carries on.
+- **FULL FACE** gives one device the whole window; BACK TO RACK returns.
+- The header has one light per engine. Settings belong to the host: changing the key or
+  the traces file restarts both engines.
+- If the two engines were built for different traces schemas, a banner says which is
+  which (`engineProblems` in ui-kit).
+
+A key pressed inside one device only reaches that device (`keyForOtherDevice`), so Esc
+in EH-1 doesn't stop a DH-1 run. Chaining the devices (DH-1's latest run, setlist, or
+compare flowing into EH-1, with optional auto-grade) comes next.
+
 ## Status
 
 - [x] Tauri app with the Python agent server as a child process
@@ -153,5 +176,6 @@ its full path. Engine logs show up in the terminal, prefixed `[agent]` or `[grad
 - [x] EH-1, first build: grade a DH-1 setlist (FOLLOW DH-1 or PICK), judge settings,
       scorecard by category and preset, verdicts per repeat; engine in eh1-grader
 - [ ] EH-1 next: RUN mode and quick checks, overrides, the rubric flyout
-- [ ] The rack: DH-1 and EH-1 side by side
+- [x] The rack: DH-1 and EH-1 side by side (fold, FULL FACE)
+- [ ] The rack: chaining DH-1 into EH-1, with auto-grade
 - [ ] Packaging: bundle Python with the app, signing and notarization

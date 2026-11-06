@@ -14,5 +14,6 @@ export { SettingsMenu } from "./Settings";
 export type { SettingsEngine, TracesControls, TracesInfo } from "./Settings";
 export { forEngine, tauriTransport } from "./engineTransport";
 export type { EngineTransport } from "./engineTransport";
+export { keyForOtherDevice } from "./deviceKeys";
 export { engineProblems } from "./engineCheck";
 export type { EngineVersion } from "./engineCheck";

@@ -72,7 +72,7 @@ export function Dh1Card({ model, collapsed, onToggleCollapse, onOpen, cardProps 
       <div className="card-knob">
         <SteppedKnob
           label="EFFORT"
-          size="small"
+          size="medium"
           values={EFFORTS.map((_, i) => i)}
           value={effortIndex}
           defaultValue={EFFORTS.indexOf(model.hello?.defaults.effort ?? DEFAULT_SETTINGS.effort)}

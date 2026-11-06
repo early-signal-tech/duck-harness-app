@@ -28,12 +28,14 @@ export function sourceSummary(s: FaceSettings): string {
   }
 }
 
-export function Dh1Card({ model, collapsed, onToggleCollapse, onOpen }: {
+export function Dh1Card({ model, collapsed, onToggleCollapse, onOpen, cardProps }: {
   model: Dh1Model;
   collapsed: boolean;
   onToggleCollapse: () => void;
   /** Open the editor, at a section when a tile was clicked. */
   onOpen: (section?: Dh1Section) => void;
+  /** Selection and the right-click menu, from the rack. */
+  cardProps?: { selected: boolean; onSelect: () => void; onContextMenu: (e: React.MouseEvent) => void };
 }) {
   const { settings, update, presets, view, server, priced, setlist } = model;
   const effortIndex = Math.max(0, EFFORTS.indexOf(settings.effort));
@@ -44,6 +46,7 @@ export function Dh1Card({ model, collapsed, onToggleCollapse, onOpen }: {
     <RackCard
       className="dh1-card"
       collapsed={collapsed}
+      {...cardProps}
       strip={<DeviceStrip name="DH-1" status={server} collapsed={collapsed} onToggleCollapse={onToggleCollapse}
         onOpen={() => onOpen()} live={model.busy || setlist.busy} />}
       tiles={<>

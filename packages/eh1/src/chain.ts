@@ -19,13 +19,14 @@ export interface FollowStatus {
   /** Runs graded by following this session, and what the judge cost. */
   graded: number;
   judgeCost: number;
-  /** The setlist graded last. */
+  /** The setlist graded last, and that last grade's scores. */
   lastSetlist: string | null;
+  last: { question: string; correct: number | null; careful: number | null; efficient: number; rulesPassed: boolean | null } | null;
   /** The latest thing that couldn't be graded: a setlist without its set, or a run that failed. */
   problem: string | null;
 }
 
-export const IDLE: FollowStatus = { active: false, graded: 0, judgeCost: 0, lastSetlist: null, problem: null };
+export const IDLE: FollowStatus = { active: false, graded: 0, judgeCost: 0, lastSetlist: null, last: null, problem: null };
 
 /** The status after one follow event. Totals add up across follows (a settings change
  *  starts a new one), so they cover the session. */
@@ -39,6 +40,7 @@ export function onFollowEvent(status: FollowStatus, event: FollowEvent): FollowS
         graded: status.graded + 1,
         judgeCost: status.judgeCost + (event.judge_cost_usd ?? 0),
         lastSetlist: event.setlist_run,
+        last: { question: event.question, correct: event.correct, careful: event.careful, efficient: event.efficient, rulesPassed: event.rules_passed },
       };
     case "grade_error":
       return { ...status, problem: event.error };

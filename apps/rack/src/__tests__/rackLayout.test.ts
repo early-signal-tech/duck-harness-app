@@ -9,7 +9,8 @@ describe("rack layout", () => {
   });
 
   it("cleans a saved layout", () => {
-    expect(parseLayout({ collapsed: ["dh1", 3], open: "eh1", take: "ab" })).toEqual({ collapsed: ["dh1"], open: "eh1", take: "ab" });
+    expect(parseLayout({ collapsed: ["dh1", 3], open: "autograder", take: "ab", rackCollapsed: true }))
+      .toEqual({ collapsed: ["dh1"], open: "autograder", take: "ab", rackCollapsed: true });
     expect(parseLayout({ open: "nowhere", take: "jam" })).toEqual(DEFAULT_LAYOUT);
     expect(parseLayout(null)).toEqual(DEFAULT_LAYOUT);
   });

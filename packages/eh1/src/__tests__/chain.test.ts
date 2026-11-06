@@ -17,6 +17,7 @@ describe("following in a chain", () => {
     expect(s.graded).toBe(3);
     expect(s.judgeCost).toBeCloseTo(0.003);
     expect(s.lastSetlist).toBe("sl-1");
+    expect(s.last).toEqual({ question: "Q1", correct: 2, careful: 1, efficient: 2, rulesPassed: true });
   });
 
   it("says why a setlist wasn't graded", () => {

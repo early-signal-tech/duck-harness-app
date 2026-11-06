@@ -443,6 +443,7 @@ input:focus { border-color: var(--accent); }
   overflow: hidden;
 }
 .rack-card.collapsed { background: var(--bar-bg); }
+.rack-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent); }
 .device-strip {
   width: 32px;
   flex: none;

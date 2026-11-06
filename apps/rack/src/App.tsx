@@ -4,17 +4,24 @@
 // - The TRANSPORT plays the chain: the prompt, RUN / A/B / SETLIST, PLAY and STOP.
 // - The PANEL shows the chain's output (the latest take) or, when a device is opened, its
 //   full editor; ✕ goes back to the output.
-// - The RACK holds the chain as narrow cards: DH-1, AUTO-GRADE, EH-1. Each card's tiles
-//   open its editor at a section; double-click a card's strip to collapse it.
+// - The RACK holds the chain: device instances in order, with + slots that offer only
+//   what fits there (chainRules.ts). Click a card to select it; Delete removes it.
+//   Right-click a card for its menu. Double-click a strip to collapse that card; ▾ RACK
+//   or ⌘B collapses the whole rack.
 //
-// Each device is one model (useDh1, useEh1) kept here, drawn by several views (card,
-// editor, output), so a device keeps running whatever is on screen.
+// One instrument per chain: DH-1 (with AUTO GRADER after it, which holds its own EH-1) or
+// EH-1 on its own. Each device's model lives here (one per kind, since a chain holds at
+// most one of each), so a device keeps running whatever the panel shows.
 
 import { Dh1Card, Dh1Face, Dh1Output, useDh1, useEngine as useDh1Engine, type Dh1Section } from "@dh/dh1";
 import { Eh1Card, Eh1Face, FOLLOW_IDLE, useEh1, useEngine as useEh1Engine, type FollowStatus } from "@dh/eh1";
-import { engineProblems, SettingsMenu, tauriTransport, useAppearance, type TracesControls } from "@dh/ui-kit";
-import { useEffect, useMemo, useState } from "react";
-import { AutoGradeCard } from "./AutoGradeCard";
+import { engineProblems, Menu, MenuDivider, MenuItem, SettingsMenu, tauriTransport, useAppearance, type TracesControls } from "@dh/ui-kit";
+import { ask } from "@tauri-apps/plugin-dialog";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AutoGraderCard } from "./AutoGraderCard";
+import {
+  chainProblems, choicesAt, DEFAULT_CHAIN, DEVICES, newInstance, parseChain, type DeviceType, type Instance,
+} from "./chainRules";
 import { combinedStatus, loadLayout, saveLayout, toggleCollapsed, type Open } from "./rackLayout";
 import { Transport } from "./Transport";
 import "./rack.css";
@@ -23,15 +30,32 @@ import "./rack.css";
 const dh1Transport = tauriTransport("dh1");
 const eh1Transport = tauriTransport("eh1");
 
+// The chain, until rack presets save it as a file (next).
+const CHAIN_KEY = "rack.chain";
+function loadChain(): Instance[] {
+  try {
+    const saved = localStorage.getItem(CHAIN_KEY);
+    return saved === null ? DEFAULT_CHAIN : parseChain(JSON.parse(saved));
+  } catch {
+    return DEFAULT_CHAIN;
+  }
+}
+function saveChain(chain: Instance[]): void {
+  try {
+    localStorage.setItem(CHAIN_KEY, JSON.stringify(chain));
+  } catch {
+    // not remembered: the default chain next time
+  }
+}
+
 const TITLES: Record<Exclude<Open, "output">, [string, string]> = {
   dh1: ["DH-1", "ANALYTICS AGENT"],
   eh1: ["EH-1", "EVALUATOR"],
+  autograder: ["AUTO GRADER / EH-1", "THE EH-1 INSIDE AUTO GRADER"],
 };
 
-/** A + slot between devices: where more devices will go. Nothing else can go there yet. */
-function Slot() {
-  return <button className="rack-slot" disabled title="Add a device here (more devices are coming)" aria-label="Add a device">+</button>;
-}
+/** Where each kind of device opens in the panel. */
+const OPENS: Record<DeviceType, Open> = { dh1: "dh1", eh1: "eh1", autograder: "autograder" };
 
 export default function App() {
   const [appearance, setAppearance] = useAppearance();
@@ -41,16 +65,28 @@ export default function App() {
   const [layout, setLayout] = useState(loadLayout);
   useEffect(() => saveLayout(layout), [layout]);
   const open = (target: Open) => setLayout((l) => ({ ...l, open: target }));
-  const collapse = (device: string) => () => setLayout((l) => toggleCollapsed(l, device));
+  const collapse = (id: string) => () => setLayout((l) => toggleCollapsed(l, id));
+  const toggleRack = useCallback(() => setLayout((l) => ({ ...l, rackCollapsed: !l.rackCollapsed })), []);
 
-  // AUTO-GRADE starts off every time the rack opens: grading costs money.
-  const [autoGrade, setAutoGrade] = useState(false);
+  // The chain.
+  const [chain, setChain] = useState(loadChain);
+  useEffect(() => saveChain(chain), [chain]);
+  const problems = useMemo(() => chainProblems(chain), [chain]);
+  const find = (type: DeviceType) => chain.find((i) => i.type === type);
+  const hasDh1 = !!find("dh1") && !problems.has(find("dh1")!.id);
+  const autograder = find("autograder");
+  const graderWorks = !!autograder && !problems.has(autograder.id);
+  const hasEh1 = !!find("eh1") && !problems.has(find("eh1")!.id);
+
+  // AUTO GRADER's power starts off every time the rack opens: grading costs money.
+  const [graderOn, setGraderOn] = useState(false);
   const [follow, setFollow] = useState<FollowStatus>(FOLLOW_IDLE);
-  const chain = useMemo(() => ({ autoGrade, onFollow: setFollow }), [autoGrade]);
+  const graderChain = useMemo(() => ({ autoGrade: graderOn && graderWorks, onFollow: setFollow }), [graderOn, graderWorks]);
 
-  // The devices' models live here, so they keep working whatever the panel shows.
+  // The devices' models. AUTO GRADER's EH-1 keeps its own settings, apart from EH-1's.
   const dh1 = useDh1(dh1Engine);
-  const eh1 = useEh1(eh1Engine, chain);
+  const inner = useEh1(eh1Engine, graderChain, { storage: "autograder.eh1", active: graderWorks });
+  const eh1 = useEh1(eh1Engine, undefined, { storage: "eh1", active: hasEh1 });
 
   // What the panel's output shows: the last take PLAY made, and what it asked.
   const [lastTake, setLastTake] = useState(layout.take);
@@ -64,6 +100,7 @@ export default function App() {
   };
 
   const play = () => {
+    if (!hasDh1) return;
     if (layout.take === "setlist") {
       // The setlist's questions and presets are set up in DH-1's Setlist, which starts it.
       openDh1(undefined, true);
@@ -74,6 +111,78 @@ export default function App() {
     if (layout.take === "ab") dh1.startBoth();
     else dh1.start();
   };
+
+  // Selecting, adding, and deleting devices.
+  const [selected, setSelected] = useState<string | null>(null);
+  const [menu, setMenu] = useState<{ device: string } | { slot: number } | null>(null);
+  const closeMenu = useCallback(() => setMenu(null), []);
+
+  const insert = (index: number, type: DeviceType) => {
+    const instance = newInstance(type);
+    setChain((c) => [...c.slice(0, index), instance, ...c.slice(index)]);
+    setSelected(instance.id);
+    setMenu(null);
+  };
+
+  const busyOf = (instance: Instance): boolean => {
+    if (instance.type === "dh1") return dh1.anyBusy || dh1.setlist.busy;
+    if (instance.type === "eh1") return !!eh1.grading;
+    return graderOn && follow.active;
+  };
+
+  const remove = useCallback(async (instance: Instance) => {
+    setMenu(null);
+    const { name } = DEVICES[instance.type];
+    if (busyOf(instance)) {
+      let ok = false;
+      try {
+        ok = await ask(`${name} is working. Stop it and delete it from the rack?`, { title: `Delete ${name}`, kind: "warning" });
+      } catch {
+        ok = window.confirm(`${name} is working. Stop it and delete it from the rack?`);
+      }
+      if (!ok) return;
+      if (instance.type === "dh1") {
+        dh1.stop();
+        dh1.setlist.stop();
+      }
+      if (instance.type === "eh1") eh1.stopGrading();
+    }
+    if (instance.type === "autograder") setGraderOn(false);
+    setChain((c) => c.filter((i) => i.id !== instance.id));
+    setSelected((s) => (s === instance.id ? null : s));
+    setLayout((l) => ({
+      ...l,
+      open: l.open === OPENS[instance.type] ? "output" : l.open,
+      collapsed: l.collapsed.filter((id) => id !== instance.id),
+    }));
+    // busyOf reads the models, which change every render; this runs on a click or a key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dh1, eh1, graderOn, follow.active]);
+
+  // Keys: ⌘B folds the rack; Delete / Backspace removes the selected device; Esc deselects.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        toggleRack();
+        return;
+      }
+      const target = e.target as HTMLElement | null;
+      if (target?.closest?.("input, textarea, select, [contenteditable='true']")) return;
+      if (!selected) return;
+      if (e.key === "Delete" || e.key === "Backspace") {
+        const instance = chain.find((i) => i.id === selected);
+        if (instance) {
+          e.preventDefault();
+          void remove(instance);
+        }
+      } else if (e.key === "Escape") {
+        setSelected(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selected, chain, remove, toggleRack]);
 
   // DH-1's agent runs the traces server, so Settings manages it through DH-1's engine.
   const harness = dh1Engine.harness;
@@ -94,22 +203,77 @@ export default function App() {
   }), [dh1Status, eh1Status, restartDh1, restartEh1, dh1Hello, eh1Hello]);
 
   // The grader reads what the agent writes: both must be built for the same traces.
-  const problems = dh1Hello && eh1Hello
+  const engineIssues = dh1Hello && eh1Hello
     ? engineProblems([
       { engine: "dh1", version: dh1Hello.version, traces_schema: dh1Hello.traces_schema },
       { engine: "eh1", version: eh1Hello.version, traces_schema: eh1Hello.traces_schema },
     ])
     : [];
 
+  // A device the chain no longer holds can't stay open in the panel.
+  const shown: Open = layout.open === "dh1" && !hasDh1 ? "output"
+    : layout.open === "eh1" && !hasEh1 ? "output"
+    : layout.open === "autograder" && !autograder ? "output"
+    : layout.open;
+
   // The panel's header: a device's name and its own controls (its toolbar slot), or OUTPUT.
   const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
-  const judge = `${eh1.grader.judge_model.replace(/^claude-/, "").split("-")[0].replace(/^./, (c) => c.toUpperCase())} · ${eh1.grader.judge_effort}`;
   const takeLabel = { run: "RUN", ab: "A/B", setlist: "SETLIST" }[shownTake];
+
+  const cardProps = (instance: Instance) => ({
+    selected: selected === instance.id,
+    onSelect: () => setSelected(instance.id),
+    onContextMenu: (e: React.MouseEvent) => {
+      e.preventDefault();
+      setSelected(instance.id);
+      setMenu({ device: instance.id });
+    },
+  });
+
+  const card = (instance: Instance) => {
+    const collapsed = layout.collapsed.includes(instance.id);
+    const props = cardProps(instance);
+    switch (instance.type) {
+      case "dh1":
+        return <Dh1Card model={dh1} collapsed={collapsed} onToggleCollapse={collapse(instance.id)} onOpen={(section) => openDh1(section)} cardProps={props} />;
+      case "eh1":
+        return <Eh1Card model={eh1} status={eh1Engine.status} collapsed={collapsed} onToggleCollapse={collapse(instance.id)} onOpen={() => open("eh1")} cardProps={props} />;
+      case "autograder":
+        return (
+          <AutoGraderCard on={graderOn} onToggle={() => setGraderOn(!graderOn)} status={follow} inner={inner}
+            problem={problems.get(instance.id) ?? null} collapsed={collapsed} onToggleCollapse={collapse(instance.id)}
+            onOpen={() => open("autograder")} cardProps={props} />
+        );
+    }
+  };
+
+  /** A + slot: what can go here, and why the rest can't. */
+  const slot = (index: number) => {
+    const isOpen = !!menu && "slot" in menu && menu.slot === index;
+    return (
+      <Menu key={`slot-${index}`} open={isOpen} onClose={closeMenu} label="Add a device" align="left"
+        anchor={
+          <button className={`rack-slot${isOpen ? " open" : ""}`} aria-haspopup="menu" aria-label="Add a device here"
+            title="Add a device here" onClick={() => setMenu(isOpen ? null : { slot: index })}>+</button>
+        }>
+        <div className="menu-section">
+          <span className="menu-title">ADD HERE</span>
+          {choicesAt(chain, index).map(({ type, problem }) => (
+            <div key={type} className="slot-choice">
+              <MenuItem disabled={!!problem} hint={DEVICES[type].kind} onSelect={() => insert(index, type)}>{DEVICES[type].name}</MenuItem>
+              <p className="menu-empty">{problem ?? DEVICES[type].about}</p>
+            </div>
+          ))}
+        </div>
+      </Menu>
+    );
+  };
 
   return (
     <div className="host rack">
       <Transport
         dh1={dh1}
+        playable={hasDh1}
         take={layout.take}
         onTake={(take) => setLayout((l) => ({ ...l, take }))}
         onPlay={play}
@@ -119,53 +283,97 @@ export default function App() {
           { label: "EH-1", status: eh1Engine.status, error: eh1Engine.error },
         ]}
       />
-      {problems.map((problem) => (
+      {engineIssues.map((problem) => (
         <p key={problem} className="rack-problem" role="alert">{problem}</p>
       ))}
 
-      <section className={`rack-panel${layout.open === "output" ? " output" : " editor"}`} aria-label={layout.open === "output" ? "Output" : `${TITLES[layout.open][0]} editor`}>
-        {layout.open === "output" ? (
+      <section className={`rack-panel${shown === "output" ? " output" : " editor"}`} aria-label={shown === "output" ? "Output" : `${TITLES[shown][0]} editor`}>
+        {shown === "output" ? (
           <>
             <header className="panel-head">
               <span className="caps">OUTPUT</span>
-              <span className="output-tag">{takeLabel}</span>
-              <span className="muted">The latest take. Open a device below to change how it plays.</span>
+              {hasDh1 && <span className="output-tag">{takeLabel}</span>}
+              <span className="muted">{hasDh1 ? "The latest take. Open a device below to change how it plays." : "What the chain's instrument produces shows here."}</span>
             </header>
             <div className="panel-body">
-              <Dh1Output model={dh1} kind={shownTake} prompt={lastPrompt} onOpenActivity={() => openDh1(undefined, shownTake === "setlist")} />
+              {hasDh1 ? (
+                <Dh1Output model={dh1} kind={shownTake} prompt={lastPrompt} onOpenActivity={() => openDh1(undefined, shownTake === "setlist")} />
+              ) : hasEh1 ? (
+                <div className="output-empty">
+                  <p>This chain is EH-1 on its own: open it to pick a setlist and grade it.</p>
+                  <button className="pane-button" onClick={() => open("eh1")}>Open EH-1 ⤢</button>
+                </div>
+              ) : (
+                <div className="output-empty"><p>The chain is empty: add an instrument with + below.</p></div>
+              )}
             </div>
           </>
         ) : (
           <>
             <header className="bar panel-head device">
               <div className="brand">
-                <span className="wordmark">RACK / {TITLES[layout.open][0]}</span>
-                <span className="tagline">{TITLES[layout.open][1]}</span>
+                <span className="wordmark">RACK / {TITLES[shown][0]}</span>
+                <span className="tagline">{TITLES[shown][1]}</span>
               </div>
               <div className="host-slot" ref={setToolbar} />
               <span className="spacer" />
               <button className="bar-button" onClick={() => open("output")} aria-label="Close: back to the output" title="Back to the output">✕</button>
             </header>
             <div className="panel-body">
-              {layout.open === "dh1" && (
+              {shown === "dh1" && (
                 <Dh1Face key={dh1Focus.n} model={dh1} toolbar={toolbar} promptBar={false}
                   initialScreen={dh1Focus.setlist ? "setlist" : "face"} focusSection={dh1Focus.section} />
               )}
-              {layout.open === "eh1" && <Eh1Face model={eh1} toolbar={toolbar} chained />}
+              {shown === "eh1" && <Eh1Face model={eh1} toolbar={toolbar} />}
+              {shown === "autograder" && <Eh1Face model={inner} toolbar={toolbar} chained />}
             </div>
           </>
         )}
       </section>
 
-      <section className="rack-row" aria-label="Rack">
-        <Dh1Card model={dh1} collapsed={layout.collapsed.includes("dh1")} onToggleCollapse={collapse("dh1")} onOpen={(section) => openDh1(section)} />
-        <Slot />
-        <AutoGradeCard on={autoGrade} onToggle={() => setAutoGrade(!autoGrade)} status={follow} ready={eh1Engine.status === "ready"}
-          judge={judge} collapsed={layout.collapsed.includes("autograde")} onToggleCollapse={collapse("autograde")} />
-        <Slot />
-        <Eh1Card model={eh1} status={eh1Engine.status} chained collapsed={layout.collapsed.includes("eh1")}
-          onToggleCollapse={collapse("eh1")} onOpen={() => open("eh1")} />
-        <Slot />
+      <section className={`rack${layout.rackCollapsed ? " folded" : ""}`} aria-label="Rack">
+        <div className="rack-bar">
+          <button className="rack-handle" onClick={toggleRack} aria-expanded={!layout.rackCollapsed}
+            title={layout.rackCollapsed ? "Show the rack (⌘B)" : "Fold the rack (⌘B)"}>
+            {layout.rackCollapsed ? "▴" : "▾"} RACK <span className="muted">⌘B</span>
+          </button>
+          {layout.rackCollapsed && (
+            <div className="rack-chips">
+              {chain.map((instance) => (
+                <button key={instance.id} className="rack-chip" onClick={() => open(OPENS[instance.type])}
+                  title={`Open ${DEVICES[instance.type].name} in the panel`}>
+                  {busyOf(instance) && <span className="strip-live" aria-label="working" />}
+                  {DEVICES[instance.type].name}
+                </button>
+              ))}
+              {chain.length === 0 && <span className="muted">Empty</span>}
+            </div>
+          )}
+          {!layout.rackCollapsed && selected && (
+            <span className="muted rack-hint">Delete removes the selected device · right-click for more</span>
+          )}
+        </div>
+        {!layout.rackCollapsed && (
+          <div className="rack-row" onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setSelected(null);
+          }}>
+            {slot(0)}
+            {chain.map((instance, index) => (
+              <div key={instance.id} className={`rack-item${problems.has(instance.id) ? " misplaced" : ""}`}>
+                <Menu open={!!menu && "device" in menu && menu.device === instance.id} onClose={closeMenu}
+                  label={`${DEVICES[instance.type].name} menu`} align="left" anchor={card(instance)}>
+                  <MenuItem onSelect={() => { setMenu(null); open(OPENS[instance.type]); }}>Open in the panel</MenuItem>
+                  <MenuItem onSelect={() => { setMenu(null); collapse(instance.id)(); }}>
+                    {layout.collapsed.includes(instance.id) ? "Expand" : "Collapse"}
+                  </MenuItem>
+                  <MenuDivider />
+                  <MenuItem danger hint="⌫" onSelect={() => void remove(instance)}>Delete {DEVICES[instance.type].name}</MenuItem>
+                </Menu>
+                {slot(index + 1)}
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

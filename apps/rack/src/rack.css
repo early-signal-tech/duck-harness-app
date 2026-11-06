@@ -66,7 +66,8 @@
   overflow: hidden;
   background: var(--bg);
 }
-.rack-panel.editor { border-color: var(--accent); border-width: 2px; }
+/* An open device's panel: a dark-grey border, not blue (blue means PLAY and engines). */
+.rack-panel.editor { border-color: var(--picked); border-width: 2px; }
 .rack-panel .panel-head {
   flex: none;
   height: 44px;
@@ -118,7 +119,7 @@
 
 /* --- the rack --- */
 .rack-row {
-  height: 232px;
+  height: 284px;
   flex: none;
   box-sizing: border-box;
   display: flex;
@@ -126,27 +127,19 @@
   padding: 10px;
   border-radius: 10px;
   background: var(--rack-bg, #c9c9c6);
-  overflow-x: auto;
 }
 .rack-slot {
-  width: 26px;
+  width: 20px;
   flex: none;
   align-self: center;
-  height: 26px;
-  margin: 0 4px;
+  height: 44px;
+  margin: 0 1px;
   border: 0;
   background: transparent;
   color: var(--muted);
   font: 600 18px/1 var(--sans);
 }
 .rack-slot:disabled { opacity: 0.6; }
-.autograde-card .rack-essentials { width: 120px; }
-.autograde-what { font: 600 12px/1.2 var(--sans); }
-.autograde-state { font: 400 11px/1.35 var(--sans); color: var(--muted); }
-.autograde-state.on { color: var(--accent); font-weight: 600; }
-.autograde-problem { font: 400 10px/1.3 var(--sans); color: var(--warn); overflow-wrap: anywhere; }
-.autograde-count { font: 700 12px/1.2 var(--mono); }
-.autograde-judge { font: 400 10px/1.2 var(--sans); color: var(--muted); }
 
 /* Engines that don't belong together. */
 .rack-problem {
@@ -160,9 +153,86 @@
   font: 500 12px/1.4 var(--sans);
 }
 
-/* The devices' faces inside the panel: they fill it, below its header. */
+/* The devices' faces inside the panel: they fill it, below its header. When the panel is
+   short (the rack open on a small window), they scroll rather than squeeze: EH-1's
+   scorecard keeps room for its rows. */
 .rack-panel .dh1, .rack-panel .eh1 { flex: 1; min-height: 0; }
+.rack-panel .eh1 { min-height: 640px; }
+.rack-panel .eh1 .eh1-bottom { min-height: 280px; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .rack-row { --rack-bg: #1a1a1a; }
 }
 :root[data-theme="dark"] .rack-row { --rack-bg: #1a1a1a; }
+
+/* --- PR 3: the chain as instances, menus, and folding the rack --- */
+/* The rack's dock (its own class: the app root is .host.rack, so .rack would match it too). */
+.rack-dock { flex: none; display: flex; flex-direction: column; gap: 4px; }
+.rack-bar { display: flex; align-items: center; gap: 10px; min-height: 22px; }
+/* Just the arrow and its shortcut: no box. */
+.rack-handle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 600 14px/1 var(--sans);
+  cursor: pointer;
+}
+.rack-handle-chevron { transition: transform 0.15s; }
+.rack-handle-chevron.up { transform: rotate(180deg); }
+.rack-handle-key { font: 400 11px/1 var(--mono); color: var(--muted); }
+.rack-handle:hover .rack-handle-key { color: var(--ink); }
+.rack-hint { font: 400 11px/1 var(--sans); }
+.rack-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.rack-chip {
+  height: 26px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 9px;
+  border: 1px solid var(--edge);
+  border-radius: 11px;
+  background: var(--bar-bg);
+  color: var(--bar-ink);
+  font: 700 10px/1 var(--mono);
+  letter-spacing: 0.1em;
+}
+.rack-chip .strip-live, .rack-item .strip-live { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); animation: pulse 1.2s ease-in-out infinite; }
+.rack-row { overflow: visible; }
+.rack-item { display: flex; align-items: stretch; }
+.rack-item > .menu-root { display: flex; }
+.rack-item.misplaced .rack-card { opacity: 0.6; border-style: dashed; }
+/* The rack sits at the bottom of the window: its menus open upward. */
+.rack-dock .menu { top: auto; bottom: calc(100% + 6px); }
+.rack-slot { cursor: pointer; border-radius: 4px; }
+.rack-slot:hover, .rack-slot.open { background: var(--panel); color: var(--ink); }
+.rack-dock .menu-root:has(> .rack-slot) { align-self: center; }
+.slot-choice .menu-empty { padding-top: 0; }
+.autograder-card .rack-essentials { width: 196px; }
+.autograder-last { display: flex; flex-direction: column; gap: 4px; }
+.autograder-last b { font: 700 20px/1 var(--mono); }
+.autograder-last span { font: 400 12px/1.2 var(--mono); color: var(--muted); }
+.autograder-state { font: 400 13px/1.35 var(--sans); color: var(--muted); }
+.autograder-state.on { color: var(--accent); font-weight: 600; }
+.autograder-state.problem { color: var(--warn); }
+.autograder-problem { font: 400 12px/1.3 var(--sans); color: var(--warn); overflow-wrap: anywhere; }
+.autograder-count { font: 700 13px/1.2 var(--mono); }
+.autograder-inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border: 1.5px solid var(--edge);
+  border-radius: 6px;
+  background: var(--bar-bg);
+  color: var(--bar-ink);
+  text-align: left;
+}
+.autograder-inner .inner-name { writing-mode: vertical-rl; transform: rotate(180deg); font: 700 11px/1 var(--mono); letter-spacing: 0.14em; }
+.autograder-inner .inner-what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; font: 500 12px/1.15 var(--mono); }
+.autograder-inner .inner-what .muted { color: var(--bar-muted); font-family: var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.output-empty { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; font: 400 14px/1.4 var(--sans); }
+.output-empty p { margin: 0; }

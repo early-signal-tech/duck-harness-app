@@ -75,16 +75,25 @@ export function Tile({ label, value, onClick, title }: { label: string; value: R
   );
 }
 
-/** A compact rack card: the strip, then (unless collapsed) the tiles and the essentials. */
-export function RackCard({ strip, tiles, children, collapsed, className }: {
+/** A compact rack card: the strip, then (unless collapsed) the tiles and the essentials.
+ *  Clicking it selects it (Delete removes a selected device); right-click for its menu. */
+export function RackCard({ strip, tiles, children, collapsed, className, selected, onSelect, onContextMenu }: {
   strip: ReactNode;
   tiles?: ReactNode;
   children?: ReactNode;
   collapsed: boolean;
   className?: string;
+  selected?: boolean;
+  onSelect?: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }) {
   return (
-    <section className={`rack-card${collapsed ? " collapsed" : ""}${className ? ` ${className}` : ""}`}>
+    <section
+      className={`rack-card${collapsed ? " collapsed" : ""}${selected ? " selected" : ""}${className ? ` ${className}` : ""}`}
+      aria-selected={onSelect ? !!selected : undefined}
+      onMouseDown={onSelect}
+      onContextMenu={onContextMenu}
+    >
       {strip}
       {!collapsed && tiles && <div className="rack-tiles">{tiles}</div>}
       {!collapsed && children && <div className="rack-essentials">{children}</div>}

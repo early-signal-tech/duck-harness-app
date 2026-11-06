@@ -18,7 +18,7 @@ function shade(total: number | null): string {
   return "low";
 }
 
-export function Eh1Card({ model, status, collapsed, onToggleCollapse, onOpen, chained = false, name = "EH-1" }: {
+export function Eh1Card({ model, status, collapsed, onToggleCollapse, onOpen, chained = false, name = "EH-1", cardProps }: {
   model: Eh1Model;
   status: EngineConnection["status"];
   collapsed: boolean;
@@ -26,6 +26,8 @@ export function Eh1Card({ model, status, collapsed, onToggleCollapse, onOpen, ch
   onOpen: () => void;
   chained?: boolean;
   name?: string;
+  /** Selection and the right-click menu, from the rack. */
+  cardProps?: { selected: boolean; onSelect: () => void; onContextMenu: (e: React.MouseEvent) => void };
 }) {
   const { grader, mode, setlist, set, grades, grading } = model;
   const judge = JUDGE_MODELS.find((m) => m.id === grader.judge_model)?.label ?? grader.judge_model;
@@ -43,6 +45,7 @@ export function Eh1Card({ model, status, collapsed, onToggleCollapse, onOpen, ch
     <RackCard
       className="eh1-card"
       collapsed={collapsed}
+      {...cardProps}
       strip={<DeviceStrip name={name} status={status} collapsed={collapsed} onToggleCollapse={onToggleCollapse} onOpen={onOpen} live={!!grading} />}
       tiles={<>
         <Tile label="JUDGE" value={`${judge[0]}${judge.slice(1).toLowerCase()} · ${grader.judge_effort}`} onClick={onOpen} />

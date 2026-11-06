@@ -79,26 +79,34 @@ async function loadSets(): Promise<QuestionSet[]> {
 export const money = (n: number | null) => (n === null ? "–" : n >= 0.1 ? `$${n.toFixed(3)}` : `$${n.toFixed(4)}`);
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-export function useEh1(engine: EngineConnection, chain?: ChainControl): Eh1Model {
-  const { engine: client, status, hello } = engine;
-  const ready = status === "ready" && client !== null;
+export interface Eh1Options {
+  /** Where this EH-1 keeps its settings: "eh1" for the standalone one; another prefix for
+   *  another instance (the rack's AUTO GRADER keeps its own EH-1). */
+  storage?: string;
+  /** False while this EH-1 isn't in the rack's chain: it doesn't look for setlists. */
+  active?: boolean;
+}
 
-  const [grader, setGrader] = useState(loadGrader);
-  useEffect(() => saveGrader(grader), [grader]);
+export function useEh1(engine: EngineConnection, chain?: ChainControl, { storage = "eh1", active = true }: Eh1Options = {}): Eh1Model {
+  const { engine: client, status, hello } = engine;
+  const ready = status === "ready" && client !== null && active;
+
+  const [grader, setGrader] = useState(() => loadGrader(storage));
+  useEffect(() => saveGrader(grader, storage), [grader, storage]);
   const [mode, setMode] = useState<InputMode>(() => {
     try {
-      return localStorage.getItem("eh1.input") === "pick" ? "pick" : "follow";
+      return localStorage.getItem(`${storage}.input`) === "pick" ? "pick" : "follow";
     } catch {
       return "follow";
     }
   });
   useEffect(() => {
     try {
-      localStorage.setItem("eh1.input", mode);
+      localStorage.setItem(`${storage}.input`, mode);
     } catch {
       // ignore
     }
-  }, [mode]);
+  }, [mode, storage]);
 
   const [sets, setSets] = useState<QuestionSet[]>(FACTORY_QUESTION_SETS);
   const reloadSets = useCallback(async () => setSets(await loadSets()), []);
@@ -114,13 +122,13 @@ export function useEh1(engine: EngineConnection, chain?: ChainControl): Eh1Model
   // this face would grade with).
   const setRefs = useMemo(() => sets.map((s) => ({ id: s.id, revision: s.revision })), [sets]);
   const refreshSetlists = useCallback(async () => {
-    if (!client || status !== "ready") return;
+    if (!client || !ready) return;
     try {
       setSetlists(await client.setlists(grader, setRefs));
     } catch (e) {
       setProblem(message(e));
     }
-  }, [client, status, grader, setRefs]);
+  }, [client, ready, grader, setRefs]);
   useEffect(() => {
     void refreshSetlists();
   }, [refreshSetlists]);
@@ -166,7 +174,7 @@ export function useEh1(engine: EngineConnection, chain?: ChainControl): Eh1Model
   const [graderKey, setGraderKey] = useState<string | null>(null);
   const setFile = useMemo(() => (set ? JSON.parse(questionSetToFile(set)) : null), [set]);
   const loadGrades = useCallback(async () => {
-    if (!client || status !== "ready" || !setlist || !setFile) {
+    if (!client || !ready || !setlist || !setFile) {
       setGrades([]);
       return;
     }
@@ -177,7 +185,7 @@ export function useEh1(engine: EngineConnection, chain?: ChainControl): Eh1Model
     } catch (e) {
       setProblem(message(e));
     }
-  }, [client, status, setlist, setFile, grader]);
+  }, [client, ready, setlist, setFile, grader]);
   useEffect(() => {
     void loadGrades();
   }, [loadGrades]);

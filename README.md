@@ -154,19 +154,28 @@ out like a DAW (wireframes: the "RACK v3" boards on the design canvas):
 - **The panel** shows the chain's output (the latest take: a run's answer, an A/B's two
   answers, or a setlist's progress) or, when you open a device, its full editor. ✕ goes
   back to the output.
-- **The rack** along the bottom holds the chain as compact cards: DH-1, AUTO-GRADE, EH-1,
-  with + slots for devices to come. A card has a vertical strip (its engine light, ⤢ to
+- **The rack** along the bottom holds the chain as compact cards, with + slots between
+  them that offer only what fits there (`chainRules.ts`): one instrument per chain
+  (DH-1, or EH-1 on its own), and devices that take runs after one that gives them.
+  Click a card to select it and Delete (⌫) removes it, asking first if it's working;
+  right-click a card for its menu (open, collapse, delete). A device that no longer
+  fits (AUTO GRADER after DH-1 was deleted) is dashed, says why, and stays off.
+  ▾ RACK, or ⌘B, folds the whole rack to a bar of chips. A card has a vertical strip (its engine light, ⤢ to
   open it), a tile per section showing its current value (a tile opens the editor at that
   section), and a few essentials (DH-1: preset, model, EFFORT, cost; EH-1: a heat map of
   the scorecard, its meters, how much is graded). Double-click a strip to collapse the
   card to just the strip; it keeps working.
-- **AUTO-GRADE** is a utility card whose power button is its switch: on, EH-1's engine
-  grades each setlist run as it finishes (eh1-grader's `follow`), with EH-1's judge, and
-  the card counts what it graded and the judge's cost. It starts off each time.
+- **AUTO GRADER** is a utility that wraps its own EH-1, after DH-1. Its power button is
+  its switch: on, the EH-1 inside grades each setlist run as it finishes (eh1-grader's
+  `follow`) with its own judge settings, and the card shows the latest grade and what it
+  graded and spent. Its inner slot (or ⤢) opens that EH-1 in the panel. It starts off
+  each time, and there's one per chain.
 
 Each device is a model plus views (`useDh1` / `useEh1`, drawn by `Dh1Card` / `Eh1Card`,
 `Dh1Face` / `Eh1Face`, and `Dh1Output`). The rack keeps the models, so a device keeps
-running whatever the panel shows. A key pressed inside one device only reaches that
+running whatever the panel shows; an EH-1 keeps its settings under its own prefix
+(`useEh1(…, { storage })`), so AUTO GRADER's EH-1 and a standalone EH-1 don't share
+them. Until rack presets, the chain is remembered per window (`rack.chain`). A key pressed inside one device only reaches that
 device (`keyForOtherDevice`), so Esc in EH-1 doesn't stop a DH-1 run. If the two engines
 were built for different traces schemas, a banner says which is which (`engineProblems`).
 

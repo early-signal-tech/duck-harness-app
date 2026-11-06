@@ -553,4 +553,4 @@
 .dh1 .setlist-notice { margin: 0; font: 400 12px/1.4 var(--sans); color: var(--muted); }
 
 /* A rack card's tile opened this section: outline it for a moment. */
-.dh1 .panel.section-focus { outline: 3px solid var(--accent); outline-offset: 2px; transition: outline-color 0.4s; }
+.dh1 .panel.section-focus { outline: 3px solid var(--picked, #5a5a58); outline-offset: 2px; transition: outline-color 0.4s; }

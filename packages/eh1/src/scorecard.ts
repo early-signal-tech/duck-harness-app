@@ -147,7 +147,9 @@ export const DEFAULT_GRADER: GraderSettings = {
   waste_for_one: 2,
 };
 
-const GRADER_KEY = "eh1.grader";
+/** Where an EH-1's judge settings are kept: each EH-1 has its own (the rack's AUTO GRADER
+ *  holds one of its own, beside the standalone EH-1's). */
+const graderKey = (prefix: string) => `${prefix}.grader`;
 
 /** The judge settings EH-1 opens with: the ones you saved, except the judge itself, which
  *  starts on Haiku at low effort every launch (cheap, and what AUTO-GRADE should use
@@ -157,18 +159,18 @@ export function startingGrader(saved: unknown): GraderSettings {
   return { ...DEFAULT_GRADER, ...kept, judge_model: DEFAULT_GRADER.judge_model, judge_effort: DEFAULT_GRADER.judge_effort };
 }
 
-export function loadGrader(): GraderSettings {
+export function loadGrader(prefix = "eh1"): GraderSettings {
   try {
-    return startingGrader(JSON.parse(localStorage.getItem(GRADER_KEY) ?? "null"));
+    return startingGrader(JSON.parse(localStorage.getItem(graderKey(prefix)) ?? "null"));
   } catch {
     // Unreadable or blocked storage: the defaults.
     return DEFAULT_GRADER;
   }
 }
 
-export function saveGrader(grader: GraderSettings): void {
+export function saveGrader(grader: GraderSettings, prefix = "eh1"): void {
   try {
-    localStorage.setItem(GRADER_KEY, JSON.stringify(grader));
+    localStorage.setItem(graderKey(prefix), JSON.stringify(grader));
   } catch {
     // Not worth interrupting anyone over.
   }

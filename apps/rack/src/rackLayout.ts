@@ -5,19 +5,23 @@
 
 import type { EngineStatus } from "@dh/ui-kit";
 
-export type Open = "output" | "dh1" | "eh1";
+/** What the panel shows: the output, or a device's editor ("autograder": the EH-1 inside). */
+export type Open = "output" | "dh1" | "eh1" | "autograder";
 export type Take = "run" | "ab" | "setlist";
 
 export interface RackLayout {
+  /** Device instances collapsed to their strips. */
   collapsed: string[];
   open: Open;
   take: Take;
+  /** The whole rack folded to a thin bar (▾ RACK, or ⌘B). */
+  rackCollapsed: boolean;
 }
 
 const KEY = "rack.layout.v3";
-export const DEFAULT_LAYOUT: RackLayout = { collapsed: [], open: "output", take: "run" };
+export const DEFAULT_LAYOUT: RackLayout = { collapsed: [], open: "output", take: "run", rackCollapsed: false };
 
-const OPENS: Open[] = ["output", "dh1", "eh1"];
+const OPENS: Open[] = ["output", "dh1", "eh1", "autograder"];
 const TAKES: Take[] = ["run", "ab", "setlist"];
 
 /** A saved layout, cleaned: anything unknown falls back to the default. */
@@ -28,6 +32,7 @@ export function parseLayout(saved: unknown): RackLayout {
     collapsed: Array.isArray(s.collapsed) ? s.collapsed.filter((d): d is string => typeof d === "string") : [],
     open: OPENS.includes(s.open as Open) ? (s.open as Open) : "output",
     take: TAKES.includes(s.take as Take) ? (s.take as Take) : "run",
+    rackCollapsed: s.rackCollapsed === true,
   };
 }
 

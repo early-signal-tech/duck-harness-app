@@ -14,8 +14,10 @@ const TAKES: { value: Take; label: string; hint: string }[] = [
   { value: "setlist", label: "SETLIST", hint: "A question set × presets: set it up in DH-1's Setlist" },
 ];
 
-export function Transport({ dh1, take, onTake, onPlay, settings, lights }: {
+export function Transport({ dh1, playable, take, onTake, onPlay, settings, lights }: {
   dh1: Dh1Model;
+  /** The chain has DH-1 to play; without it, PLAY says what's missing. */
+  playable: boolean;
   take: Take;
   onTake: (take: Take) => void;
   /** PLAY: run, run A+B, or open DH-1's Setlist to set one up and start it. */
@@ -26,8 +28,8 @@ export function Transport({ dh1, take, onTake, onPlay, settings, lights }: {
   const { settings: face, update, setlist, canRun, canRunBoth, problem, anyBusy, stop } = dh1;
   const playing = setlist.busy;
   const progress = progressOf(setlist.state);
-  const canPlay = take === "run" ? canRun : take === "ab" ? canRunBoth : !anyBusy && !playing && dh1.server === "ready";
-  const playTitle = take === "setlist"
+  const canPlay = playable && (take === "run" ? canRun : take === "ab" ? canRunBoth : !anyBusy && !playing && dh1.server === "ready");
+  const playTitle = !playable ? "Add DH-1 to the chain (+ in the rack) to play" : take === "setlist"
     ? "Open DH-1's Setlist to pick the questions and presets, then START"
     : problem ?? (take === "ab" ? "Run A and B at once (↵)" : "Run (↵)");
   return (
@@ -52,7 +54,7 @@ export function Transport({ dh1, take, onTake, onPlay, settings, lights }: {
             value={face.prompt}
             spellCheck
             placeholder={take === "setlist" ? "A setlist plays its own questions" : "Ask a question about your data…"}
-            disabled={take === "setlist"}
+            disabled={take === "setlist" || !playable}
             onChange={(e) => update({ prompt: e.currentTarget.value })}
             onKeyDown={(e) => {
               if (e.key === "Enter") {

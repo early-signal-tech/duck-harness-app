@@ -95,6 +95,17 @@ interface Props {
 export function SettingsMenu({ engine, traces: tracesControls, appearance, onAppearance }: Props) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<SettingsView | null>(null);
+  // Which engine's command was just copied (its line says so for a moment).
+  const [copied, setCopied] = useState<string | null>(null);
+  const copyCommand = async (engine: string, command: string) => {
+    try {
+      await navigator.clipboard.writeText(command);
+      setCopied(engine);
+      setTimeout(() => setCopied((c) => (c === engine ? null : c)), 1500);
+    } catch {
+      // No clipboard here: the full command is still in the tooltip.
+    }
+  };
   const [traces, setTraces] = useState<TracesInfo | null>(null);
   const [key, setKey] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
@@ -272,7 +283,11 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
                 <span className="settings-engine-name">{ENGINE_NAMES[e.engine] ?? e.engine}</span>
                 <span className="settings-hint">{ENGINE_SOURCE[e.source]}{versionOf(e) ? ` · ${versionOf(e)}` : ""}</span>
               </span>
-              <p className="settings-path selectable" title={e.command}>{e.command}</p>
+              {/* The command that runs this engine, to run it yourself: copied, not shown (it's on hover). */}
+              <button className={`link-button settings-command${copied === e.engine ? " copied" : ""}`} title={e.command}
+                onClick={() => void copyCommand(e.engine, e.command)}>
+                {copied === e.engine ? "✓ Copied: paste it in a terminal" : "⧉ Copy run command"}
+              </button>
             </div>
           ))}
           {view.enginesFileProblem && <p className="settings-hint warn">{view.enginesFileProblem}</p>}

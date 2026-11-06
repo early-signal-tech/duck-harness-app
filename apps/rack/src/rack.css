@@ -236,3 +236,11 @@
 .autograder-inner .inner-what .muted { color: var(--bar-muted); font-family: var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .output-empty { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; font: 400 14px/1.4 var(--sans); }
 .output-empty p { margin: 0; }
+
+/* --- PR 4: rack presets --- */
+.rack-preset-bar { gap: 4px; }
+.rack-preset-field { width: 210px; flex: none; }
+.rack-preset-edited { color: var(--warn); font-size: 9px; margin-left: auto; }
+.rack-preset-field .name { min-width: 0; }
+.rack-problem.notice { border-color: var(--warn); }
+.transport .menu { min-width: 300px; }

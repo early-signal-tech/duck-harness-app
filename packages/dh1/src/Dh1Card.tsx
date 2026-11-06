@@ -58,8 +58,11 @@ export function Dh1Card({ model, collapsed, onToggleCollapse, onOpen, cardProps 
     >
       <div className="card-preset">
         <button className="card-step" aria-label="Previous preset" onClick={() => presets.step(-1)}>‹</button>
-        <button className="card-preset-name" onClick={() => onOpen()} title={presets.current?.name ?? "No preset"}>
-          {presets.current?.name ?? "No preset"}{presets.modified ? " *" : ""}
+        <button className="card-preset-name" onClick={() => onOpen()}
+          title={`${presets.current?.name ?? "No preset"}${presets.modified ? " (edited)" : ""}`}>
+          <span className="card-preset-text">{presets.current?.name ?? "No preset"}</span>
+          {/* Outside the name, so a long name never hides it. */}
+          {presets.modified && <span className="card-edited" aria-label="edited">●</span>}
         </button>
         <button className="card-step" aria-label="Next preset" onClick={() => presets.step(1)}>›</button>
       </div>

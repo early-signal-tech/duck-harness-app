@@ -14,8 +14,10 @@ const TAKES: { value: Take; label: string; hint: string }[] = [
   { value: "setlist", label: "SETLIST", hint: "A question set × presets: set it up in DH-1's Setlist" },
 ];
 
-export function Transport({ dh1, playable, take, onTake, onPlay, settings, lights }: {
+export function Transport({ dh1, playable, take, onTake, onPlay, settings, lights, presets }: {
   dh1: Dh1Model;
+  /** The rack's preset bar (‹ name ▾ ›), after the name. */
+  presets?: ReactNode;
   /** The chain has DH-1 to play; without it, PLAY says what's missing. */
   playable: boolean;
   take: Take;
@@ -38,6 +40,7 @@ export function Transport({ dh1, playable, take, onTake, onPlay, settings, light
         <span className="wordmark">RACK</span>
         <span className="tagline">DUCK HARNESS</span>
       </div>
+      {presets}
       {playing ? (
         <div className="transport-playing" role="status">
           <span className="playing-dot" aria-hidden="true" />

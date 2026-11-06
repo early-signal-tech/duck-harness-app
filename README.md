@@ -61,7 +61,14 @@ React (packages/dh1)  ──engine_send("dh1", line)──▶  Rust (crates/dh-h
   `hello()`, `run()` (with live events), and `stop()`. Its types mirror
   `duckdb_agent/serve.py` and the `EventCallback` events in `duckdb_agent/loop.py`.
 - **`packages/dh1/src/useDh1.ts`** is the device's model: its settings and presets, the
-  A/B runs, the setlist, and starting and stopping. Each device is a model plus views, so
+  A/B runs, the setlist, and starting and stopping. **Rack presets** save the chain as a file: the devices in order, DH-1's preset (by id),
+and each EH-1's judge settings (format `dh-rack`, in
+`~/Library/Application Support/Duck Harness/Presets/rack/`; `rackPresets.ts`). There are
+three factory ones (DH-1 + AUTO GRADER, DH-1, EH-1); Save as… keeps your own. A ● next to
+the name means the rack has moved away from it. Every DH-1 run records the preset it was
+played from in its labels (`rack_preset`, and `rack_edited` if the rack had changed).
+
+Each device is a model plus views, so
   the rack can show the same device as a compact card, a full editor, and a transport.
 - **`packages/dh1/src/Dh1.tsx`** is the face (`Dh1Face`; `Dh1PromptBar` is its prompt
   bar, which a host with a transport can leave out):
@@ -147,8 +154,9 @@ its full path. Engine logs show up in the terminal, prefixed `[agent]` or `[grad
 `apps/rack` (`npm run rack`) is one window running both engines (`dh1` and `eh1`), laid
 out like a DAW (wireframes: the "RACK v3" boards on the design canvas):
 
-- **The transport** across the top plays the chain: the prompt, what PLAY makes (RUN,
-  A/B, or SETLIST), PLAY and STOP, then Settings and one light per engine. SETLIST opens
+- **The transport** across the top plays the chain: the rack preset (‹ name ▾ ›), the
+  prompt, what PLAY makes (RUN, A/B, or SETLIST), PLAY and STOP, then Settings and one
+  light per engine. SETLIST opens
   DH-1's Setlist to pick the questions and presets; while one plays, the transport shows
   its progress.
 - **The panel** shows the chain's output (the latest take: a run's answer, an A/B's two
@@ -175,7 +183,8 @@ Each device is a model plus views (`useDh1` / `useEh1`, drawn by `Dh1Card` / `Eh
 `Dh1Face` / `Eh1Face`, and `Dh1Output`). The rack keeps the models, so a device keeps
 running whatever the panel shows; an EH-1 keeps its settings under its own prefix
 (`useEh1(…, { storage })`), so AUTO GRADER's EH-1 and a standalone EH-1 don't share
-them. Until rack presets, the chain is remembered per window (`rack.chain`). A key pressed inside one device only reaches that
+them. The chain itself is also remembered per window (`rack.chain`), so the rack opens as you
+left it. A key pressed inside one device only reaches that
 device (`keyForOtherDevice`), so Esc in EH-1 doesn't stop a DH-1 run. If the two engines
 were built for different traces schemas, a banner says which is which (`engineProblems`).
 

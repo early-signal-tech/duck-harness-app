@@ -23,7 +23,10 @@ import {
   chainProblems, choicesAt, DEFAULT_CHAIN, DEVICES, newInstance, parseChain, type DeviceType, type Instance,
 } from "./chainRules";
 import { combinedStatus, loadLayout, saveLayout, toggleCollapsed, type Open } from "./rackLayout";
+import { RackPresetBar } from "./RackPresetBar";
+import type { RackPreset, RackState } from "./rackPresets";
 import { Transport } from "./Transport";
+import { useRackPresets } from "./useRackPresets";
 import "./rack.css";
 
 // The engines, as the host crate names them.
@@ -84,9 +87,45 @@ export default function App() {
   const graderChain = useMemo(() => ({ autoGrade: graderOn && graderWorks, onFollow: setFollow }), [graderOn, graderWorks]);
 
   // The devices' models. AUTO GRADER's EH-1 keeps its own settings, apart from EH-1's.
-  const dh1 = useDh1(dh1Engine);
+  // Every DH-1 run records the rack preset it was played from (and whether the rack had
+  // been changed since loading it), so the traces can tell which takes belong together.
+  const [runLabels, setRunLabels] = useState<Record<string, string | boolean>>({});
+  const dh1 = useDh1(dh1Engine, { labels: runLabels });
   const inner = useEh1(eh1Engine, graderChain, { storage: "autograder.eh1", active: graderWorks });
   const eh1 = useEh1(eh1Engine, undefined, { storage: "eh1", active: hasEh1 });
+
+  // Rack presets: the chain, DH-1's preset, and each EH-1's judge settings, as a file.
+  const rackState = useMemo<RackState>(() => ({
+    chain: chain.map((i) => i.type),
+    dh1Preset: dh1.settings.presetId ?? null,
+    graders: {
+      ...(chain.some((i) => i.type === "autograder") ? { autograder: inner.grader } : {}),
+      ...(chain.some((i) => i.type === "eh1") ? { eh1: eh1.grader } : {}),
+    },
+  }), [chain, dh1.settings.presetId, inner.grader, eh1.grader]);
+  const [loadNotice, setLoadNotice] = useState<string | null>(null);
+  const loadRackPreset = (preset: RackPreset) => {
+    setLoadNotice(null);
+    setGraderOn(false);
+    setChain(preset.devices.map((d) => newInstance(d.type)));
+    setSelected(null);
+    setLayout((l) => ({ ...l, collapsed: [], open: "output" }));
+    for (const slot of preset.devices) {
+      if (slot.type === "dh1" && slot.preset) {
+        const found = dh1.presets.all.find((p) => p.id === slot.preset);
+        if (found) dh1.presets.select(found);
+        else setLoadNotice(`DH-1's preset “${slot.preset}” isn't here any more, so DH-1 kept its settings.`);
+      }
+      if (slot.type === "autograder" && slot.grader) inner.setGrader({ ...inner.grader, ...slot.grader });
+      if (slot.type === "eh1" && slot.grader) eh1.setGrader({ ...eh1.grader, ...slot.grader });
+    }
+  };
+  const rackPresets = useRackPresets(rackState, loadRackPreset);
+  const presetId = rackPresets.current?.id ?? null;
+  const presetEdited = rackPresets.edited;
+  useEffect(() => {
+    setRunLabels(presetId ? { rack_preset: presetId, rack_edited: presetEdited } : {});
+  }, [presetId, presetEdited]);
 
   // What the panel's output shows: the last take PLAY made, and what it asked.
   const [lastTake, setLastTake] = useState(layout.take);
@@ -273,6 +312,7 @@ export default function App() {
     <div className="host rack">
       <Transport
         dh1={dh1}
+        presets={<RackPresetBar presets={rackPresets} />}
         playable={hasDh1}
         take={layout.take}
         onTake={(take) => setLayout((l) => ({ ...l, take }))}
@@ -286,6 +326,7 @@ export default function App() {
       {engineIssues.map((problem) => (
         <p key={problem} className="rack-problem" role="alert">{problem}</p>
       ))}
+      {loadNotice && <p className="rack-problem notice" role="status">{loadNotice}</p>}
 
       <section className={`rack-panel${shown === "output" ? " output" : " editor"}`} aria-label={shown === "output" ? "Output" : `${TITLES[shown][0]} editor`}>
         {shown === "output" ? (

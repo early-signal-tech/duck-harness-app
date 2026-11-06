@@ -1,6 +1,6 @@
 // HANDBOOK: docs/HANDBOOK.md inside the app, bundled at build time so it always matches
 // the repo and works offline. Like Compare and Setlist, it takes over the face until
-// "Back to plugin" (or Esc). The contents links jump to their sections. Of the other
+// "Back to DH-1" (or Esc). The contents links jump to their sections. Of the other
 // docs it links to, QUESTION_SETS.md is bundled too; the rest live only in the repo.
 
 import { useRef, useState } from "react";
@@ -56,7 +56,7 @@ export function HelpView({ onBack, textSize, onTextSize }: Props) {
           <button className="pane-button" onClick={() => onTextSize(-1)} title="Smaller text (⌘−)" aria-label="Smaller text">A−</button>
           <span className="pane-size" aria-live="polite">{textSize}</span>
           <button className="pane-button" onClick={() => onTextSize(1)} title="Larger text (⌘+)" aria-label="Larger text">A+</button>
-          <button className="pane-button" onClick={onBack} title="Back to the plugin (Esc)">Back to plugin</button>
+          <button className="pane-button" onClick={onBack} title="Back to DH-1's face (Esc)">Back to DH-1</button>
         </div>
       </h2>
       {note && <p className="help-note">{note}</p>}

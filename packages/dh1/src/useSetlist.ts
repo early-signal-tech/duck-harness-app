@@ -3,7 +3,7 @@
 // while you're back on the face.
 
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import type { Harness, Run } from "./harness";
+import type { Harness, Run, RunRequest } from "./harness";
 import type { FaceSettings } from "./settings";
 import {
   jobRequest, newSetlistRunId, nextJobs, SETLIST_IDLE, setlistReducer, type SetlistPlan, type SetlistState,
@@ -17,13 +17,18 @@ export interface SetlistControls {
   clear: () => void;
 }
 
-export function useSetlist(harness: Harness | null, face: FaceSettings): SetlistControls {
+type RunLabels = NonNullable<RunRequest["labels"]>;
+
+/** `extraLabels` are added to every run's labels (the rack's preset, say). */
+export function useSetlist(harness: Harness | null, face: FaceSettings, extraLabels?: RunLabels): SetlistControls {
   const [state, dispatch] = useReducer(setlistReducer, SETLIST_IDLE);
   const runs = useRef(new Map<number, Run>());
   // The face settings a run's request is built from (only the parts presets don't set
   // matter, and they don't change what's measured), read when each run starts.
   const faceRef = useRef(face);
   faceRef.current = face;
+  const labelsRef = useRef(extraLabels);
+  labelsRef.current = extraLabels;
 
   // Start queued jobs whenever there's room.
   useEffect(() => {
@@ -33,7 +38,9 @@ export function useSetlist(harness: Harness | null, face: FaceSettings): Setlist
       dispatch({ type: "jobStarted", index: job.index });
       let run: Run;
       try {
-        run = harness.run(jobRequest(faceRef.current, state, job), (event) => {
+        const request = jobRequest(faceRef.current, state, job);
+        if (labelsRef.current) request.labels = { ...labelsRef.current, ...request.labels };
+        run = harness.run(request, (event) => {
           if (event.event === "api_call_start") dispatch({ type: "iteration", index: job.index, iteration: event.iteration });
         });
       } catch (e) {

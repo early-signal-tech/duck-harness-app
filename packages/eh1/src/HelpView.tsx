@@ -1,5 +1,5 @@
 // HANDBOOK: docs/EH1_HANDBOOK.md inside the app, bundled at build time so it matches the
-// repo and works offline. It takes over the face until "Back to plugin" (or Esc). The
+// repo and works offline. It takes over the face until "Back to EH-1" (or Esc). The
 // contents links jump to their sections; QUESTION_SETS.md and DH-1's handbook are
 // bundled too, and other links name the repo file.
 
@@ -74,7 +74,7 @@ export function HelpView({ onBack }: { onBack: () => void }) {
           <button className="pane-button" aria-label="Smaller text" disabled={size <= 11} onClick={() => setSize(size - 1)}>A−</button>
           <span className="pane-size" aria-live="polite">{size}</span>
           <button className="pane-button" aria-label="Larger text" disabled={size >= 22} onClick={() => setSize(size + 1)}>A+</button>
-          <button className="pane-button" onClick={onBack} title="Back to the plugin (Esc)">Back to plugin</button>
+          <button className="pane-button" onClick={onBack} title="Back to EH-1's face (Esc)">Back to EH-1</button>
         </span>
       </h2>
       {note && <p className="help-note">{note}</p>}

@@ -1,6 +1,6 @@
 // SETLIST: a question set × preset columns × repeats, as a grid. Each cell has a lamp per
 // repeat and the cell's medians; the bottom row sums up each column. Pick a cell to see
-// its repeats. Like Compare, it takes over the face until "Back to plugin".
+// its repeats. Like Compare, it takes over the face until "Back to DH-1".
 
 import { open } from "@tauri-apps/plugin-dialog";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
@@ -269,7 +269,7 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
           )}
           <button className="pane-button" onClick={() => onTextSize(-1)} title="Smaller text (⌘−)" aria-label="Smaller text">A−</button>
           <button className="pane-button" onClick={() => onTextSize(1)} title="Larger text (⌘+)" aria-label="Larger text">A+</button>
-          <button className="pane-button" onClick={onBack} title="Back to the plugin (Esc)">Back to plugin</button>
+          <button className="pane-button" onClick={onBack} title="Back to DH-1's face (Esc)">Back to DH-1</button>
         </div>
       </h2>
 

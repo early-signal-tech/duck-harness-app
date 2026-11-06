@@ -30,19 +30,18 @@ opens DH-1's Setlist, and the real start is **RUN SETLIST** inside it: two play 
 - Goes with takes (rack PR 5): a setlist is a take.
 - Priority: **2**.
 
-### 6. The rack: small fixes seen while trying it — ready, planned for rack PR 4
-- **"Back to plugin"** on DH-1's Setlist (and Compare, Handbook) in the rack: there's no
-  plugin face to go back to; say "Back to DH-1", since the panel's ✕ closes the editor.
-- **The card's preset name is cut off** ("Quick & Chea…") and with it the EDITED marker
-  the panel header shows. Show EDITED as a mark that's never cut off.
-- **Selected and open look alike:** a selected card's blue outline is the same blue as
-  the panel's "this device is open" border. Give selection its own look.
-- **SOURCE on DH-1's card** shows the face's data (`penguins.parquet`), but a setlist runs
-  on its question set's data (`TPC-H 0.01`). In SETLIST mode the tile could say what
-  the setlist will use. Decide with #5.
-- Priority: **3**.
+### 6b. The rack: SOURCE in SETLIST mode — ready, with #5 (rack PR 5)
+DH-1's card shows the face's data (`penguins.parquet`), but a setlist runs on its question
+set's data (`TPC-H 0.01`). In SETLIST mode the tile could say what the setlist will use.
+Decided with #5, since it depends on where the setlist plan lives.
 
 ## Done
+
+### 6. The rack: small fixes seen while trying it — done (rack PRs 3 and 4, #33 and #34)
+- "Back to plugin" now says **Back to DH-1** / **Back to EH-1** (everywhere: it goes back
+  to the device's face).
+- DH-1's card shows a ● for an edited preset outside the name, so a long name can't hide it.
+- Selected and open are dark grey, not blue (#33).
 
 ### 7. The rack: Settings opened off the top of the window — done (rack PR 3, #33)
 The rule that makes the rack's menus open upward also matched the app's root (both were

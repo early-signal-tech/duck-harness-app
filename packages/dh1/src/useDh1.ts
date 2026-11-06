@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { copyToOther, settingsForSlot, switchSlot, type Slot } from "./ab";
-import type { Hello, Harness, Run } from "./harness";
+import type { Hello, Harness, Run, RunRequest } from "./harness";
 import { presetRef } from "./presets";
 import { IDLE, runReducer, type RunAction, type RunView } from "./runState";
 import { loadSettings, requestOf, saveSettings, sourceProblem, type FaceSettings } from "./settings";
@@ -50,7 +50,12 @@ export interface Dh1Model {
 
 const isBusy = (v: RunView) => v.phase === "running" || v.phase === "stopping";
 
-export function useDh1(engine: EngineConnection): Dh1Model {
+export interface Dh1Options {
+  /** Added to every run's labels, so the traces say where it came from (the rack's preset). */
+  labels?: NonNullable<RunRequest["labels"]>;
+}
+
+export function useDh1(engine: EngineConnection, { labels }: Dh1Options = {}): Dh1Model {
   const { harness, status: server, hello } = engine;
 
   const [settings, setSettings] = useState<FaceSettings>(loadSettings);
@@ -76,7 +81,7 @@ export function useDh1(engine: EngineConnection): Dh1Model {
   const [runStarts, setRunStarts] = useState(0);
 
   // A running setlist has the engine to itself: RUN and RUN A+B wait.
-  const setlist = useSetlist(harness, settings);
+  const setlist = useSetlist(harness, settings, labels);
 
   const problem = setlist.busy
     ? "A setlist is running"
@@ -96,7 +101,7 @@ export function useDh1(engine: EngineConnection): Dh1Model {
         const face = settingsForSlot(settings, s);
         dispatch({ type: "start", maxIterations: face.maxIterations, at: Date.now() });
         const r = h.run(
-          requestOf(face, presetRef(face, presets.all), pair ? { ab: s, pair } : undefined),
+          requestOf(face, presetRef(face, presets.all), labels || pair ? { ...labels, ...(pair ? { ab: s, pair } : {}) } : undefined),
           (event) => dispatch({ type: "event", event }),
         );
         runs.current[s] = r;
@@ -110,7 +115,7 @@ export function useDh1(engine: EngineConnection): Dh1Model {
     },
     // dispatchers are stable (useReducer), so they're left out.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [harness, settings, presets.all],
+    [harness, settings, presets.all, labels],
   );
 
   const start = useCallback(() => {

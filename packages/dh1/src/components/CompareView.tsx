@@ -65,7 +65,7 @@ export function CompareView({ face, views, presets, onBack, textSize, onTextSize
           <button className="pane-button" onClick={() => onTextSize(-1)} title="Smaller text (⌘−)" aria-label="Smaller text">A−</button>
           <span className="pane-size" aria-live="polite">{textSize}</span>
           <button className="pane-button" onClick={() => onTextSize(1)} title="Larger text (⌘+)" aria-label="Larger text">A+</button>
-          <button className="pane-button" onClick={onBack} title="Back to the plugin (Esc)">Back to plugin</button>
+          <button className="pane-button" onClick={onBack} title="Back to DH-1's face (Esc)">Back to DH-1</button>
         </div>
       </h2>
       <p className="compare-question">

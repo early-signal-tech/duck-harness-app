@@ -1,11 +1,11 @@
-//! Host settings, shared by every Duck Harness app (and later the rack):
+//! Host settings, shared by every Duck Harness app (the standalone apps and the rack):
 //!
 //! - The Anthropic API key, in the macOS Keychain (service "Duck Harness"). When set, it's
 //!   given to the engine as ANTHROPIC_API_KEY, which wins over the agent checkout's .env.
 //! - The traces database path, in ~/Library/Application Support/Duck Harness/settings.json.
 //!   Unset means the agent's default, agent_traces.duckdb in the agent checkout.
 //!
-//! Both take effect when the engine starts; the web side restarts it after a change.
+//! Both take effect when an engine starts; the web side restarts the engines after a change.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -30,7 +30,7 @@ fn base_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(base.join("Duck Harness"))
 }
 
-pub fn load(app: &AppHandle) -> HostSettings {
+pub(crate) fn load(app: &AppHandle) -> HostSettings {
     base_dir(app)
         .ok()
         .and_then(|dir| fs::read_to_string(dir.join("settings.json")).ok())
@@ -90,7 +90,7 @@ pub struct SettingsView {
 
 #[tauri::command]
 pub fn settings_get(app: AppHandle) -> SettingsView {
-    let agent_dir = crate::agent_dir();
+    let agent_dir = crate::engines::agent_dir();
     let keychain = api_key();
     let source = if keychain.is_some() {
         "keychain"
@@ -146,7 +146,7 @@ fn shell_quote(s: &str) -> String {
 pub fn traces_shell_open(app: AppHandle) -> Result<(), String> {
     let dir = base_dir(&app)?;
     fs::create_dir_all(&dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
-    let agent = crate::agent_dir();
+    let agent = crate::engines::agent_dir();
     let traces = load(&app).traces_db.unwrap_or_else(|| DEFAULT_TRACES_DB.into());
     let uv = std::env::var("DH1_UV").unwrap_or_else(|_| "uv".into());
     let script = format!(

@@ -1,9 +1,9 @@
 // Client for the agent server's JSON Lines protocol (duckdb_agent/serve.py in
-// duckdb-analytics-agent). The Rust side starts the server and relays lines: requests go
-// out through the `harness_send` command, replies come back as `harness-message` events.
+// duckdb-analytics-agent). The host starts the server and relays lines through an
+// EngineTransport (the engine named "dh1"): requests go out with `send`, replies come
+// back through `onMessage`.
 
-import { invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import type { EngineTransport } from "@dh/ui-kit";
 
 export const PROTOCOL_VERSION = 1;
 
@@ -140,25 +140,27 @@ const nextId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(coun
 
 export class Harness {
   private pending = new Map<string, Pending>();
-  private unlisten: UnlistenFn[] = [];
+  private unlisten: (() => void)[] = [];
   private exited = false;
-  /** Which start of the server this client belongs to (see engine_restart). */
+  /** Which start of the server this client belongs to (see EngineTransport.restart). */
   private generation = 0;
   /** Messages with no request id (e.g. a line the server couldn't parse). */
   onStrayError: (error: string) => void = (error) => console.warn("agent server:", error);
   /** Called once if the server process goes away. */
   onExit: () => void = () => {};
 
-  static async connect(): Promise<Harness> {
-    const harness = new Harness();
+  private constructor(private transport: EngineTransport) {}
+
+  static async connect(transport: EngineTransport): Promise<Harness> {
+    const harness = new Harness(transport);
     harness.unlisten.push(
-      await listen<string>("harness-message", ({ payload }) => harness.receive(payload)),
+      await transport.onMessage((line) => harness.receive(line)),
       // A restarted server's predecessor also reports its exit: only ours counts.
-      await listen<number>("harness-exit", ({ payload }) => {
-        if (payload === harness.generation) harness.serverExited();
+      await transport.onExit((generation) => {
+        if (generation === harness.generation) harness.serverExited();
       }),
     );
-    harness.generation = await invoke<number>("engine_generation");
+    harness.generation = await transport.generation();
     return harness;
   }
 
@@ -232,7 +234,7 @@ export class Harness {
         onEvent: options.onEvent,
         isFinal: options.isFinal ?? (() => true),
       });
-      invoke("harness_send", { line: JSON.stringify({ id, ...body }) }).catch((e) => {
+      this.transport.send(JSON.stringify({ id, ...body })).catch((e) => {
         this.pending.delete(id);
         reject(new HarnessError(String(e)));
       });

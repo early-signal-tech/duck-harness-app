@@ -19,11 +19,13 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
+# Engines, settings, presets, question sets: shared with every Duck Harness app.
+dh-host = { path = "../../../crates/dh-host" }
+# dh-host initializes these; they're listed here too because capabilities/default.json
+# grants their permissions, and Tauri finds plugin permissions through the app's own
+# dependencies.
 tauri-plugin-opener = "2"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
 tauri-plugin-dialog = "2"
-keyring = { version = "3", features = ["apple-native"] }
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

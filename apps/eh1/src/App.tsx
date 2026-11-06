@@ -3,12 +3,15 @@
 // DH-1's agent, so it isn't managed from here.
 
 import { Eh1, useEngine } from "@dh/eh1";
-import { HostBar, SettingsMenu, useAppearance } from "@dh/ui-kit";
+import { HostBar, SettingsMenu, tauriTransport, useAppearance } from "@dh/ui-kit";
 import { useState } from "react";
+
+// EH-1's engine, the grader, as the host crate names it.
+const transport = tauriTransport("eh1");
 
 export default function App() {
   const [appearance, setAppearance] = useAppearance();
-  const engine = useEngine();
+  const engine = useEngine(transport);
   const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
   return (
     <div className="host">

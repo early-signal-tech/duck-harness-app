@@ -724,6 +724,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "dh-host"
+version = "0.1.0"
+dependencies = [
+ "keyring",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin-dialog",
+ "tauri-plugin-opener",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -855,9 +867,7 @@ checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 name = "eh1-app"
 version = "0.1.0"
 dependencies = [
- "keyring",
- "serde",
- "serde_json",
+ "dh-host",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",

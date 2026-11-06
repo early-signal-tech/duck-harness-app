@@ -1,0 +1,14 @@
+[package]
+name = "dh-host"
+version = "0.1.0"
+description = "The native side every Duck Harness app shares: engines, settings, presets, question sets"
+authors = ["Early Signal"]
+edition = "2024"
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+keyring = { version = "3", features = ["apple-native"] }

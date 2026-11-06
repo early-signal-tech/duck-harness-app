@@ -409,6 +409,7 @@ input:focus { border-color: var(--accent); }
 .settings-hint.warn { color: var(--warn); }
 .settings-hint { font: 400 11px/1.4 var(--sans); color: var(--muted); }
 .settings-path { font: 400 12px/1.35 var(--mono); overflow-wrap: anywhere; }
+.settings-path.one-line { overflow-wrap: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .settings-row { display: flex; align-items: center; gap: 6px; }
 .settings-row.spread { justify-content: space-between; }
 .settings-row input {

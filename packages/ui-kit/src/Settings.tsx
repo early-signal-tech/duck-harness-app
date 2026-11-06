@@ -76,6 +76,8 @@ const KEY_SOURCE: Record<SettingsView["apiKeySource"], string> = {
   none: "Not set: runs will fail until you add one",
 };
 
+import { shortCommand } from "./shortPath";
+
 function size(bytes: number | null): string {
   if (bytes == null) return "";
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -272,7 +274,7 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
                 <span className="settings-engine-name">{ENGINE_NAMES[e.engine] ?? e.engine}</span>
                 <span className="settings-hint">{ENGINE_SOURCE[e.source]}{versionOf(e) ? ` · ${versionOf(e)}` : ""}</span>
               </span>
-              <p className="settings-path selectable" title={e.command}>{e.command}</p>
+              <p className="settings-path one-line selectable" title={e.command}>{shortCommand(e.command, 1)}</p>
             </div>
           ))}
           {view.enginesFileProblem && <p className="settings-hint warn">{view.enginesFileProblem}</p>}

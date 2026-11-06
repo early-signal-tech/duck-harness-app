@@ -1,21 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { combinedStatus, DEFAULT_LAYOUT, setFolded, setFull } from "../rackLayout";
+import { combinedStatus, DEFAULT_LAYOUT, parseLayout, toggleCollapsed } from "../rackLayout";
 
 describe("rack layout", () => {
-  it("folds and unfolds a device", () => {
-    const folded = setFolded(DEFAULT_LAYOUT, "dh1", true);
-    expect(folded.folded).toEqual(["dh1"]);
-    expect(setFolded(folded, "dh1", false).folded).toEqual([]);
+  it("collapses and expands a device", () => {
+    const collapsed = toggleCollapsed(DEFAULT_LAYOUT, "eh1");
+    expect(collapsed.collapsed).toEqual(["eh1"]);
+    expect(toggleCollapsed(collapsed, "eh1").collapsed).toEqual([]);
   });
 
-  it("unfolds a device given the whole window", () => {
-    const layout = setFull({ folded: ["eh1"], full: null }, "eh1", true);
-    expect(layout).toEqual({ folded: [], full: "eh1" });
-    expect(setFull(layout, "eh1", false).full).toBeNull();
-  });
-
-  it("goes back to the rack when the full device is folded", () => {
-    expect(setFolded({ folded: [], full: "dh1" }, "dh1", true)).toEqual({ folded: ["dh1"], full: null });
+  it("cleans a saved layout", () => {
+    expect(parseLayout({ collapsed: ["dh1", 3], open: "eh1", take: "ab" })).toEqual({ collapsed: ["dh1"], open: "eh1", take: "ab" });
+    expect(parseLayout({ open: "nowhere", take: "jam" })).toEqual(DEFAULT_LAYOUT);
+    expect(parseLayout(null)).toEqual(DEFAULT_LAYOUT);
   });
 
   it("shows the worst engine status", () => {

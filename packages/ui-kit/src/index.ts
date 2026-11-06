@@ -17,3 +17,4 @@ export type { EngineTransport } from "./engineTransport";
 export { keyForOtherDevice } from "./deviceKeys";
 export { engineProblems } from "./engineCheck";
 export type { EngineVersion } from "./engineCheck";
+export { DeviceStrip, RackCard, Tile } from "./DeviceStrip";

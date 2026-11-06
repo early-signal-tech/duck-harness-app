@@ -1,63 +1,152 @@
-/* The rack: devices side by side in a horizontal chain that scrolls sideways. */
+/* The rack (v3): transport on top, one big panel, the compact rack along the bottom. */
 
-.rack-chain {
+/* --- transport --- */
+.transport { gap: 10px; }
+.transport .brand { margin-right: 4px; }
+.transport-label { color: var(--bar-muted); }
+.transport-prompt {
   flex: 1;
-  min-height: 0;
-  display: flex;
-  gap: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-}
-
-/* Each device keeps a fixed width, like a device in an Ableton chain; the chain scrolls. */
-.device-frame {
-  flex: none;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 10px;
+  min-width: 0;
+  height: 34px;
   box-sizing: border-box;
-  border: 1.5px solid var(--edge);
-  border-radius: 12px;
+  padding: 0 12px;
+  border: 1px solid var(--bar-edge);
+  border-radius: 6px;
+  background: var(--bar-field);
+  color: var(--bar-ink);
+  font: 400 14px/1 var(--sans);
 }
-.device-frame.dh1 { width: 1320px; }
-.device-frame.eh1 { width: 1240px; }
-
-/* FULL FACE: this device takes the window; the others stay mounted, out of sight. */
-.device-frame.full { flex: 1; width: auto; min-width: 0; }
-.device-frame.behind { display: none; }
-
-.device-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.device-frame.folded .device-body { display: none; }
-
-/* The title bar: the standalone app's header bar, a little shorter. */
-.device-bar { height: 44px; gap: 12px; padding: 0 10px; }
-.device-bar .wordmark { font-size: 13px; }
-.device-bar .host-slot { margin-left: 4px; min-width: 0; }
-.device-bar .engine .dot, .device-strip .engine .dot { width: 9px; height: 9px; }
-
-/* Folded: a narrow strip with the name running up it. */
-.device-frame.folded { width: 52px; padding: 6px; }
-.device-strip {
+.transport-prompt:disabled { opacity: 0.55; }
+.transport-take { gap: 0; border: 1px solid var(--bar-edge); border-radius: 6px; overflow: hidden; }
+.transport-take button { height: 32px; padding: 0 11px; border: 0; background: transparent; color: var(--bar-ink); font: 700 11px/1 var(--mono); letter-spacing: 0.1em; }
+.transport-take button + button { border-left: 1px solid var(--bar-edge); }
+.transport-take button.on { background: var(--bar-sel-bg); color: var(--bar-sel-ink); }
+.transport-take button:disabled { opacity: 0.45; }
+.transport-play, .transport-stop {
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--bar-edge);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--bar-ink);
+  font: 700 11px/1 var(--mono);
+  letter-spacing: 0.1em;
+}
+.transport-play { background: var(--accent); border-color: var(--accent); color: #ffffff; }
+.transport-play:disabled, .transport-stop:disabled { opacity: 0.4; }
+.transport-divider { width: 1px; height: 30px; background: var(--bar-edge); }
+.transport-playing {
   flex: 1;
+  min-width: 0;
+  height: 34px;
+  box-sizing: border-box;
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 12px;
-  padding: 8px 0;
+  padding: 0 12px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--bar-field);
+  font: 700 11px/1 var(--mono);
+  letter-spacing: 0.08em;
+}
+.transport-playing .mono { font-weight: 400; color: var(--bar-muted); }
+.playing-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); animation: pulse 1.2s ease-in-out infinite; }
+.transport-progress { flex: 1; height: 6px; border-radius: 3px; background: var(--bar-edge); overflow: hidden; }
+.transport-progress i { display: block; height: 100%; background: var(--accent); }
+
+/* --- the panel --- */
+.rack-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1.5px solid var(--edge);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg);
+}
+.rack-panel.editor { border-color: var(--accent); border-width: 2px; }
+.rack-panel .panel-head {
+  flex: none;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--panel);
+  font: 400 12px/1 var(--sans);
+}
+.rack-panel .panel-head.bar { border-radius: 0; border-bottom: 0; height: 48px; padding: 0 10px 0 14px; background: var(--bar-bg); }
+.rack-panel .panel-head .wordmark { font-size: 13px; }
+.rack-panel .panel-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 12px; overflow: auto; }
+.output-tag { padding: 4px 7px; border: 1px solid var(--edge); border-radius: 3px; font: 700 9px/1 var(--mono); letter-spacing: 0.08em; }
+
+/* the output (Dh1Output) */
+.output-run, .output-setlist { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.output-prompt { margin: 0; font: 600 18px/1.3 var(--sans); }
+.output-ab { flex: 1; min-height: 0; display: flex; gap: 12px; }
+.output-answer {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 8px;
   background: var(--bar-bg);
   color: var(--bar-ink);
-  border-radius: 8px;
 }
-.device-strip .bar-button { width: 28px; height: 28px; padding: 0; }
-.device-strip-name {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  font: 700 12px/1 var(--mono);
-  letter-spacing: 0.18em;
-  white-space: nowrap;
+.output-answer-head { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.output-answer-head .output-tag { border-color: var(--bar-edge); }
+.output-answer-head .muted { color: var(--bar-muted); }
+.output-answer-head .bar-button { margin-left: auto; }
+.output-answer-body { flex: 1; min-height: 0; overflow: auto; font: 400 14px/1.55 var(--sans); }
+.output-answer-body p { margin: 0 0 8px; }
+.output-answer .faint { color: var(--bar-muted); }
+.output-activity { align-self: flex-start; }
+.output-progress { height: 10px; border: 1.5px solid var(--edge); border-radius: 4px; overflow: hidden; }
+.output-progress i { display: block; height: 100%; background: var(--accent); }
+.output-jobs { display: flex; flex-wrap: wrap; gap: 3px; }
+.output-jobs i { width: 14px; height: 14px; border-radius: 2px; border: 1px solid var(--field-edge); }
+.output-jobs i.running { background: var(--warn); border-color: var(--warn); }
+.output-jobs i.done { background: var(--edge); border-color: var(--edge); }
+.output-jobs i.failed { background: var(--danger); border-color: var(--danger); }
+.output-setlist .pane-button { align-self: flex-start; }
+
+/* --- the rack --- */
+.rack-row {
+  height: 232px;
+  flex: none;
+  box-sizing: border-box;
+  display: flex;
+  align-items: stretch;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--rack-bg, #c9c9c6);
+  overflow-x: auto;
 }
+.rack-slot {
+  width: 26px;
+  flex: none;
+  align-self: center;
+  height: 26px;
+  margin: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: 600 18px/1 var(--sans);
+}
+.rack-slot:disabled { opacity: 0.6; }
+.autograde-card .rack-essentials { width: 120px; }
+.autograde-what { font: 600 12px/1.2 var(--sans); }
+.autograde-state { font: 400 11px/1.35 var(--sans); color: var(--muted); }
+.autograde-state.on { color: var(--accent); font-weight: 600; }
+.autograde-problem { font: 400 10px/1.3 var(--sans); color: var(--warn); overflow-wrap: anywhere; }
+.autograde-count { font: 700 12px/1.2 var(--mono); }
+.autograde-judge { font: 400 10px/1.2 var(--sans); color: var(--muted); }
 
 /* Engines that don't belong together. */
 .rack-problem {
@@ -71,38 +160,9 @@
   font: 500 12px/1.4 var(--sans);
 }
 
-/* The cable between devices: a wire, and a small box on it with AUTO-GRADE. */
-.cable {
-  flex: none;
-  width: 128px;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* The devices' faces inside the panel: they fill it, below its header. */
+.rack-panel .dh1, .rack-panel .eh1 { flex: 1; min-height: 0; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .rack-row { --rack-bg: #1a1a1a; }
 }
-.cable-wire { position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1px; background: var(--edge); }
-.cable-wire::after {
-  content: ""; position: absolute; right: 0; top: -6px;
-  border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 10px solid var(--edge);
-}
-.cable-box {
-  position: relative;
-  width: 108px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  padding: 9px 8px;
-  background: var(--panel);
-  border: 1.5px solid var(--edge);
-  border-radius: 8px;
-  text-align: center;
-}
-.cable-signal { display: flex; align-items: center; justify-content: center; gap: 6px; font: 700 9px/1 var(--mono); letter-spacing: 0.12em; }
-.cable-signal .dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--edge); }
-.cable-signal .dot.on { background: var(--accent); border-color: var(--accent); }
-.cable-label { font: 700 9px/1 var(--mono); letter-spacing: 0.1em; }
-.cable-box .segmented button { height: 26px; font-size: 10px; }
-.cable-note, .cable-stats { font: 400 10px/1.35 var(--sans); color: var(--muted); }
-.cable-stats { font-family: var(--mono); color: var(--ink); }
-.cable-problem { font: 400 10px/1.3 var(--sans); color: var(--warn); overflow-wrap: anywhere; }
+:root[data-theme="dark"] .rack-row { --rack-bg: #1a1a1a; }

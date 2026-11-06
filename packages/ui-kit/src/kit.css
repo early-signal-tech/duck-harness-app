@@ -431,3 +431,127 @@ input:focus { border-color: var(--accent); }
 .bar .brand { flex: none; white-space: nowrap; }
 .appearance-controls { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 8px 12px; }
 .appearance-controls .segmented button { height: 28px; }
+
+/* --- the rack's compact cards (DeviceStrip.tsx) --- */
+.rack-card {
+  flex: none;
+  display: flex;
+  min-height: 0;
+  background: var(--panel);
+  border: 1.5px solid var(--edge);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.rack-card.collapsed { background: var(--bar-bg); }
+.device-strip {
+  width: 32px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 0;
+  background: var(--bar-bg);
+  color: var(--bar-ink);
+  cursor: default;
+  user-select: none;
+}
+.device-strip.utility { background: #4a4a48; }
+.device-strip .strip-name {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font: 700 11px/1 var(--mono);
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+}
+.device-strip .spacer { flex: 1; }
+.device-strip .engine .dot { width: 9px; height: 9px; }
+.device-strip button {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--bar-edge);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--bar-ink);
+  font: 600 10px/1 var(--sans);
+}
+.device-strip .strip-power span { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--bar-ink); }
+.device-strip .strip-power.on span { background: var(--accent); border-color: var(--accent); }
+.device-strip .strip-live { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); animation: pulse 1.2s ease-in-out infinite; }
+.rack-tiles {
+  width: 116px;
+  flex: none;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px;
+  background: var(--bg);
+  border-right: 1px solid var(--rule);
+}
+.tile {
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 7px;
+  border: 1px solid var(--field-edge);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--ink);
+  text-align: left;
+}
+.tile:hover { border-color: var(--edge); }
+.tile-label { font: 700 8px/1 var(--mono); letter-spacing: 0.08em; color: var(--muted); }
+.tile-value { font: 500 10.5px/1.1 var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rack-essentials {
+  width: 160px;
+  flex: none;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 8px;
+  min-height: 0;
+}
+/* What goes in a card's essentials column (none of it shrinks; the column scrolls if it must). */
+.rack-essentials > * { flex: none; }
+.rack-essentials > .card-meter, .rack-essentials > .card-meters { margin-top: auto; }
+.card-preset { display: flex; align-items: center; gap: 3px; }
+.card-step { width: 20px; height: 24px; padding: 0; border: 1px solid var(--field-edge); border-radius: 3px; background: var(--field, var(--panel)); color: var(--ink); }
+.card-preset-name {
+  flex: 1; min-width: 0; height: 24px; padding: 0 5px;
+  border: 1.5px solid var(--edge); border-radius: 3px; background: var(--field, var(--panel)); color: var(--ink);
+  font: 600 11px/1 var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card-models button { height: 24px; font-size: 10px; }
+.card-knob { display: flex; justify-content: center; }
+.card-meter { margin-top: auto; display: flex; flex-direction: column; gap: 4px; }
+.card-cost { padding: 4px 6px; border-radius: 4px; background: var(--bar-bg); color: var(--bar-ink); text-align: right; font: 700 12px/1 var(--mono); }
+.card-leds { display: flex; gap: 2px; }
+.card-leds i { flex: 1; height: 6px; border: 1px solid var(--edge); border-radius: 1px; }
+.card-leds i.on { background: var(--accent); border-color: var(--accent); }
+.card-scorecard {
+  height: 92px; box-sizing: border-box; padding: 5px;
+  display: grid; grid-template-columns: repeat(8, 1fr); grid-auto-rows: 12px; gap: 3px; align-content: start;
+  border: 1.5px solid var(--edge); border-radius: 5px; background: var(--panel); overflow: hidden;
+}
+.card-scorecard .muted { grid-column: 1 / -1; align-self: center; font: 400 11px/1.2 var(--sans); }
+.card-scorecard i { border-radius: 2px; background: var(--rule); }
+.card-scorecard i.full { background: var(--edge); }
+.card-scorecard i.high { background: #6a6a68; }
+.card-scorecard i.mid { background: #a8a8a5; }
+.card-scorecard i.low { background: var(--danger); opacity: 0.7; }
+.card-meters { margin-top: auto; display: flex; align-items: flex-end; gap: 8px; }
+.card-meter-bar { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.card-meter-bar > span:first-child { width: 12px; height: 42px; box-sizing: border-box; display: flex; align-items: flex-end; border: 1.5px solid var(--edge); border-radius: 2px; }
+.card-meter-bar > span:first-child i { width: 100%; background: var(--edge); }
+.card-graded { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.card-graded b { font: 700 12px/1 var(--mono); }

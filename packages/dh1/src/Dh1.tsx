@@ -35,6 +35,7 @@ import { progressOf } from "./setlist";
 import "./dh1.css";
 import type { EngineConnection } from "./useEngine";
 import { useDh1, type Dh1Model } from "./useDh1";
+import type { Dh1Section } from "./Dh1Card";
 
 const DATA_FILE = /\.(csv|tsv|parquet|json|jsonl|ndjson)(\.gz)?$/i;
 
@@ -137,8 +138,16 @@ export function Dh1PromptBar({ model }: { model: Dh1Model }) {
   );
 }
 
-/** DH-1's face. `promptBar={false}` leaves out the prompt bar, for a host with a transport. */
-export function Dh1Face({ model, toolbar, promptBar = true }: { model: Dh1Model; toolbar?: HTMLElement | null; promptBar?: boolean }) {
+/** DH-1's face. `promptBar={false}` leaves out the prompt bar, for a host with a transport.
+ *  `initialScreen` opens it on the Setlist; `focusSection` scrolls a section into view and
+ *  outlines it for a moment (a rack card's tile). */
+export function Dh1Face({ model, toolbar, promptBar = true, initialScreen = "face", focusSection = null }: {
+  model: Dh1Model;
+  toolbar?: HTMLElement | null;
+  promptBar?: boolean;
+  initialScreen?: "face" | "setlist";
+  focusSection?: Dh1Section | null;
+}) {
   const {
     server, hello, settings, setSettings, update, presets, addFiles, views, slot, view, busy, anyBusy, setlist,
     problem, priced, start, stop,
@@ -160,7 +169,17 @@ export function Dh1Face({ model, toolbar, promptBar = true }: { model: Dh1Model;
   const log = useRef<HTMLOListElement>(null);
 
   // Compare, Setlist, and the Handbook take over the face until you go back.
-  const [screen, setScreen] = useState<Screen>("face");
+  const [screen, setScreen] = useState<Screen>(initialScreen);
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!focusSection) return;
+    const el = root.current?.querySelector(`.panel.${focusSection}`);
+    if (!el) return;
+    el.scrollIntoView({ block: "nearest" });
+    el.classList.add("section-focus");
+    const timer = setTimeout(() => el.classList.remove("section-focus"), 1600);
+    return () => clearTimeout(timer);
+  }, [focusSection]);
   const comparing = screen === "compare";
   const setlistOpen = screen === "setlist";
   const toggleScreen = (next: Screen) => setScreen((current) => (current === next ? "face" : next));
@@ -301,7 +320,7 @@ export function Dh1Face({ model, toolbar, promptBar = true }: { model: Dh1Model;
   );
 
   return (
-    <div data-device="dh1" className={`dh1${dragging ? " dragging" : ""}${expanded ? ` expanded-${expanded}` : ""}${screen !== "face" ? ` screen-${screen}` : ""}`}>
+    <div ref={root} data-device="dh1" className={`dh1${dragging ? " dragging" : ""}${expanded ? ` expanded-${expanded}` : ""}${screen !== "face" ? ` screen-${screen}` : ""}`}>
       {toolbar ? createPortal(deviceToolbar, toolbar) : <div className="bar dh1-toolbar">{deviceToolbar}</div>}
 
       {comparing && <CompareView

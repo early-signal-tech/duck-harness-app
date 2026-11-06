@@ -72,6 +72,15 @@ red with the error when it isn't). Whichever mode you were in comes back next la
 one every 15 seconds; when DH-1 finishes a setlist, EH-1 says so and it's one press of
 **GRADE SETLIST** away. **PICK** lets you choose any setlist (see the picker, next).
 
+In the rack, FOLLOW DH-1 is **FOLLOW CHAIN**, and the cable between DH-1 and EH-1 has
+**AUTO-GRADE**. When it's on, EH-1's engine grades each setlist run as soon as it
+finishes, with the judge settings on this face, so the scorecard fills in while the
+setlist plays; the cable counts the runs graded and the judge's cost this session.
+Only setlists are auto-graded: single runs and A/B compares wait for you in RUN mode.
+AUTO-GRADE starts off every time the rack opens, since grading costs money. Changing the
+judge settings while it's on carries on with the new ones. The same thing from the
+command line: `uv run eh1-grade --follow --set <question set file>`.
+
 Below the choice: the setlist's ID with **Rename…**, its note, and its facts: the
 question set and revision it ran, its data, how many runs completed, and how many
 questions have a check. When the question set has changed since the setlist ran, the
@@ -130,8 +139,11 @@ repeated identical queries, and truncated results after the first.
 The judge model (**HAIKU**, **SONNET**, **OPUS**), its **EFFORT**, and the
 **TOLERANCE** for numbers (within ±0.5% of the reference counts as matching, by
 default). The judge answers in a fixed JSON shape: both scores, a reason for each,
-whether it was unsure, and the values it compared. Haiku costs about a tenth of a cent
-per run; Sonnet a little under a cent.
+whether it was unsure, and the values it compared. EH-1 opens on **HAIKU** at **LOW**
+effort every time, whatever you used last: about a tenth of a cent per run, cheap
+enough for AUTO-GRADE to grade every setlist run. Sonnet costs a little under a cent
+per run; switch to it (or Opus) when a grade needs a closer read, and it stays until
+you quit. The tolerance and the rubric's settings are remembered between launches.
 
 ## 9. METERS
 
@@ -256,8 +268,9 @@ managed here.
 ## 19. What's remembered, and where
 
 - **Grades, overrides, setlist names**: in the traces database (above).
-- **The judge settings, rubric notes, and EFFICIENT thresholds**: in the app
-  (`eh1.grader`), so they come back next launch.
+- **The tolerance, rubric notes, and EFFICIENT thresholds**: in the app
+  (`eh1.grader`), so they come back next launch. The judge model and effort don't:
+  every launch starts on Haiku at low effort.
 - **FOLLOW / PICK and SETLIST / RUN**: in the app too (`eh1.input`, `eh1.view`).
 - **Question sets you save to**: MINE, in `~/Library/Application Support/Duck Harness/Question Sets/`,
   shared with DH-1.

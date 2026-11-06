@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { QuestionSet } from "@dh/formats";
 import type { Grade, SetlistInfo } from "../engine";
-import { cellOf, columnsOf, columnSummary, findSet, scorecard, total } from "../scorecard";
+import { cellOf, columnsOf, columnSummary, DEFAULT_GRADER, findSet, scorecard, startingGrader, total } from "../scorecard";
 import { setlistTitle } from "../picker";
 
 const set: QuestionSet = {
@@ -97,5 +97,18 @@ describe("overrides", () => {
     expect(columnSummary([mine], "A").fullMarks).toBe(0);
     // An override settles an unsure judge.
     expect(cellOf([{ ...mine, judge_unsure: true }]).unsure).toBe(0);
+  });
+});
+
+describe("the judge EH-1 opens with", () => {
+  it("is Haiku at low effort every launch, keeping your other settings", () => {
+    const saved = { judge_model: "claude-sonnet-5-5", judge_effort: "high", tolerance: "±1%", instructions: "Be strict." };
+    const g = startingGrader(saved);
+    expect([g.judge_model, g.judge_effort]).toEqual(["claude-haiku-5-5", "low"]);
+    expect([g.tolerance, g.instructions]).toEqual(["±1%", "Be strict."]);
+  });
+
+  it("is the defaults with nothing saved", () => {
+    expect(startingGrader(null)).toEqual(DEFAULT_GRADER);
   });
 });

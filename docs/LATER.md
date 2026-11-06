@@ -95,6 +95,17 @@ Sonnet judge while the standalone EH-1 was on Haiku, so a setlist graded there s
   layout (rack folds, pane widths, text size) can stay per app.
 - That makes it something the CLI can read too ("grade with the judge I last used").
 
+## Several chains in the rack
+A narrow column of chains on the left, like Bitwig's track headers: each with its name,
+what's in it, its status, and ▶ / ■. Select one and its rack loads below and its takes
+show above; a chain keeps playing when you select another.
+
+- Wireframes: boards 18–19 ("RACK v3 · chains and takes").
+- For now the rack holds one chain, saved and loaded as a rack preset (board 20).
+- Open questions when it's picked up: whether a chain remembers what it plays (its prompt
+  or setlist) so its own ▶ replays it, and how chains are renamed and reordered.
+- Depends on: the single-chain rack (rack presets, takes) being built first.
+
 ## Run on the face while a setlist runs
 For now a setlist has the engine to itself: RUN and RUN A+B are disabled while it's going,
 so its timings and costs aren't skewed by other runs competing for API capacity.

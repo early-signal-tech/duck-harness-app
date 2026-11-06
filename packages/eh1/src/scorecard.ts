@@ -137,7 +137,9 @@ export const TOLERANCES = ["±0.1%", "±0.5%", "±1%", "±5%"] as const;
 export const DEFAULT_GRADER: GraderSettings = {
   name: "Standard rubric",
   revision: 1,
-  judge_model: "claude-sonnet-5-5",
+  // Haiku at low effort: cheap enough to grade every setlist run (AUTO-GRADE). Matches
+  // the engine's default (eh1_grader/judge.py).
+  judge_model: "claude-haiku-5-5",
   judge_effort: "low",
   tolerance: "±0.5%",
   iteration_budget: 8,
@@ -147,14 +149,21 @@ export const DEFAULT_GRADER: GraderSettings = {
 
 const GRADER_KEY = "eh1.grader";
 
+/** The judge settings EH-1 opens with: the ones you saved, except the judge itself, which
+ *  starts on Haiku at low effort every launch (cheap, and what AUTO-GRADE should use
+ *  unless you choose otherwise for this session). */
+export function startingGrader(saved: unknown): GraderSettings {
+  const kept = saved && typeof saved === "object" ? (saved as Partial<GraderSettings>) : {};
+  return { ...DEFAULT_GRADER, ...kept, judge_model: DEFAULT_GRADER.judge_model, judge_effort: DEFAULT_GRADER.judge_effort };
+}
+
 export function loadGrader(): GraderSettings {
   try {
-    const saved = JSON.parse(localStorage.getItem(GRADER_KEY) ?? "null");
-    if (saved && typeof saved === "object") return { ...DEFAULT_GRADER, ...saved };
+    return startingGrader(JSON.parse(localStorage.getItem(GRADER_KEY) ?? "null"));
   } catch {
     // Unreadable or blocked storage: the defaults.
+    return DEFAULT_GRADER;
   }
-  return DEFAULT_GRADER;
 }
 
 export function saveGrader(grader: GraderSettings): void {

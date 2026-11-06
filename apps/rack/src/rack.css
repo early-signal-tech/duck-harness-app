@@ -4,7 +4,7 @@
   flex: 1;
   min-height: 0;
   display: flex;
-  gap: 12px;
+  gap: 0;
   overflow-x: auto;
   overflow-y: hidden;
 }
@@ -70,3 +70,39 @@
   color: var(--ink);
   font: 500 12px/1.4 var(--sans);
 }
+
+/* The cable between devices: a wire, and a small box on it with AUTO-GRADE. */
+.cable {
+  flex: none;
+  width: 128px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cable-wire { position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1px; background: var(--edge); }
+.cable-wire::after {
+  content: ""; position: absolute; right: 0; top: -6px;
+  border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 10px solid var(--edge);
+}
+.cable-box {
+  position: relative;
+  width: 108px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 9px 8px;
+  background: var(--panel);
+  border: 1.5px solid var(--edge);
+  border-radius: 8px;
+  text-align: center;
+}
+.cable-signal { display: flex; align-items: center; justify-content: center; gap: 6px; font: 700 9px/1 var(--mono); letter-spacing: 0.12em; }
+.cable-signal .dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--edge); }
+.cable-signal .dot.on { background: var(--accent); border-color: var(--accent); }
+.cable-label { font: 700 9px/1 var(--mono); letter-spacing: 0.1em; }
+.cable-box .segmented button { height: 26px; font-size: 10px; }
+.cable-note, .cable-stats { font: 400 10px/1.35 var(--sans); color: var(--muted); }
+.cable-stats { font-family: var(--mono); color: var(--ink); }
+.cable-problem { font: 400 10px/1.3 var(--sans); color: var(--warn); overflow-wrap: anywhere; }

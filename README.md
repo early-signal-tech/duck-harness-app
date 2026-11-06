@@ -60,7 +60,11 @@ React (packages/dh1)  ──engine_send("dh1", line)──▶  Rust (crates/dh-h
 - **`packages/dh1/src/harness.ts`** is the TypeScript client for the protocol:
   `hello()`, `run()` (with live events), and `stop()`. Its types mirror
   `duckdb_agent/serve.py` and the `EventCallback` events in `duckdb_agent/loop.py`.
-- **`packages/dh1/src/Dh1.tsx`** is the face:
+- **`packages/dh1/src/useDh1.ts`** is the device's model: its settings and presets, the
+  A/B runs, the setlist, and starting and stopping. Each device is a model plus views, so
+  the rack can show the same device as a compact card, a full editor, and a transport.
+- **`packages/dh1/src/Dh1.tsx`** is the face (`Dh1Face`; `Dh1PromptBar` is its prompt
+  bar, which a host with a transport can leave out):
   - SOURCE: the TPC-H test tone, a DuckDB file, or data files
   - AGENT: model switch, STRUCTURED and CACHE, and the Effort, Iterations, Result
     Size, Timeout, and Max Tokens knobs

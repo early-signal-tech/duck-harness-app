@@ -283,7 +283,9 @@ In this repo:
 - `apps/eh1/`: the Tauri app. `src-tauri/src/lib.rs` starts the engine and relays JSON
   Lines; `question_sets.rs` and `files.rs` read and write files; `settings.rs` is DH-1's.
 - `packages/eh1/src/`:
-  - `Eh1.tsx` is the SETLIST face.
+  - `useEh1.ts` is the device's model: judge settings, setlists, grades, grading,
+    overrides, export, and following DH-1. Every view of EH-1 draws it.
+  - `Eh1.tsx` is the SETLIST face (`Eh1Face`), and `Eh1`, the model with its face.
   - `RunView.tsx` is RUN mode.
   - `SetlistPicker.tsx` is the PICK list and rename form.
   - `Verdict.tsx` is the verdict card.

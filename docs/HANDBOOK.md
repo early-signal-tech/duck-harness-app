@@ -354,7 +354,8 @@ share them.
 packages/ui-kit/      shared look and controls (Knob, Toggle, Menu, Splitter, HostBar, Markdown, themes)
 packages/formats/     file formats the plugins share: sources, question sets, the TPC-H set
 packages/dh1/src/
-  Dh1.tsx             the device: face layout, running, keyboard
+  useDh1.ts           the device's model: settings, presets, A/B runs, the setlist, start / stop
+  Dh1.tsx             the face (Dh1Face, Dh1PromptBar) drawing the model; Dh1 = model + face
   harness.ts          client for the agent server's JSON Lines protocol
   useEngine.ts        the engine connection the host passes in
   settings.ts         FaceSettings, defaults, building a run request

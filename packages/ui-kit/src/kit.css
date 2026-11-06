@@ -409,7 +409,26 @@ input:focus { border-color: var(--accent); }
 .settings-hint.warn { color: var(--warn); }
 .settings-hint { font: 400 11px/1.4 var(--sans); color: var(--muted); }
 .settings-path { font: 400 12px/1.35 var(--mono); overflow-wrap: anywhere; }
-.settings-path.one-line { overflow-wrap: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.settings-command {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  font: 400 12px/1.35 var(--mono);
+  cursor: copy;
+}
+.settings-command:hover { border-color: var(--field-edge); background: var(--field, var(--panel)); }
+.settings-command-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.settings-command-icon { flex: none; color: var(--muted); }
+.settings-command.copied { color: var(--accent); }
+.settings-command.copied .settings-command-icon { color: var(--accent); }
 .settings-row { display: flex; align-items: center; gap: 6px; }
 .settings-row.spread { justify-content: space-between; }
 .settings-row input {

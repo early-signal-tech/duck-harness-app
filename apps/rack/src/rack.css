@@ -128,15 +128,15 @@
   background: var(--rack-bg, #c9c9c6);
 }
 .rack-slot {
-  width: 30px;
+  width: 20px;
   flex: none;
   align-self: center;
-  height: 30px;
-  margin: 0 4px;
+  height: 44px;
+  margin: 0 1px;
   border: 0;
   background: transparent;
   color: var(--muted);
-  font: 600 22px/1 var(--sans);
+  font: 600 18px/1 var(--sans);
 }
 .rack-slot:disabled { opacity: 0.6; }
 

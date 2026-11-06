@@ -93,6 +93,10 @@ export type AgentEvent =
 
 export interface Hello {
   protocol: number;
+  /** The duck-harness package version (absent from older servers). */
+  version?: string;
+  /** The traces tables and views it writes; engines sharing traces must agree on it. */
+  traces_schema?: string;
   defaults: Required<AgentConfig>;
   effort_levels: Effort[];
   priced_models: string[];
@@ -107,7 +111,9 @@ export interface TracesInfo {
   db: string | null;
   exists: boolean;
   size_bytes: number | null;
-  server: { running: boolean; uri: string | null; pid: number | null } | null;
+  /** `current` is false when the running server was started by another version (a
+   *  different traces schema): runs are refused until it's stopped. */
+  server: { running: boolean; uri: string | null; pid: number | null; current?: boolean | null } | null;
 }
 
 type Message =

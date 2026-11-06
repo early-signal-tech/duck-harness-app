@@ -41,8 +41,29 @@ interface SettingsView {
   apiKeyHint: string | null;
   tracesDb: string | null;
   defaultTracesDb: string;
+  /** The traces file every engine is given, resolved. */
+  tracesPath: string;
   agentDir: string;
+  /** How each of this host's engines was started (crates/dh-host, discovery.rs). */
+  engines: StartedEngine[];
+  enginesFile: string | null;
+  enginesFileProblem: string | null;
 }
+
+interface StartedEngine {
+  engine: string;
+  source: "override" | "file" | "checkout";
+  command: string;
+  version: string | null;
+}
+
+const ENGINE_NAMES: Record<string, string> = { dh1: "DH-1 · agent", eh1: "EH-1 · grader" };
+
+const ENGINE_SOURCE: Record<StartedEngine["source"], string> = {
+  override: "dev override",
+  file: "engines.json",
+  checkout: "checkout",
+};
 
 const KEY_SOURCE: Record<SettingsView["apiKeySource"], string> = {
   keychain: "Saved in the Keychain",
@@ -110,7 +131,7 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
     }
   };
 
-  const tracesPath = traces?.db ?? view?.tracesDb ?? view?.defaultTracesDb ?? "";
+  const tracesPath = traces?.db ?? view?.tracesPath ?? view?.tracesDb ?? view?.defaultTracesDb ?? "";
   const server = traces?.server;
   const ready = engine.status === "ready";
 
@@ -231,6 +252,20 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
             )}
           </div>
           <p className="settings-hint">Lets other programs read the traces while runs write them.</p>
+        </section>}
+
+        {view && view.engines.length > 0 && <section>
+          <span className="settings-label">{view.engines.length > 1 ? "ENGINES" : "ENGINE"}</span>
+          {view.engines.map((e) => (
+            <div key={e.engine} className="settings-engine">
+              <span className="settings-row spread">
+                <span className="settings-engine-name">{ENGINE_NAMES[e.engine] ?? e.engine}</span>
+                <span className="settings-hint">{ENGINE_SOURCE[e.source]}{e.version ? ` · ${e.version}` : ""}</span>
+              </span>
+              <p className="settings-path selectable" title={e.command}>{e.command}</p>
+            </div>
+          ))}
+          {view.enginesFileProblem && <p className="settings-hint warn">{view.enginesFileProblem}</p>}
         </section>}
 
         <section className="settings-actions">

@@ -9,11 +9,10 @@
 //! start, so a client connected to a restarted engine can ignore the old one's exit.
 //!
 //! Settings (settings.rs) apply at start: the Keychain API key becomes ANTHROPIC_API_KEY,
-//! and the traces database setting becomes --traces-db.
+//! and every engine gets the same traces file as an absolute --traces-db.
 //!
-//! Development: engines run from local checkouts with `uv run`. By default those are
-//! siblings of this repo (duckdb-analytics-agent, eh1-grader); set DH1_AGENT_DIR /
-//! EH1_GRADER_DIR to point elsewhere, and DH1_UV if `uv` isn't on PATH.
+//! How each engine is found (a dev override, engines.json, or a checkout next to this
+//! repo) is discovery.rs.
 
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
@@ -27,6 +26,7 @@ use std::time::{Duration, Instant};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
+use crate::discovery::{self, Found, Source};
 use crate::settings;
 
 /// The engines a host can run, named after the device each one serves.
@@ -55,6 +55,30 @@ impl Engine {
         }
     }
 
+    /// Its repo, checked out next to this one in development.
+    pub(crate) fn repo(self) -> &'static str {
+        match self {
+            Engine::Dh1 => "duckdb-analytics-agent",
+            Engine::Eh1 => "eh1-grader",
+        }
+    }
+
+    /// The script a checkout runs.
+    pub(crate) fn script(self) -> &'static str {
+        match self {
+            Engine::Dh1 => "duck-harness-serve",
+            Engine::Eh1 => "eh1-serve",
+        }
+    }
+
+    /// The dev override: a checkout to run instead.
+    pub(crate) fn override_var(self) -> &'static str {
+        match self {
+            Engine::Dh1 => "DH1_AGENT_DIR",
+            Engine::Eh1 => "EH1_GRADER_DIR",
+        }
+    }
+
     fn log_prefix(self) -> &'static str {
         match self {
             Engine::Dh1 => "[agent]",
@@ -63,56 +87,46 @@ impl Engine {
     }
 
     /// The command that starts it, with the settings that apply at start.
-    fn command(self, app: &AppHandle) -> (Command, String) {
-        let uv = std::env::var("DH1_UV").unwrap_or_else(|_| "uv".into());
-        let (dir, script) = match self {
-            Engine::Dh1 => (agent_dir(), "duck-harness-serve"),
-            Engine::Eh1 => (grader_dir(), "eh1-serve"),
-        };
-        let mut command = Command::new(&uv);
-        command.args(["run", "--project"]).arg(&dir).arg(script).current_dir(&dir);
-        match self {
-            // The working directory is the agent checkout, so its .env (ANTHROPIC_API_KEY)
-            // is found and traces land in its agent_traces.duckdb, the same file the CLI
-            // uses. The traces setting overrides that.
-            Engine::Dh1 => {
-                if let Some(traces) = settings::load(app).traces_db {
-                    command.arg("--traces-db").arg(traces);
-                }
-            }
-            // The grader reads the agent's traces: the same file DH-1 writes.
-            Engine::Eh1 => {
-                command.arg("--traces-db").arg(traces_path(app));
-            }
+    fn command(self, app: &AppHandle, found: &Found) -> Command {
+        let mut command = Command::new(&found.program);
+        command.args(&found.args).arg("--traces-db").arg(traces_path(app));
+        // A checkout runs in its folder, so its .env (ANTHROPIC_API_KEY) is found. An
+        // installed engine runs in the app data folder.
+        let dir = found.checkout.clone().or_else(|| settings::base_dir(app).ok());
+        if let Some(dir) = dir.filter(|d| d.is_dir()) {
+            command.current_dir(dir);
         }
         if let Some(key) = settings::api_key() {
             command.env("ANTHROPIC_API_KEY", key);
         }
-        (command, format!("`{uv} run {script}` in {}", dir.display()))
+        command
     }
 }
 
-fn sibling(env: &str, name: &str) -> PathBuf {
-    std::env::var_os(env).map(PathBuf::from).unwrap_or_else(|| {
-        // This crate is crates/dh-host in duck-harness-app; the engine repos sit next to it.
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..").join(name)
-    })
-}
-
-/// The agent checkout: DH-1's engine, and where the traces live by default.
-pub(crate) fn agent_dir() -> PathBuf {
-    sibling("DH1_AGENT_DIR", "duckdb-analytics-agent")
-}
-
-fn grader_dir() -> PathBuf {
-    sibling("EH1_GRADER_DIR", "eh1-grader")
-}
-
-/// The traces file, as an absolute path: the setting if it's absolute, else in the agent checkout.
-fn traces_path(app: &AppHandle) -> PathBuf {
+/// The traces file, as an absolute path: the setting if it's absolute, else in the agent
+/// checkout (the default, agent_traces.duckdb, is there, as for the CLI). DH-1 writes it
+/// and EH-1 reads it, so both engines get this same path.
+pub(crate) fn traces_path(app: &AppHandle) -> PathBuf {
     let chosen = settings::load(app).traces_db.unwrap_or_else(|| settings::DEFAULT_TRACES_DB.into());
     let path = PathBuf::from(&chosen);
-    if path.is_absolute() { path } else { agent_dir().join(path) }
+    if path.is_absolute() { path } else { discovery::agent_dir().join(path) }
+}
+
+/// The discovery file: its path, and what it lists (None: there isn't one).
+fn discovery_file(app: &AppHandle) -> (Option<PathBuf>, Option<Result<discovery::Listed, String>>) {
+    let path = settings::base_dir(app).ok().map(|d| d.join(discovery::FILE_NAME));
+    let listed = path.as_deref().and_then(discovery::read_file);
+    (path, listed)
+}
+
+/// How an engine was last started, for Settings.
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Started {
+    pub engine: &'static str,
+    pub source: Source,
+    pub command: String,
+    pub version: Option<String>,
 }
 
 /// One engine's process. Created once per engine when the host starts; the process
@@ -122,6 +136,7 @@ struct Process {
     stdin: Mutex<Option<ChildStdin>>,
     child: Mutex<Option<Child>>,
     generation: AtomicU64,
+    started: Mutex<Option<Started>>,
 }
 
 /// The host's engines, by name.
@@ -138,6 +153,7 @@ impl Engines {
                         stdin: Mutex::new(None),
                         child: Mutex::new(None),
                         generation: AtomicU64::new(0),
+                        started: Mutex::new(None),
                     };
                     (engine.name(), process)
                 })
@@ -156,6 +172,13 @@ impl Engines {
                 eprintln!("{e}");
             }
         }
+    }
+
+    /// How each engine was last started, in a stable order.
+    pub fn started(&self) -> Vec<Started> {
+        let mut all: Vec<Started> = self.0.values().filter_map(|p| p.started.lock().unwrap().clone()).collect();
+        all.sort_by_key(|s| s.engine);
+        all
     }
 
     pub fn stop_all(&self) {
@@ -179,14 +202,23 @@ struct ExitEvent<'a> {
 
 fn start(app: &AppHandle, process: &Process) -> Result<(), String> {
     let engine = process.engine;
-    let (mut command, description) = engine.command(app);
+    let (_, listed) = discovery_file(app);
+    let found = discovery::find(engine, listed.as_ref().and_then(|l| l.as_ref().ok()));
+    let description = found.describe();
+    *process.started.lock().unwrap() = Some(Started {
+        engine: engine.name(),
+        source: found.source,
+        command: description.clone(),
+        version: found.version.clone(),
+    });
+    let mut command = engine.command(app, &found);
     let generation = process.generation.fetch_add(1, Ordering::SeqCst) + 1;
     let mut child = command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| format!("could not start {description}: {e}"))?;
+        .map_err(|e| format!("could not start the {} ({description}): {e}", engine.label()))?;
 
     let stdout = child.stdout.take().expect("stdout is piped");
     let stderr = child.stderr.take().expect("stderr is piped");
@@ -279,16 +311,5 @@ mod tests {
     fn an_engine_the_host_does_not_run_is_an_error() {
         let engines = Engines::new(&[Engine::Dh1]);
         assert!(engines.get("eh1").err().unwrap().contains("\"eh1\""));
-    }
-
-    #[test]
-    fn checkouts_are_siblings_of_this_repo() {
-        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..");
-        if std::env::var_os("DH1_AGENT_DIR").is_none() {
-            assert_eq!(agent_dir(), dir.join("duckdb-analytics-agent"));
-        }
-        if std::env::var_os("EH1_GRADER_DIR").is_none() {
-            assert_eq!(grader_dir(), dir.join("eh1-grader"));
-        }
     }
 }

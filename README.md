@@ -112,10 +112,27 @@ npm test           # unit tests for every package
 npm run typecheck  # type-check every package and app
 ```
 
-The app runs the server with `uv run --project ../duckdb-analytics-agent`, from that
-folder, so it uses the agent's `.env` and writes traces to its `agent_traces.duckdb`.
-To use a checkout somewhere else, set `DH1_AGENT_DIR`. If `uv` isn't on your PATH, set
-`DH1_UV` to its full path. Server logs show up in the terminal, prefixed `[harness]`.
+The host finds each engine (crates/dh-host, `discovery.rs`) in this order:
+
+1. **A dev override:** `DH1_AGENT_DIR` (the agent) or `EH1_GRADER_DIR` (the grader)
+   names a checkout to run with `uv run --project`.
+2. **The discovery file**, `~/Library/Application Support/Duck Harness/engines.json`,
+   where an installed CLI will record its engines. You can write it by hand:
+   ```json
+   {"format": "dh-engines", "formatVersion": 1,
+    "engines": {"dh1": {"command": ["/path/to/duck-harness-serve"], "version": "0.1.0"},
+                "eh1": {"command": ["/path/to/eh1-serve"], "version": "0.1.0"}}}
+   ```
+   An engine started from here runs in that folder, so it doesn't read a checkout's
+   `.env`: save the API key in Settings (the Keychain). A file that can't be read is
+   skipped, and Settings says why.
+3. **A checkout next to this repo** (`../duckdb-analytics-agent`, `../eh1-grader`), run
+   with `uv run --project` from that folder, so it uses the checkout's `.env`.
+
+Every engine gets the same traces file as an absolute `--traces-db`: the one chosen in
+Settings, else `agent_traces.duckdb` in the agent checkout (the CLI's default too).
+Settings shows where each engine came from. If `uv` isn't on your PATH, set `DH1_UV` to
+its full path. Engine logs show up in the terminal, prefixed `[agent]` or `[grader]`.
 
 ## Status
 

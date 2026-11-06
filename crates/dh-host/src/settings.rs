@@ -12,7 +12,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, State};
+
+use crate::discovery;
+use crate::engines::{self, Engines, Started};
 
 const SERVICE: &str = "Duck Harness";
 const ACCOUNT: &str = "anthropic-api-key";
@@ -25,7 +28,7 @@ pub struct HostSettings {
     pub traces_db: Option<String>,
 }
 
-fn base_dir(app: &AppHandle) -> Result<PathBuf, String> {
+pub(crate) fn base_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let base = app.path().data_dir().map_err(|e| format!("no data folder: {e}"))?;
     Ok(base.join("Duck Harness"))
 }
@@ -85,12 +88,26 @@ pub struct SettingsView {
     api_key_hint: Option<String>,
     traces_db: Option<String>,
     default_traces_db: &'static str,
+    /// The traces file every engine is given, as an absolute path.
+    traces_path: String,
     agent_dir: String,
+    /// How each of this host's engines was started: from a checkout, engines.json, or
+    /// a dev override.
+    engines: Vec<Started>,
+    /// Where the discovery file goes, and why it was skipped if it was.
+    engines_file: Option<String>,
+    engines_file_problem: Option<String>,
 }
 
 #[tauri::command]
-pub fn settings_get(app: AppHandle) -> SettingsView {
-    let agent_dir = crate::engines::agent_dir();
+pub fn settings_get(app: AppHandle, engines: State<Engines>) -> SettingsView {
+    let agent_dir = discovery::agent_dir();
+    let engines_file = base_dir(&app).ok().map(|d| d.join(discovery::FILE_NAME));
+    let engines_file_problem = engines_file
+        .as_deref()
+        .and_then(discovery::read_file)
+        .and_then(|listed| listed.err())
+        .map(|why| format!("{} was skipped: {why}", discovery::FILE_NAME));
     let keychain = api_key();
     let source = if keychain.is_some() {
         "keychain"
@@ -106,7 +123,11 @@ pub fn settings_get(app: AppHandle) -> SettingsView {
         api_key_hint: keychain.as_deref().map(hint),
         traces_db: load(&app).traces_db,
         default_traces_db: DEFAULT_TRACES_DB,
+        traces_path: engines::traces_path(&app).display().to_string(),
         agent_dir: agent_dir.display().to_string(),
+        engines: engines.started(),
+        engines_file: engines_file.map(|p| p.display().to_string()),
+        engines_file_problem,
     }
 }
 
@@ -146,8 +167,8 @@ fn shell_quote(s: &str) -> String {
 pub fn traces_shell_open(app: AppHandle) -> Result<(), String> {
     let dir = base_dir(&app)?;
     fs::create_dir_all(&dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
-    let agent = crate::engines::agent_dir();
-    let traces = load(&app).traces_db.unwrap_or_else(|| DEFAULT_TRACES_DB.into());
+    let agent = discovery::agent_dir();
+    let traces = engines::traces_path(&app).display().to_string();
     let uv = std::env::var("DH1_UV").unwrap_or_else(|_| "uv".into());
     let script = format!(
         "#!/bin/zsh -l\n# Opened by DH-1 Settings: the duckdb CLI on the agent's traces.\ncd {} && exec {} run agent_harness.py --traces-db {} --traces-shell\n",

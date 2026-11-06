@@ -10,6 +10,7 @@
 //!
 //! Every host registers every command, so a device works the same in any host.
 
+pub mod discovery;
 pub mod engines;
 pub mod files;
 pub mod presets;

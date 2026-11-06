@@ -76,8 +76,6 @@ const KEY_SOURCE: Record<SettingsView["apiKeySource"], string> = {
   none: "Not set: runs will fail until you add one",
 };
 
-import { shortCommand } from "./shortPath";
-
 function size(bytes: number | null): string {
   if (bytes == null) return "";
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -285,11 +283,10 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
                 <span className="settings-engine-name">{ENGINE_NAMES[e.engine] ?? e.engine}</span>
                 <span className="settings-hint">{ENGINE_SOURCE[e.source]}{versionOf(e) ? ` · ${versionOf(e)}` : ""}</span>
               </span>
-              {/* Short, one line; click to copy the full command and run the engine yourself. */}
-              <button className={`settings-command${copied === e.engine ? " copied" : ""}`} title={`Click to copy: ${e.command}`}
+              {/* The command that runs this engine, to run it yourself: copied, not shown (it's on hover). */}
+              <button className={`link-button settings-command${copied === e.engine ? " copied" : ""}`} title={e.command}
                 onClick={() => void copyCommand(e.engine, e.command)}>
-                <span className="settings-command-text">{copied === e.engine ? "Copied: paste it in a terminal" : shortCommand(e.command, 1)}</span>
-                <span className="settings-command-icon" aria-hidden="true">{copied === e.engine ? "✓" : "⧉"}</span>
+                {copied === e.engine ? "✓ Copied: paste it in a terminal" : "⧉ Copy run command"}
               </button>
             </div>
           ))}

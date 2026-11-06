@@ -72,6 +72,15 @@ red with the error when it isn't). Whichever mode you were in comes back next la
 one every 15 seconds; when DH-1 finishes a setlist, EH-1 says so and it's one press of
 **GRADE SETLIST** away. **PICK** lets you choose any setlist (see the picker, next).
 
+In the rack, FOLLOW DH-1 is **FOLLOW CHAIN**, and the cable between DH-1 and EH-1 has
+**AUTO-GRADE**. When it's on, EH-1's engine grades each setlist run as soon as it
+finishes, with the judge settings on this face, so the scorecard fills in while the
+setlist plays; the cable counts the runs graded and the judge's cost this session.
+Only setlists are auto-graded: single runs and A/B compares wait for you in RUN mode.
+AUTO-GRADE starts off every time the rack opens, since grading costs money. Changing the
+judge settings while it's on carries on with the new ones. The same thing from the
+command line: `uv run eh1-grade --follow --set <question set file>`.
+
 Below the choice: the setlist's ID with **Rename…**, its note, and its facts: the
 question set and revision it ran, its data, how many runs completed, and how many
 questions have a check. When the question set has changed since the setlist ran, the

@@ -227,13 +227,35 @@ export type GradeEvent =
     }
   | { event: "grade_error"; run_id: string; question: string; error: string };
 
+/** What following DH-1 reports (eh1_grader/follow.py): grades as setlist runs finish. */
+export type FollowEvent =
+  | { event: "follow_start"; since: string | null }
+  | (Extract<GradeEvent, { event: "graded" }> & { setlist_run: string })
+  | (Extract<GradeEvent, { event: "grade_error" }> & { setlist_run: string })
+  | { event: "follow_skipped"; setlist_run: string; question_set: string; revision: number | null; reason: string };
+
+/** A follow that's running: `done` resolves with its totals once stopped (or replaced). */
+export interface Following {
+  id: string;
+  done: Promise<FollowTotals>;
+  stop: () => Promise<void>;
+}
+
+export interface FollowTotals {
+  graded: number;
+  judge_cost_usd: number;
+  errors: string[];
+  cancelled: boolean;
+}
+
 type Message =
   | ({ id: string; type: "hello" } & Hello)
   | { id: string; type: "setlists"; setlists: SetlistInfo[] }
   | { id: string; type: "grades"; grader_key: string; grades: Grade[] }
   | { id: string; type: "accepted" }
-  | ({ id: string; type: "event" } & GradeEvent)
+  | ({ id: string; type: "event" } & (GradeEvent | FollowEvent))
   | { id: string; type: "result"; result: GradeSummary }
+  | { id: string; type: "result"; result: FollowTotals }
   | { id: string; type: "ok" }
   | { id: string; type: "runs"; runs: RunSummary[] }
   | { id: string; type: "run"; run: RunDetail; grades: RunGrade[] }
@@ -245,7 +267,7 @@ export class EngineError extends Error {}
 interface Pending {
   resolve: (message: Message) => void;
   reject: (error: Error) => void;
-  onEvent?: (event: GradeEvent) => void;
+  onEvent?: (event: GradeEvent | FollowEvent) => void;
   isFinal: (message: Message) => boolean;
 }
 
@@ -326,10 +348,25 @@ export class Engine {
         concurrency: options.concurrency ?? 4, ...(options.runIds ? { run_ids: options.runIds } : {}),
       },
       id,
-      { onEvent, isFinal: (m) => m.type === "result" || m.type === "error" },
+      { onEvent: onEvent as Pending["onEvent"], isFinal: (m) => m.type === "result" || m.type === "error" },
     ).then((reply) => {
       if (reply.type !== "result" || !("result" in reply)) throw new EngineError(`unexpected reply ${reply.type}`);
-      return reply.result;
+      return reply.result as GradeSummary;
+    });
+    return { id, done, stop: () => this.request({ type: "stop", grade: id }, nextId("stop")).then(() => {}) };
+  }
+
+  /** Grade setlist runs as they finish, with these settings and sets, until stopped. A new
+   *  follow replaces the running one (the engine runs one at a time). */
+  follow(grader: GraderSettings, questionSets: unknown[], onEvent: (event: FollowEvent) => void, interval = 5): Following {
+    const id = nextId("follow");
+    const done = this.request(
+      { type: "follow", grader, question_sets: questionSets, interval },
+      id,
+      { onEvent: onEvent as Pending["onEvent"], isFinal: (m) => m.type === "result" || m.type === "error" },
+    ).then((reply) => {
+      if (reply.type !== "result" || !("result" in reply)) throw new EngineError(`unexpected reply ${reply.type}`);
+      return reply.result as FollowTotals;
     });
     return { id, done, stop: () => this.request({ type: "stop", grade: id }, nextId("stop")).then(() => {}) };
   }
@@ -402,7 +439,7 @@ export class Engine {
     if (message.type === "event") {
       const { id: _id, type: _type, ...event } = message;
       try {
-        pending.onEvent?.(event as GradeEvent);
+        pending.onEvent?.(event as GradeEvent | FollowEvent);
       } catch (e) {
         console.error("event handler failed:", e);
       }

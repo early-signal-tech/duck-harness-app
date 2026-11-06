@@ -1,14 +1,16 @@
 // The Rack: one host with both engines, and DH-1 and EH-1 side by side as devices in a
 // horizontal chain, like an Ableton device chain. Each device sits in a frame that can
 // fold to a strip or fill the window. The devices are the same ones the standalone apps
-// show; chaining them (DH-1's output into EH-1) comes next.
+// show. Between them, the cable: EH-1 follows what DH-1 finishes (FOLLOW CHAIN), and
+// AUTO-GRADE has it graded as it plays.
 
 import { Dh1, useEngine as useDh1Engine } from "@dh/dh1";
-import { Eh1, useEngine as useEh1Engine } from "@dh/eh1";
+import { Eh1, FOLLOW_IDLE, useEngine as useEh1Engine, type FollowStatus } from "@dh/eh1";
 import {
   engineProblems, HostBar, SettingsMenu, tauriTransport, useAppearance, type TracesControls,
 } from "@dh/ui-kit";
 import { useEffect, useMemo, useState } from "react";
+import { Cable } from "./Cable";
 import { DeviceFrame } from "./DeviceFrame";
 import { combinedStatus, loadLayout, saveLayout, setFolded, setFull } from "./rackLayout";
 import "./rack.css";
@@ -24,6 +26,11 @@ export default function App() {
 
   const [layout, setLayout] = useState(loadLayout);
   useEffect(() => saveLayout(layout), [layout]);
+
+  // The cable. AUTO-GRADE starts off every time: grading costs money.
+  const [autoGrade, setAutoGrade] = useState(false);
+  const [follow, setFollow] = useState<FollowStatus>(FOLLOW_IDLE);
+  const chain = useMemo(() => ({ autoGrade, onFollow: setFollow }), [autoGrade]);
 
   // DH-1's agent runs the traces server, so Settings manages it through DH-1's engine.
   const harness = dh1.harness;
@@ -78,8 +85,9 @@ export default function App() {
         <DeviceFrame {...frame("dh1")} name="DH-1" tagline="ANALYTICS AGENT" status={dh1.status}>
           {(toolbar) => <Dh1 engine={dh1} toolbar={toolbar} />}
         </DeviceFrame>
+        {!layout.full && <Cable autoGrade={autoGrade} onAutoGrade={setAutoGrade} status={follow} ready={eh1.status === "ready"} />}
         <DeviceFrame {...frame("eh1")} name="EH-1" tagline="EVALUATOR" status={eh1.status}>
-          {(toolbar) => <Eh1 engine={eh1} toolbar={toolbar} />}
+          {(toolbar) => <Eh1 engine={eh1} toolbar={toolbar} chain={chain} />}
         </DeviceFrame>
       </div>
     </div>

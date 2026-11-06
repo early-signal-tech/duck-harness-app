@@ -10,7 +10,8 @@ import { createPortal } from "react-dom";
 import {
   describeSource, FACTORY_QUESTION_SETS, hasCheck, parseQuestionSet, questionSetToFile, type QuestionSet,
 } from "@dh/formats";
-import { type Grade, type Grading, type Override, type SetlistInfo } from "./engine";
+import { type FollowEvent, type Grade, type Grading, type Override, type SetlistInfo } from "./engine";
+import { IDLE, onFollowEvent, type ChainControl, type FollowStatus } from "./chain";
 import { GradeVerdict } from "./Verdict";
 import { nameToStore, cleanText, MAX_NOTE, setlistTitle, suggestedTitle } from "./picker";
 import { RenameForm, SetlistPicker } from "./SetlistPicker";
@@ -74,7 +75,12 @@ function Meter({ label, value }: { label: string; value: number | null }) {
   );
 }
 
-export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: HTMLElement | null }) {
+export function Eh1({ engine, toolbar, chain }: {
+  engine: EngineConnection;
+  toolbar?: HTMLElement | null;
+  /** Set when EH-1 sits in a chain (the rack), after DH-1. */
+  chain?: ChainControl;
+}) {
   const { engine: client, status } = engine;
   const ready = status === "ready" && client !== null;
 
@@ -163,14 +169,17 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
   };
 
   // A new setlist arriving while following: say so.
+  const autoGrade = !!chain?.autoGrade;
   const lastFollowed = useRef<string | null>(null);
   useEffect(() => {
     if (mode !== "follow" || !setlist) return;
     if (lastFollowed.current && lastFollowed.current !== setlist.id) {
-      setNotice(`New setlist from DH-1: “${setlistTitle(setlist, set?.name)}”. Press GRADE SETLIST to grade it.`);
+      setNotice(autoGrade
+        ? `New setlist from DH-1: “${setlistTitle(setlist, set?.name)}”. AUTO-GRADE is grading it as it plays.`
+        : `New setlist from DH-1: “${setlistTitle(setlist, set?.name)}”. Press GRADE SETLIST to grade it.`);
     }
     lastFollowed.current = setlist.id;
-  }, [mode, setlist, set]);
+  }, [mode, setlist, set, autoGrade]);
 
   // The grades for this setlist under these settings.
   const [grades, setGrades] = useState<Grade[]>([]);
@@ -192,6 +201,45 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
   useEffect(() => {
     void loadGrades();
   }, [loadGrades]);
+
+  // AUTO-GRADE (in a chain): the engine grades setlist runs as DH-1 finishes them, with
+  // this face's judge settings and every set it has. A settings change starts a new follow,
+  // which replaces the old one. Grades landing refresh the scorecard (at most once a second).
+  const refreshRef = useRef({ loadGrades, refreshSetlists });
+  refreshRef.current = { loadGrades, refreshSetlists };
+  const onFollowRef = useRef(chain?.onFollow);
+  onFollowRef.current = chain?.onFollow;
+  const followStatus = useRef<FollowStatus>(IDLE);
+  const report = useCallback((next: FollowStatus) => {
+    followStatus.current = next;
+    onFollowRef.current?.(next);
+  }, []);
+  const setFiles = useMemo(() => sets.map((s) => JSON.parse(questionSetToFile(s))), [sets]);
+  useEffect(() => {
+    if (!autoGrade || !ready || !client) {
+      if (followStatus.current.active) report({ ...followStatus.current, active: false });
+      return;
+    }
+    let pending: ReturnType<typeof setTimeout> | null = null;
+    const refreshSoon = () => {
+      if (pending) return;
+      pending = setTimeout(() => {
+        pending = null;
+        void refreshRef.current.loadGrades();
+        void refreshRef.current.refreshSetlists();
+      }, 1000);
+    };
+    const following = client.follow(grader, setFiles, (event: FollowEvent) => {
+      report(onFollowEvent(followStatus.current, event));
+      if (event.event === "graded") refreshSoon();
+    });
+    following.done.catch((e) => report({ ...followStatus.current, active: false, problem: e instanceof Error ? e.message : String(e) }));
+    return () => {
+      if (pending) clearTimeout(pending);
+      void following.stop().catch(() => {});
+      report({ ...followStatus.current, active: false });
+    };
+  }, [autoGrade, ready, client, grader, setFiles, report]);
 
   // Grading.
   const [grading, setGrading] = useState<Grading | null>(null);
@@ -334,7 +382,7 @@ export function Eh1({ engine, toolbar }: { engine: EngineConnection; toolbar?: H
         <section className="panel eh1-input">
           <h2>INPUT</h2>
           <div className="segmented" role="radiogroup" aria-label="Which setlist">
-            <button role="radio" aria-checked={mode === "follow"} className={mode === "follow" ? "on" : ""} onClick={() => setMode("follow")}>FOLLOW DH-1</button>
+            <button role="radio" aria-checked={mode === "follow"} className={mode === "follow" ? "on" : ""} onClick={() => setMode("follow")}>{chain ? "FOLLOW CHAIN" : "FOLLOW DH-1"}</button>
             <button role="radio" aria-checked={mode === "pick"} className={mode === "pick" ? "on" : ""} onClick={() => setMode("pick")}>PICK</button>
           </div>
           {mode === "follow" ? (

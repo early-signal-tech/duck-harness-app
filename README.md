@@ -154,8 +154,14 @@ SETLIST / RUN), a fold button, and FULL FACE:
   which (`engineProblems` in ui-kit).
 
 A key pressed inside one device only reaches that device (`keyForOtherDevice`), so Esc
-in EH-1 doesn't stop a DH-1 run. Chaining the devices (DH-1's latest run, setlist, or
-compare flowing into EH-1, with optional auto-grade) comes next.
+in EH-1 doesn't stop a DH-1 run.
+
+**The chain.** Between the devices is a cable. EH-1's input becomes FOLLOW CHAIN, and
+the cable's **AUTO-GRADE** switch has EH-1's engine grade each setlist run as it
+finishes, with EH-1's current judge settings, so the scorecard fills in live. The cable
+counts the runs graded and the judge's cost this session. Only setlists are
+auto-graded; AUTO-GRADE starts off each time the rack opens. The grading runs in the
+engine (eh1-grader's `follow`), so `eh1-grade --follow` does the same from a terminal.
 
 ## Status
 
@@ -177,5 +183,6 @@ compare flowing into EH-1, with optional auto-grade) comes next.
       scorecard by category and preset, verdicts per repeat; engine in eh1-grader
 - [ ] EH-1 next: RUN mode and quick checks, overrides, the rubric flyout
 - [x] The rack: DH-1 and EH-1 side by side (fold, FULL FACE)
-- [ ] The rack: chaining DH-1 into EH-1, with auto-grade
+- [x] The rack: chaining DH-1 into EH-1, with AUTO-GRADE for setlists
+- [ ] The rack: the chain lane, Open in DH-1, rack presets
 - [ ] Packaging: bundle Python with the app, signing and notarization

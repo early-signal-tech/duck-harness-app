@@ -20,22 +20,19 @@ When a request is built, mark it done with the PR number rather than deleting it
   watching from a second screen (timeline, compressor).
 - Priority: **3**.
 
-### 5. The rack: one way to start a setlist — ready, planned for rack PR 5
-From trying the rack (2026-11-06). With SETLIST picked, the transport's ▶ PLAY only
-opens DH-1's Setlist, and the real start is **RUN SETLIST** inside it: two play buttons.
-
-- PLAY should start the setlist set up in DH-1's Setlist. That needs the setlist plan
-  (question set, preset columns, repeats, concurrency) moved from the Setlist screen
-  into DH-1's model, so the transport can start it.
-- Goes with takes (rack PR 5): a setlist is a take.
-- Priority: **2**.
-
-### 6b. The rack: SOURCE in SETLIST mode — ready, with #5 (rack PR 5)
-DH-1's card shows the face's data (`penguins.parquet`), but a setlist runs on its question
-set's data (`TPC-H 0.01`). In SETLIST mode the tile could say what the setlist will use.
-Decided with #5, since it depends on where the setlist plan lives.
-
 ## Done
+
+### 5. The rack: one way to start a setlist — done (rack PR 5b)
+With SETLIST picked, the transport's ▶ PLAY only opened DH-1's Setlist, and the real start
+was RUN SETLIST inside it.
+
+- The setlist draft (set, preset columns, repeats, concurrency, name, note) now lives in
+  DH-1's model, so the transport's PLAY starts it; the transport shows what it will start
+  (and how many runs), with Edit… to open DH-1's Setlist. RUN SETLIST starts the same thing.
+
+### 6b. The rack: SOURCE in SETLIST mode — done (rack PR 5b)
+In SETLIST mode, DH-1's card shows SETLIST DATA (the question set's data, e.g.
+`TPC-H 0.01`) in place of SOURCE.
 
 ### 6. The rack: small fixes seen while trying it — done (rack PRs 3 and 4, #33 and #34)
 - "Back to plugin" now says **Back to DH-1** / **Back to EH-1** (everywhere: it goes back

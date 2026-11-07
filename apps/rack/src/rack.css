@@ -272,3 +272,20 @@
 }
 .take-mark.ok { background: var(--edge); color: var(--panel); }
 .take-mark.bad { background: var(--danger); color: #ffffff; opacity: 0.85; }
+
+/* --- PR 5b: the setlist PLAY starts --- */
+.transport-setlist {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 6px 0 12px;
+  border: 1px solid var(--bar-edge);
+  border-radius: 6px;
+  background: var(--bar-field);
+}
+.transport-setlist-what { flex: 1; min-width: 0; font: 500 13px/1 var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.transport-setlist-runs { color: var(--bar-muted); font-size: 12px; }

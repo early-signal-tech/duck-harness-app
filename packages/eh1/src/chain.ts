@@ -33,7 +33,7 @@ export const IDLE: FollowStatus = { active: false, graded: 0, judgeCost: 0, last
 export function onFollowEvent(status: FollowStatus, event: FollowEvent): FollowStatus {
   switch (event.event) {
     case "follow_start":
-      return { ...status, active: true };
+      return { ...status, active: true, problem: null };
     case "graded":
       return {
         ...status,
@@ -46,5 +46,9 @@ export function onFollowEvent(status: FollowStatus, event: FollowEvent): FollowS
       return { ...status, problem: event.error };
     case "follow_skipped":
       return { ...status, problem: `Not graded: ${event.reason}.` };
+    case "follow_retry":
+      return { ...status, problem: "Lost the connection to the traces; reconnecting…" };
+    case "follow_reconnected":
+      return { ...status, problem: null };
   }
 }

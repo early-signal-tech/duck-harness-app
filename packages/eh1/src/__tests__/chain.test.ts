@@ -20,6 +20,15 @@ describe("following in a chain", () => {
     expect(s.last).toEqual({ question: "Q1", correct: 2, careful: 1, efficient: 2, rulesPassed: true });
   });
 
+  it("shows a reconnect while it lasts, and starts each follow clean", () => {
+    let s = onFollowEvent(IDLE, { event: "follow_retry", error: "Connection heartbeat lease expired" });
+    expect(s.problem).toContain("reconnecting");
+    s = onFollowEvent(s, { event: "follow_reconnected" });
+    expect(s.problem).toBeNull();
+    s = onFollowEvent({ ...s, problem: "an old error" }, { event: "follow_start", since: null });
+    expect(s.problem).toBeNull();
+  });
+
   it("says why a setlist wasn't graded", () => {
     const s = onFollowEvent(IDLE, {
       event: "follow_skipped", setlist_run: "sl-9", question_set: "other", revision: 1, reason: "no question set 'other' to grade it with",

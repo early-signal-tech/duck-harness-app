@@ -232,7 +232,10 @@ export type FollowEvent =
   | { event: "follow_start"; since: string | null }
   | (Extract<GradeEvent, { event: "graded" }> & { setlist_run: string })
   | (Extract<GradeEvent, { event: "grade_error" }> & { setlist_run: string })
-  | { event: "follow_skipped"; setlist_run: string; question_set: string; revision: number | null; reason: string };
+  | { event: "follow_skipped"; setlist_run: string; question_set: string; revision: number | null; reason: string }
+  /** A check failed (an idle traces connection expired, say): it's reconnecting. */
+  | { event: "follow_retry"; error: string }
+  | { event: "follow_reconnected" };
 
 /** A follow that's running: `done` resolves with its totals once stopped (or replaced). */
 export interface Following {

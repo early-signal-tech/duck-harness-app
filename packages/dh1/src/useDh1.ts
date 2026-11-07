@@ -14,6 +14,7 @@ import { loadSettings, requestOf, saveSettings, sourceProblem, type FaceSettings
 import type { EngineConnection } from "./useEngine";
 import { usePresets } from "./usePresets";
 import { useSetlist } from "./useSetlist";
+import { useSetlistDraft, type SetlistDraft } from "./useSetlistDraft";
 
 export interface Dh1Model {
   engine: EngineConnection;
@@ -33,6 +34,12 @@ export interface Dh1Model {
   busy: boolean;
   anyBusy: boolean;
   setlist: ReturnType<typeof useSetlist>;
+  /** The next setlist: set, presets, repeats, concurrency, name, note. */
+  setlistDraft: SetlistDraft;
+  /** Why the draft can't start now, or null. */
+  setlistProblem: string | null;
+  /** Start the draft (the Setlist screen's RUN SETLIST, the rack's PLAY). */
+  startSetlist: () => void;
   /** Why a run can't start (no prompt, no data, a setlist running), or null. */
   problem: string | null;
   canRun: boolean;
@@ -82,6 +89,7 @@ export function useDh1(engine: EngineConnection, { labels }: Dh1Options = {}): D
 
   // A running setlist has the engine to itself: RUN and RUN A+B wait.
   const setlist = useSetlist(harness, settings, labels);
+  const setlistDraft = useSetlistDraft(presets.all);
 
   const problem = setlist.busy
     ? "A setlist is running"
@@ -139,10 +147,19 @@ export function useDh1(engine: EngineConnection, { labels }: Dh1Options = {}): D
 
   const priced = hello ? hello.priced_models.includes(settings.model) : true;
 
+  const setlistProblem = server !== "ready" ? "The engine isn't running"
+    : setlist.busy ? "A setlist is running"
+    : anyBusy ? "Wait for the run on the face to finish"
+    : setlistDraft.columns.length === 0 ? "Add a preset column in DH-1's Setlist"
+    : null;
+  const startSetlist = () => {
+    if (!setlistProblem) setlist.start(setlistDraft.takePlan());
+  };
+
   return {
     engine, harness, hello, server,
     settings, setSettings, update, presets, addFiles,
-    views, slot, view, busy, anyBusy, setlist,
+    views, slot, view, busy, anyBusy, setlist, setlistDraft, setlistProblem, startSetlist,
     problem, canRun, canRunBoth, priced,
     start, startBoth, stop,
     switchSlot: () => setSettings(switchSlot),

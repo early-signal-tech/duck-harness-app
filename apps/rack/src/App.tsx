@@ -15,7 +15,7 @@
 
 import { Dh1Card, Dh1Face, Dh1Output, useDh1, useEngine as useDh1Engine, type Dh1Section } from "@dh/dh1";
 import { Eh1Card, Eh1Face, FOLLOW_IDLE, useEh1, useEngine as useEh1Engine, type FollowStatus, type Grade } from "@dh/eh1";
-import { questionSetToFile } from "@dh/formats";
+import { describeSource, questionSetToFile } from "@dh/formats";
 import { engineProblems, Menu, MenuDivider, MenuItem, SettingsMenu, tauriTransport, useAppearance, type TracesControls } from "@dh/ui-kit";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -174,8 +174,8 @@ export default function App() {
   const play = () => {
     if (!hasDh1) return;
     if (layout.take === "setlist") {
-      // The setlist's questions and presets are set up in DH-1's Setlist, which starts it.
-      openDh1(undefined, true);
+      // The setlist DH-1's Setlist has set up (the transport shows it); the take follows it.
+      dh1.startSetlist();
       return;
     }
     setLastTake(layout.take);
@@ -293,6 +293,10 @@ export default function App() {
   const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
   const number = takeNumber(takes.pick, takes.takes.length, playing || takes.live);
 
+  // In SETLIST mode, DH-1's SOURCE tile says what the setlist runs on: its question set's data.
+  const draftSet = dh1.setlistDraft.set;
+  const setlistSource = draftSet.source ? describeSource(draftSet.source) : "each question's own";
+
   const cardProps = (instance: Instance) => ({
     selected: selected === instance.id,
     onSelect: () => setSelected(instance.id),
@@ -308,7 +312,10 @@ export default function App() {
     const props = cardProps(instance);
     switch (instance.type) {
       case "dh1":
-        return <Dh1Card model={dh1} collapsed={collapsed} onToggleCollapse={collapse(instance.id)} onOpen={(section) => openDh1(section)} cardProps={props} />;
+        return (
+          <Dh1Card model={dh1} collapsed={collapsed} onToggleCollapse={collapse(instance.id)} onOpen={(section) => openDh1(section)}
+            setlistSource={layout.take === "setlist" ? setlistSource : undefined} cardProps={props} />
+        );
       case "eh1":
         return <Eh1Card model={eh1} status={eh1Engine.status} collapsed={collapsed} onToggleCollapse={collapse(instance.id)} onOpen={() => open("eh1")} cardProps={props} />;
       case "autograder":
@@ -351,6 +358,7 @@ export default function App() {
         take={layout.take}
         onTake={(take) => setLayout((l) => ({ ...l, take }))}
         onPlay={play}
+        onEditSetlist={() => openDh1(undefined, true)}
         settings={<SettingsMenu engine={settingsEngine} traces={traces} appearance={appearance} onAppearance={setAppearance} />}
         lights={[
           { label: "DH-1", status: dh1Engine.status, error: dh1Engine.error },

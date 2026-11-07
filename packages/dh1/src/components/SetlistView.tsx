@@ -4,6 +4,7 @@
 
 import { open } from "@tauri-apps/plugin-dialog";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import type { SetlistDraft } from "../useSetlistDraft";
 import { Markdown, Menu, MenuDivider, MenuItem, MenuSection } from "@dh/ui-kit";
 import {
   describeSource, FACTORY_QUESTION_SETS, type Question, type QuestionSet,
@@ -11,19 +12,21 @@ import {
 import { formatSetting } from "../ab";
 import type { Preset } from "../presets";
 import {
-  cellJobs, cellStats, checkNote, cleanName, COLUMN_KEYS, columnSummary, CONCURRENCY_CHOICES, jobCount,
-  lampOf, loadSavedPlan, MAX_COLUMNS, MAX_NAME, MAX_NOTE, progressOf, questionGroups, REPEAT_CHOICES, savePlan, setlistTitle, suggestedSetlistName, type Job, type Lamp,
-  type SavedPlan,
+  cellJobs, cellStats, checkNote, COLUMN_KEYS, columnSummary, CONCURRENCY_CHOICES, jobCount,
+  lampOf, MAX_COLUMNS, MAX_NAME, MAX_NOTE, progressOf, questionGroups, REPEAT_CHOICES, setlistTitle, type Job, type Lamp,
 } from "../setlist";
-import { importSet, loadUserSets, removeUserSet, revealUserSet } from "../questionSets";
+import { importSet, removeUserSet, revealUserSet } from "../questionSets";
 import type { SetlistControls } from "../useSetlist";
 import { isAnswer } from "./StructuredAnswer";
 
 interface Props {
   setlist: SetlistControls;
   presets: Preset[];
-  /** Whether the engine is up and nothing else is running on the face. */
-  canStart: boolean;
+  /** The next setlist (DH-1's model holds it, so the rack's transport can start it too). */
+  draft: SetlistDraft;
+  /** Start the draft. */
+  onStart: () => void;
+  /** Why it can't start now (engine down, a run on the face, no columns), or null. */
   blockedReason: string | null;
   onBack: () => void;
   /** Put a cell's preset and question on the face. */
@@ -68,26 +71,14 @@ function answerOf(job: Job): string {
   return r.text || r.error || "";
 }
 
-export function SetlistView({ setlist, presets, canStart, blockedReason, onBack, onLoad, textSize, onTextSize }: Props) {
+export function SetlistView({ setlist, presets, draft, onStart, blockedReason, onBack, onLoad, textSize, onTextSize }: Props) {
   const { state, busy } = setlist;
-  const [saved, setSaved] = useState<SavedPlan>(loadSavedPlan);
-  useEffect(() => savePlan(saved), [saved]);
-  // Your own sets (MINE), kept in the Question Sets folder; the built-in ones ship with the app.
-  const [mine, setMine] = useState<QuestionSet[]>([]);
-  const refreshMine = useCallback(() => {
-    loadUserSets().then(setMine).catch(() => setMine([]));
-  }, []);
-  useEffect(refreshMine, [refreshMine]);
+  const { saved, edit, mine, refreshMine, nameText, setNameText, nameEdited, setNameEdited, noteText, setNoteText, suggestedName } = draft;
+  const canStart = blockedReason === null;
   const [problem, setProblem] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [menu, setMenu] = useState<"set" | "column" | "concurrency" | null>(null);
   const [picked, setPicked] = useState<{ question: string; column: number } | null>(null);
-  // The next setlist's name and note. The NAME box holds the suggested name as text,
-  // following the set, columns, and repeats until you edit it (typing adds to it rather
-  // than replacing it); ↺ goes back to the suggestion. Only an edited name is stored.
-  const [nameText, setNameText] = useState("");
-  const [nameEdited, setNameEdited] = useState(false);
-  const [noteText, setNoteText] = useState("");
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!busy) return;
@@ -96,11 +87,8 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
   }, [busy]);
   const closeMenu = useCallback(() => setMenu(null), []);
 
-  const sets = [...FACTORY_QUESTION_SETS, ...mine];
-  const draftSet = sets.find((s) => s.id === saved.setId) ?? FACTORY_QUESTION_SETS[0];
-  const draftColumns = saved.columnIds
-    .map((id) => presets.find((p) => p.id === id))
-    .filter((p): p is Preset => p !== undefined);
+  const draftSet = draft.set;
+  const draftColumns = draft.columns;
 
   // With results on screen, the grid is the plan that ran; otherwise it's the draft.
   const shown = state.plan;
@@ -110,8 +98,6 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
   const locked = state.phase !== "idle";
   const runs = jobCount({ set, columns, repeats });
   const progress = progressOf(state);
-
-  const edit = (patch: Partial<SavedPlan>) => setSaved((p) => ({ ...p, ...patch }));
 
   const openSetFile = async () => {
     closeMenu();
@@ -144,23 +130,10 @@ export function SetlistView({ setlist, presets, canStart, blockedReason, onBack,
     }
   };
 
-  const suggestedName = suggestedSetlistName({ set, columns, repeats: saved.repeats });
-
   const run = () => {
     if (!canStart || !columns.length) return;
     setPicked(null);
-    // Untouched (or edited back to the suggestion): no name, so nothing generated is stored.
-    const typed = nameEdited ? cleanName(nameText, MAX_NAME) : "";
-    const name = typed && typed !== suggestedName ? typed : "";
-    const note = cleanName(noteText, MAX_NOTE);
-    setlist.start({
-      ...(name ? { name } : {}),
-      ...(note ? { note } : {}),
-      set, columns, repeats: saved.repeats, concurrency: saved.concurrency,
-    });
-    setNameEdited(false);
-    setNameText("");
-    setNoteText("");
+    onStart();
   };
 
   const startTitle = !columns.length

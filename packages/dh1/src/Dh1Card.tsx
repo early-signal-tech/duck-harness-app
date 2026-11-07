@@ -28,12 +28,14 @@ export function sourceSummary(s: FaceSettings): string {
   }
 }
 
-export function Dh1Card({ model, collapsed, onToggleCollapse, onOpen, cardProps }: {
+export function Dh1Card({ model, collapsed, onToggleCollapse, onOpen, setlistSource, cardProps }: {
   model: Dh1Model;
   collapsed: boolean;
   onToggleCollapse: () => void;
   /** Open the editor, at a section when a tile was clicked. */
   onOpen: (section?: Dh1Section) => void;
+  /** In the rack's SETLIST mode: the data the setlist runs on, shown in place of SOURCE. */
+  setlistSource?: string;
   /** Selection and the right-click menu, from the rack. */
   cardProps?: { selected: boolean; onSelect: () => void; onContextMenu: (e: React.MouseEvent) => void };
 }) {
@@ -50,7 +52,9 @@ export function Dh1Card({ model, collapsed, onToggleCollapse, onOpen, cardProps 
       strip={<DeviceStrip name="DH-1" status={server} collapsed={collapsed} onToggleCollapse={onToggleCollapse}
         onOpen={() => onOpen()} live={model.busy || setlist.busy} />}
       tiles={<>
-        <Tile label="SOURCE" value={sourceSummary(settings)} onClick={() => onOpen("source")} />
+        {setlistSource !== undefined
+          ? <Tile label="SETLIST DATA" value={setlistSource} onClick={() => onOpen()} title="The setlist runs on its question set's data, not SOURCE" />
+          : <Tile label="SOURCE" value={sourceSummary(settings)} onClick={() => onOpen("source")} />}
         <Tile label="COMPRESSOR" value={settings.contextEditing ? `ON · ${k(settings.contextTriggerTokens)}` : "OFF"} onClick={() => onOpen("compressor")} />
         <Tile label="LIMITS" value={`${settings.maxIterations} it · ${settings.queryTimeoutSeconds} s`} onClick={() => onOpen("agent")} />
         <Tile label="OUTPUT" value={`${settings.maxResultRows} rows · ${k(settings.maxTokens)}`} onClick={() => onOpen("agent")} />

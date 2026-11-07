@@ -1,7 +1,8 @@
 // The rack's transport, across the top like a DAW's: the prompt, what PLAY makes (a RUN,
 // an A/B, or a SETLIST), PLAY and STOP, then Settings and the engine lights. It drives
-// DH-1's model, so it works whichever device is open in the panel. While a setlist plays,
-// the prompt gives way to its progress.
+// DH-1's model, so it works whichever device is open in the panel. In SETLIST mode the
+// prompt gives way to the setlist that PLAY will start (Edit… opens DH-1's Setlist to
+// change it); while one plays, to its progress.
 
 import { progressOf, type Dh1Model } from "@dh/dh1";
 import type { EngineStatus } from "@dh/ui-kit";
@@ -11,11 +12,13 @@ import type { Take } from "./rackLayout";
 const TAKES: { value: Take; label: string; hint: string }[] = [
   { value: "run", label: "RUN", hint: "One run of the prompt" },
   { value: "ab", label: "A/B", hint: "The prompt on A and B at once" },
-  { value: "setlist", label: "SETLIST", hint: "A question set × presets: set it up in DH-1's Setlist" },
+  { value: "setlist", label: "SETLIST", hint: "A question set × presets × repeats" },
 ];
 
-export function Transport({ dh1, playable, take, onTake, onPlay, settings, lights, presets }: {
+export function Transport({ dh1, playable, take, onTake, onPlay, onEditSetlist, settings, lights, presets }: {
   dh1: Dh1Model;
+  /** Open DH-1's Setlist, to change what SETLIST plays. */
+  onEditSetlist: () => void;
   /** The rack's preset bar (‹ name ▾ ›), after the name. */
   presets?: ReactNode;
   /** The chain has DH-1 to play; without it, PLAY says what's missing. */
@@ -30,9 +33,10 @@ export function Transport({ dh1, playable, take, onTake, onPlay, settings, light
   const { settings: face, update, setlist, canRun, canRunBoth, problem, anyBusy, stop } = dh1;
   const playing = setlist.busy;
   const progress = progressOf(setlist.state);
-  const canPlay = playable && (take === "run" ? canRun : take === "ab" ? canRunBoth : !anyBusy && !playing && dh1.server === "ready");
+  const draft = dh1.setlistDraft;
+  const canPlay = playable && (take === "run" ? canRun : take === "ab" ? canRunBoth : dh1.setlistProblem === null);
   const playTitle = !playable ? "Add DH-1 to the chain (+ in the rack) to play" : take === "setlist"
-    ? "Open DH-1's Setlist to pick the questions and presets, then START"
+    ? dh1.setlistProblem ?? `Play the setlist: ${draft.runs} runs, ${draft.saved.concurrency} at a time`
     : problem ?? (take === "ab" ? "Run A and B at once (↵)" : "Run (↵)");
   return (
     <header className="bar transport">
@@ -48,6 +52,15 @@ export function Transport({ dh1, playable, take, onTake, onPlay, settings, light
           <span className="mono">{progress.settled} / {progress.total} · ${progress.spent.toFixed(4)}</span>
           <span className="transport-progress"><i style={{ width: `${progress.total ? (progress.settled / progress.total) * 100 : 0}%` }} /></span>
         </div>
+      ) : take === "setlist" ? (
+        <div className="transport-setlist" title="What PLAY starts: change it in DH-1's Setlist">
+          <span className="caps transport-label">SETLIST</span>
+          <span className="transport-setlist-what">
+            {draft.set.name} · {draft.set.questions.length} questions × {draft.columns.length} preset{draft.columns.length === 1 ? "" : "s"} × {draft.saved.repeats}
+          </span>
+          <span className="mono transport-setlist-runs">{draft.runs} runs</span>
+          <button className="bar-button" onClick={onEditSetlist}>Edit…</button>
+        </div>
       ) : (
         <>
           <label className="caps transport-label" htmlFor="transport-prompt">PROMPT</label>
@@ -56,8 +69,8 @@ export function Transport({ dh1, playable, take, onTake, onPlay, settings, light
             className="transport-prompt"
             value={face.prompt}
             spellCheck
-            placeholder={take === "setlist" ? "A setlist plays its own questions" : "Ask a question about your data…"}
-            disabled={take === "setlist" || !playable}
+            placeholder="Ask a question about your data…"
+            disabled={!playable}
             onChange={(e) => update({ prompt: e.currentTarget.value })}
             onKeyDown={(e) => {
               if (e.key === "Enter") {

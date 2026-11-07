@@ -156,9 +156,11 @@ out like a DAW (wireframes: the "RACK v3" boards on the design canvas):
 
 - **The transport** across the top plays the chain: the rack preset (‹ name ▾ ›), the
   prompt, what PLAY makes (RUN, A/B, or SETLIST), PLAY and STOP, then Settings and one
-  light per engine. SETLIST opens
-  DH-1's Setlist to pick the questions and presets; while one plays, the transport shows
-  its progress.
+  light per engine. In SETLIST mode it shows the setlist PLAY will start (set ×
+  presets × repeats, and how many runs; Edit… opens DH-1's Setlist to change it), and
+  DH-1's SOURCE tile shows the setlist's data instead; while one plays, the transport
+  shows its progress. The setlist draft lives in DH-1's model (`useSetlistDraft`), so the
+  Setlist screen's RUN SETLIST and the transport's PLAY start the same thing.
 - **The panel** shows the chain's output or, when you open a device, its full editor (✕
   goes back to the output). The output is **takes**: each press of PLAY is a take (a RUN,
   an A/B, or a SETLIST), and `TAKE n OF m ‹ ›` steps through the loaded preset's takes,

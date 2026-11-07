@@ -282,7 +282,6 @@ export function Dh1Face({ model, toolbar, promptBar = true, initialScreen = "fac
   else [status, tone] = [server === "ready" ? "READY" : server === "connecting" ? "STARTING ENGINE…" : "ENGINE OFFLINE", server === "down" ? "bad" : "idle"];
 
   const setlistProgress = progressOf(setlist.state);
-  const setlistBlocked = server !== "ready" ? "The engine isn't running" : anyBusy ? "Wait for the run on the face to finish" : null;
 
   const deviceToolbar = (
     <>
@@ -335,8 +334,9 @@ export function Dh1Face({ model, toolbar, promptBar = true, initialScreen = "fac
       {setlistOpen && <SetlistView
           setlist={setlist}
           presets={presets.all}
-          canStart={!setlistBlocked}
-          blockedReason={setlistBlocked}
+          draft={model.setlistDraft}
+          onStart={model.startSetlist}
+          blockedReason={model.setlistProblem}
           onBack={() => setScreen("face")}
           onLoad={(preset, question, set) => {
             const source = questionSource(set, question);

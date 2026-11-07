@@ -116,8 +116,38 @@ export interface TracesInfo {
   server: { running: boolean; uri: string | null; pid: number | null; current?: boolean | null } | null;
 }
 
+/** One press of PLAY in the rack, read back from the traces (duckdb_agent/takes.py). */
+export interface TakeSummary {
+  key: string;
+  kind: "run" | "ab" | "setlist";
+  started_at: string | null;
+  ended_at: string | null;
+  runs: number;
+  completed: number;
+  cost_usd: number | null;
+  /** A run's or an A/B's prompt; null for a setlist (it has many). */
+  prompt: string | null;
+  setlist_name: string | null;
+  question_set: string | null;
+}
+
+/** One run of a take. */
+export interface TakeRun {
+  run_id: string;
+  prompt: string;
+  answer: string | null;
+  status: string;
+  error: string | null;
+  iterations: number | null;
+  duration_ms: number | null;
+  cost_usd: number | null;
+  labels: Record<string, string | number | boolean | null>;
+}
+
 type Message =
   | ({ id: string; type: "hello" } & Hello)
+  | { id: string; type: "takes"; takes: TakeSummary[] }
+  | { id: string; type: "take"; runs: TakeRun[] }
   | ({ id: string; type: "traces" } & TracesInfo)
   | { id: string; type: "accepted" }
   | ({ id: string; type: "event" } & AgentEvent)
@@ -195,6 +225,20 @@ export class Harness {
     if (reply.type !== "traces") throw new HarnessError(`unexpected reply ${reply.type}`);
     const { id: _id, type: _type, ...info } = reply;
     return info;
+  }
+
+  /** A rack preset's takes, newest first (null: the takes outside any rack preset). */
+  async takes(rackPreset: string | null, limit = 50): Promise<TakeSummary[]> {
+    const reply = await this.request({ type: "takes", rack_preset: rackPreset, limit }, nextId("takes"));
+    if (reply.type !== "takes") throw new HarnessError(`unexpected reply ${reply.type}`);
+    return reply.takes;
+  }
+
+  /** One take's runs, in order (A then B; a setlist's by question, column, repeat). */
+  async take(key: string): Promise<TakeRun[]> {
+    const reply = await this.request({ type: "take", key }, nextId("take"));
+    if (reply.type !== "take") throw new HarnessError(`unexpected reply ${reply.type}`);
+    return reply.runs;
   }
 
   /** Stop the background traces server (the next run starts it again). */

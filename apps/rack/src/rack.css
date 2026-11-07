@@ -244,3 +244,31 @@
 .rack-preset-field .name { min-width: 0; }
 .rack-problem.notice { border-color: var(--warn); }
 .transport .menu { min-width: 300px; }
+
+/* --- PR 5a: takes --- */
+.take-nav { display: flex; align-items: center; gap: 6px; }
+.take-nav .pane-button { height: 26px; min-width: 28px; padding: 0 6px; font: 600 16px/1 var(--sans); }
+.take-playing { font: 700 10px/1 var(--mono); letter-spacing: 0.1em; color: var(--warn); }
+.panel-head .error { font-size: 12px; }
+.take-grid {
+  display: grid;
+  grid-template-columns: 220px repeat(var(--columns), minmax(0, 1fr));
+  gap: 6px 10px;
+  align-items: center;
+  overflow: auto;
+}
+.take-row { display: contents; }
+.take-q { font: 500 13px/1.3 var(--sans); }
+.take-cell { display: flex; gap: 4px; flex-wrap: wrap; }
+.take-mark {
+  min-width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  font: 700 11px/1 var(--mono);
+  font-style: normal;
+}
+.take-mark.ok { background: var(--edge); color: var(--panel); }
+.take-mark.bad { background: var(--danger); color: #ffffff; opacity: 0.85; }

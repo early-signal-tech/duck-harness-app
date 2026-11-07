@@ -159,9 +159,12 @@ out like a DAW (wireframes: the "RACK v3" boards on the design canvas):
   light per engine. SETLIST opens
   DH-1's Setlist to pick the questions and presets; while one plays, the transport shows
   its progress.
-- **The panel** shows the chain's output (the latest take: a run's answer, an A/B's two
-  answers, or a setlist's progress) or, when you open a device, its full editor. ✕ goes
-  back to the output.
+- **The panel** shows the chain's output or, when you open a device, its full editor (✕
+  goes back to the output). The output is **takes**: each press of PLAY is a take (a RUN,
+  an A/B, or a SETLIST), and `TAKE n OF m ‹ ›` steps through the loaded preset's takes,
+  read from the traces by the agent (`takes` / `take` requests, duckdb_agent/takes.py).
+  The newest shows live while it plays; a setlist take is a questions × columns grid,
+  with AUTO GRADER's grades when it graded them.
 - **The rack** along the bottom holds the chain as compact cards, with + slots between
   them that offer only what fits there (`chainRules.ts`): one instrument per chain
   (DH-1, or EH-1 on its own), and devices that take runs after one that gives them.

@@ -14,7 +14,8 @@
 // most one of each), so a device keeps running whatever the panel shows.
 
 import { Dh1Card, Dh1Face, Dh1Output, useDh1, useEngine as useDh1Engine, type Dh1Section } from "@dh/dh1";
-import { Eh1Card, Eh1Face, FOLLOW_IDLE, useEh1, useEngine as useEh1Engine, type FollowStatus } from "@dh/eh1";
+import { Eh1Card, Eh1Face, FOLLOW_IDLE, useEh1, useEngine as useEh1Engine, type FollowStatus, type Grade } from "@dh/eh1";
+import { questionSetToFile } from "@dh/formats";
 import { engineProblems, Menu, MenuDivider, MenuItem, SettingsMenu, tauriTransport, useAppearance, type TracesControls } from "@dh/ui-kit";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -25,8 +26,11 @@ import {
 import { combinedStatus, loadLayout, saveLayout, toggleCollapsed, type Open } from "./rackLayout";
 import { RackPresetBar } from "./RackPresetBar";
 import type { RackPreset, RackState } from "./rackPresets";
+import { KIND_LABEL, takeFacts, takeNumber } from "./takes";
+import { TakeView, type RunGrades } from "./TakeView";
 import { Transport } from "./Transport";
 import { useRackPresets } from "./useRackPresets";
+import { useTakes } from "./useTakes";
 import "./rack.css";
 
 // The engines, as the host crate names them.
@@ -127,10 +131,39 @@ export default function App() {
     setRunLabels(presetId ? { rack_preset: presetId, rack_edited: presetEdited } : {});
   }, [presetId, presetEdited]);
 
+  // Takes: what this preset has played, from the traces (◂ ▸ in the panel).
+  const playing = dh1.busy || dh1.setlist.busy;
+  const takes = useTakes(dh1Engine.harness, presetId, playing);
+  // A setlist take's grades from AUTO GRADER's EH-1, when the chain has it.
+  const [takeGrades, setTakeGrades] = useState<RunGrades | null>(null);
+  const shownTake = takes.shown;
+  useEffect(() => {
+    setTakeGrades(null);
+    if (!shownTake || shownTake.kind !== "setlist" || !graderWorks || !inner.client || !inner.ready) return;
+    const set = inner.sets.find((s) => s.id === shownTake.question_set);
+    if (!set) return;
+    let stale = false;
+    const score = (g: Grade) => {
+      const correct = g.override?.correct ?? g.correct;
+      const careful = g.override?.careful ?? g.careful;
+      return correct === null || careful === null || g.efficient === null ? null : correct + careful + g.efficient;
+    };
+    inner.client.grades(shownTake.key, JSON.parse(questionSetToFile(set)), inner.grader)
+      .then((reply) => {
+        if (stale || reply.grades.length === 0) return;
+        setTakeGrades(new Map(reply.grades.map((g) => [g.run_id, { total: score(g), rulesPassed: g.rules_passed }])));
+      })
+      .catch(() => {});
+    return () => {
+      stale = true;
+    };
+    // Grades change as AUTO GRADER works: follow its count too.
+  }, [shownTake, graderWorks, inner.client, inner.ready, inner.sets, inner.grader, follow.graded]);
+
   // What the panel's output shows: the last take PLAY made, and what it asked.
   const [lastTake, setLastTake] = useState(layout.take);
   const [lastPrompt, setLastPrompt] = useState("");
-  const shownTake = dh1.setlist.busy ? "setlist" : lastTake;
+  const liveTake = dh1.setlist.busy ? "setlist" : lastTake;
   // Where DH-1's editor opens: at a section (a tile), or on the Setlist (PLAY with SETLIST).
   const [dh1Focus, setDh1Focus] = useState<{ section: Dh1Section | null; setlist: boolean; n: number }>({ section: null, setlist: false, n: 0 });
   const openDh1 = (section?: Dh1Section, setlist = false) => {
@@ -147,6 +180,7 @@ export default function App() {
     }
     setLastTake(layout.take);
     setLastPrompt(dh1.settings.prompt);
+    takes.follow();
     if (layout.take === "ab") dh1.startBoth();
     else dh1.start();
   };
@@ -257,7 +291,7 @@ export default function App() {
 
   // The panel's header: a device's name and its own controls (its toolbar slot), or OUTPUT.
   const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
-  const takeLabel = { run: "RUN", ab: "A/B", setlist: "SETLIST" }[shownTake];
+  const number = takeNumber(takes.pick, takes.takes.length, playing || takes.live);
 
   const cardProps = (instance: Instance) => ({
     selected: selected === instance.id,
@@ -333,12 +367,25 @@ export default function App() {
           <>
             <header className="panel-head">
               <span className="caps">OUTPUT</span>
-              {hasDh1 && <span className="output-tag">{takeLabel}</span>}
-              <span className="muted">{hasDh1 ? "The latest take. Open a device below to change how it plays." : "What the chain's instrument produces shows here."}</span>
+              {hasDh1 && (number.of > 0 ? (
+                <span className="take-nav">
+                  <span className="caps">TAKE {number.n} OF {number.of}</span>
+                  <button className="pane-button" aria-label="Earlier take" disabled={number.n <= 1} onClick={() => takes.step(-1)}>‹</button>
+                  <button className="pane-button" aria-label="Later take" disabled={number.n >= number.of} onClick={() => takes.step(1)}>›</button>
+                </span>
+              ) : <span className="muted">No takes yet: PLAY makes one.</span>)}
+              {hasDh1 && takes.live && <span className="output-tag">{KIND_LABEL[liveTake]}</span>}
+              {hasDh1 && takes.live && playing && <span className="take-playing">● PLAYING</span>}
+              {hasDh1 && takes.shown && <span className="output-tag">{KIND_LABEL[takes.shown.kind]}</span>}
+              {hasDh1 && takes.shown && <span className="muted mono">{takeFacts(takes.shown)}</span>}
+              {!hasDh1 && <span className="muted">What the chain's instrument produces shows here.</span>}
+              {takes.problem && <span className="error">{takes.problem}</span>}
             </header>
             <div className="panel-body">
               {hasDh1 ? (
-                <Dh1Output model={dh1} kind={shownTake} prompt={lastPrompt} onOpenActivity={() => openDh1(undefined, shownTake === "setlist")} />
+                takes.live || !takes.shown
+                  ? <Dh1Output model={dh1} kind={liveTake} prompt={lastPrompt} onOpenActivity={() => openDh1(undefined, liveTake === "setlist")} />
+                  : <TakeView take={takes.shown} runs={takes.runs} grades={takeGrades} />
               ) : hasEh1 ? (
                 <div className="output-empty">
                   <p>This chain is EH-1 on its own: open it to pick a setlist and grade it.</p>

@@ -37,8 +37,10 @@ export function useTakes(harness: Harness | null, rackPreset: string | null, pla
     }
   }, [harness, rackPreset]);
 
-  // Another preset: its own takes, from the newest.
+  // Another preset: its own takes, from the newest. The old list goes first, so a failed
+  // read can't leave another preset's takes on screen.
   useEffect(() => {
+    setTakes([]);
     setPick(null);
     setLive(false);
     void refresh();

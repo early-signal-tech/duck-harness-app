@@ -45,7 +45,8 @@ export function AutoGraderCard({ on, onToggle, status, inner, problem, collapsed
         <span className="autograder-state">No grades yet</span>
       )}
       <span className={`autograder-state${live ? " on" : ""}${problem ? " problem" : ""}`}>{state}</span>
-      {status.problem && !problem && <span className="autograder-problem" title={status.problem}>{status.problem}</span>}
+      {/* Only while it's on: an off AUTO GRADER isn't doing anything to have a problem with. */}
+      {on && status.problem && !problem && <span className="autograder-problem" title={status.problem}>{status.problem}</span>}
       <div className="card-meter">
         <span className="tile-label">THIS SESSION</span>
         <span className="autograder-count">{status.graded} graded · ${status.judgeCost.toFixed(4)}</span>

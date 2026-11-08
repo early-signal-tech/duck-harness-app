@@ -1,6 +1,6 @@
 //! Finding each engine. In order:
 //!
-//! 1. A dev override: DH1_AGENT_DIR / EH1_GRADER_DIR names a checkout, run with
+//! 1. A dev override: DH1_AGENT_DIR / EH1_GRADER_DIR / ES1_BRIDGE_DIR names a checkout, run with
 //!    `uv run --project <dir> <script>` (DH1_UV if `uv` isn't on PATH).
 //! 2. The discovery file, ~/Library/Application Support/Duck Harness/engines.json:
 //!
@@ -10,9 +10,10 @@
 //!                 "eh1": {"command": ["/path/to/eh1-serve"], "version": "0.1.0"}}}
 //!    ```
 //!
-//!    `command` is the program and its arguments; the host adds --traces-db. An installed
+//!    `command` is the program and its arguments; the host adds --traces-db for the
+//!    engines that use traces. An installed
 //!    CLI writes this file; for now it can be written by hand, or left out.
-//! 3. A checkout next to this repo (duckdb-analytics-agent, eh1-grader), as in
+//! 3. A checkout next to this repo (duckdb-analytics-agent, eh1-grader, cli-bridge), as in
 //!    development.
 //!
 //! A missing file is normal. A broken one is skipped (the checkout is used instead) and
@@ -75,7 +76,7 @@ fn parse(text: &str) -> Result<Listed, String> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Source {
-    /// DH1_AGENT_DIR / EH1_GRADER_DIR.
+    /// DH1_AGENT_DIR / EH1_GRADER_DIR / ES1_BRIDGE_DIR.
     Override,
     /// engines.json.
     File,
@@ -186,6 +187,12 @@ mod tests {
         let found = resolve(Engine::Eh1, None, Some(&listed), Path::new("/gh"), "/bin/uv");
         assert_eq!(found.source, Source::Checkout);
         assert_eq!(found.describe(), "/bin/uv run --project /gh/eh1-grader eh1-serve");
+    }
+
+    #[test]
+    fn es1_is_the_bridge_checkout() {
+        let found = resolve(Engine::Es1, None, None, Path::new("/gh"), "uv");
+        assert_eq!(found.describe(), "uv run --project /gh/cli-bridge es1-serve");
     }
 
     #[test]

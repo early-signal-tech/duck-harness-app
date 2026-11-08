@@ -3,17 +3,18 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "The Duck Harness plugins (DH-1, EH-1), their shared UI kit, and the rack.",
+  "description": "The Duck Harness plugins (DH-1, EH-1, ES-1), their shared UI kit, and the rack.",
   "workspaces": [
     "packages/*",
     "apps/*"
   ],
   "scripts": {
     "dh1": "npm run tauri -w dh1-app -- dev",
-    "build": "npm run build -w dh1-app && npm run build -w eh1-app && npm run build -w rack-app",
+    "build": "npm run build -w dh1-app && npm run build -w eh1-app && npm run build -w es1-app && npm run build -w rack-app",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "eh1": "npm run tauri -w eh1-app -- dev",
+    "es1": "npm run tauri -w es1-app -- dev",
     "rack": "npm run tauri -w rack-app -- dev"
   },
   "devDependencies": {

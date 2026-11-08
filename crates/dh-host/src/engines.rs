@@ -1,4 +1,4 @@
-//! The engines: each device's Python server, run as a child process speaking JSON Lines.
+//! The engines: each device's server, run as a child process speaking JSON Lines.
 //! A host runs one engine (a standalone app) or several (the rack), each by its name.
 //!
 //! UI -> engine: `engine_send(engine, line)` writes one request line to its stdin.
@@ -9,7 +9,8 @@
 //! start, so a client connected to a restarted engine can ignore the old one's exit.
 //!
 //! Settings (settings.rs) apply at start: the Keychain API key becomes ANTHROPIC_API_KEY,
-//! and every engine gets the same traces file as an absolute --traces-db.
+//! and the engines that use traces get the same file as an absolute --traces-db. ES-1's
+//! bridge uses neither: it only runs flowctl, which keeps its own login.
 //!
 //! How each engine is found (a dev override, engines.json, or a checkout next to this
 //! repo) is discovery.rs.
@@ -36,6 +37,8 @@ pub enum Engine {
     Dh1,
     /// EH-1's engine: the grader (eh1-serve, in eh1-grader).
     Eh1,
+    /// ES-1's engine: the flowctl bridge (es1-serve, in cli-bridge).
+    Es1,
 }
 
 impl Engine {
@@ -44,6 +47,7 @@ impl Engine {
         match self {
             Engine::Dh1 => "dh1",
             Engine::Eh1 => "eh1",
+            Engine::Es1 => "es1",
         }
     }
 
@@ -52,6 +56,7 @@ impl Engine {
         match self {
             Engine::Dh1 => "agent server",
             Engine::Eh1 => "grader",
+            Engine::Es1 => "flowctl bridge",
         }
     }
 
@@ -60,6 +65,7 @@ impl Engine {
         match self {
             Engine::Dh1 => "duckdb-analytics-agent",
             Engine::Eh1 => "eh1-grader",
+            Engine::Es1 => "cli-bridge",
         }
     }
 
@@ -68,6 +74,7 @@ impl Engine {
         match self {
             Engine::Dh1 => "duck-harness-serve",
             Engine::Eh1 => "eh1-serve",
+            Engine::Es1 => "es1-serve",
         }
     }
 
@@ -76,6 +83,7 @@ impl Engine {
         match self {
             Engine::Dh1 => "DH1_AGENT_DIR",
             Engine::Eh1 => "EH1_GRADER_DIR",
+            Engine::Es1 => "ES1_BRIDGE_DIR",
         }
     }
 
@@ -83,23 +91,35 @@ impl Engine {
         match self {
             Engine::Dh1 => "[agent]",
             Engine::Eh1 => "[grader]",
+            Engine::Es1 => "[es1]",
         }
     }
 
     /// The command that starts it, with the settings that apply at start.
     fn command(self, app: &AppHandle, found: &Found) -> Command {
         let mut command = Command::new(&found.program);
-        command.args(&found.args).arg("--traces-db").arg(traces_path(app));
+        command.args(&found.args);
+        if self.uses_agent_settings() {
+            command.arg("--traces-db").arg(traces_path(app));
+        }
         // A checkout runs in its folder, so its .env (ANTHROPIC_API_KEY) is found. An
         // installed engine runs in the app data folder.
         let dir = found.checkout.clone().or_else(|| settings::base_dir(app).ok());
         if let Some(dir) = dir.filter(|d| d.is_dir()) {
             command.current_dir(dir);
         }
-        if let Some(key) = settings::api_key() {
-            command.env("ANTHROPIC_API_KEY", key);
+        if self.uses_agent_settings() {
+            if let Some(key) = settings::api_key() {
+                command.env("ANTHROPIC_API_KEY", key);
+            }
         }
         command
+    }
+
+    /// Whether it's given the traces file and the Anthropic key. ES-1's bridge isn't: it
+    /// has no use for either, and flowctl shouldn't inherit a key it doesn't need.
+    fn uses_agent_settings(self) -> bool {
+        !matches!(self, Engine::Es1)
     }
 }
 
@@ -305,6 +325,13 @@ mod tests {
         let engines = Engines::new(&[Engine::Dh1, Engine::Eh1]);
         assert_eq!(engines.get("dh1").unwrap().engine, Engine::Dh1);
         assert_eq!(engines.get("eh1").unwrap().engine, Engine::Eh1);
+    }
+
+    #[test]
+    fn only_the_bridge_goes_without_the_agent_settings() {
+        assert!(Engine::Dh1.uses_agent_settings());
+        assert!(Engine::Eh1.uses_agent_settings());
+        assert!(!Engine::Es1.uses_agent_settings());
     }
 
     #[test]

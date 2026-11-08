@@ -25,9 +25,12 @@ packages/
             agent server's protocol
   eh1/      the EH-1 device: grading a setlist, the scorecard, and the client for the
             grader's protocol (eh1-grader)
+  es1/      the ES-1 device: a synth-style panel over Estuary's flowctl, and the client
+            for the bridge's protocol (cli-bridge)
 apps/
   dh1/      DH-1 as a standalone app: a Tauri window (src-tauri/) around the device
   eh1/      EH-1 as a standalone app (npm run eh1), starting eh1-grader's eh1-serve
+  es1/      ES-1 as a standalone app (npm run es1), starting cli-bridge's es1-serve
   rack/     the Rack (npm run rack): one window running both engines, with DH-1 and
             EH-1 side by side
 crates/
@@ -51,7 +54,7 @@ React (packages/dh1)  ──engine_send("dh1", line)──▶  Rust (crates/dh-h
        └──── "engine-message" {engine: "dh1"} ◀────────────┴──────── stdout ◀───────────────┘
 ```
 
-- **`crates/dh-host/src/engines.rs`** starts each engine the host runs (`dh1`, `eh1`)
+- **`crates/dh-host/src/engines.rs`** starts each engine the host runs (`dh1`, `eh1`, `es1`)
   when the app opens and relays its JSON Lines protocol. Every command and event names
   its engine, so one host can run several (the rack). Closing the app closes each
   engine's input, which stops its work, and it exits.
@@ -122,6 +125,7 @@ Then, from the repo root:
 npm install
 npm run dh1        # DH-1 in development (Tauri + Vite)
 npm run eh1        # EH-1
+npm run es1        # ES-1
 npm run rack       # the Rack: DH-1 and EH-1 side by side
 npm test           # unit tests for every package
 npm run typecheck  # type-check every package and app
@@ -129,7 +133,7 @@ npm run typecheck  # type-check every package and app
 
 The host finds each engine (crates/dh-host, `discovery.rs`) in this order:
 
-1. **A dev override:** `DH1_AGENT_DIR` (the agent) or `EH1_GRADER_DIR` (the grader)
+1. **A dev override:** `DH1_AGENT_DIR` (the agent), `EH1_GRADER_DIR` (the grader) or `ES1_BRIDGE_DIR` (the bridge)
    names a checkout to run with `uv run --project`.
 2. **The discovery file**, `~/Library/Application Support/Duck Harness/engines.json`,
    where an installed CLI will record its engines. You can write it by hand:
@@ -141,7 +145,7 @@ The host finds each engine (crates/dh-host, `discovery.rs`) in this order:
    An engine started from here runs in that folder, so it doesn't read a checkout's
    `.env`: save the API key in Settings (the Keychain). A file that can't be read is
    skipped, and Settings says why.
-3. **A checkout next to this repo** (`../duckdb-analytics-agent`, `../eh1-grader`), run
+3. **A checkout next to this repo** (`../duckdb-analytics-agent`, `../eh1-grader`, `../cli-bridge`), run
    with `uv run --project` from that folder, so it uses the checkout's `.env`.
 
 Every engine gets the same traces file as an absolute `--traces-db`: the one chosen in

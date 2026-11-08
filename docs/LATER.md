@@ -171,3 +171,21 @@ reduction).
   controls. If drawers come back, add them only for the settings people change
   mid-session.
 - Waiting for: the split panel, or a mid-session tweak that still feels too heavy without one.
+
+## Creating derivations in ES-1
+A module on ES-1's BUILD panel for making derivations, between COLLECTION and
+MATERIALIZATION.
+
+- **Left out for now** (2026-11-08). BUILD creates sources, collections and
+  materializations. Existing derivations still show in MAP.
+- **Why it's bigger than the other modules:** a derivation needs code (SQL, TypeScript or
+  Python) and shuffle keys, so most of it can't be a knob or a switch.
+- Waiting for: the three BUILD modules working end to end, and someone asking for it.
+
+## Previewing tasks in ES-1
+A PREVIEW control running `flowctl preview` before publishing.
+
+- **Left out for now** (2026-11-08). A source-only preview isn't worth having: DISCOVER,
+  TEST and READ already cover that path. A materialization preview writes to the real
+  destination, and works through all historical data unless it's given a fixture.
+- Waiting for: a safe way to preview a materialization, or a real need for a source preview.

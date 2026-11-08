@@ -151,3 +151,23 @@ the discovery calls.
   preset setting (none / ticked / all tables), so a setlist can compare preloading
   against not preloading on the same questions and EH-1 grades both.
 - Waiting for: someone asking for it. It's extra UI before there's a need.
+
+## Drawers on rack cards
+Clicking a card's tile slides a few of that section's controls out inside the card
+(like Poly Grid's drawers), instead of opening the full editor in the top panel. Drawn
+on the design canvas, boards 14–15 (DH-1's COMPRESSOR drawer: on/off, threshold, gain
+reduction).
+
+- **Skipped for now** (2026-11-08). Tiles open the device's editor in the panel.
+- **What it would fix:** tweaking a setting without losing the take. Today opening an
+  editor replaces the take in the panel.
+- **Why not yet:**
+  - it repeats editor controls in a second place (see "Shared face state")
+  - a widening card pushes the rest of the rack sideways
+  - only a handful of settings change mid-session: compressor on/off and threshold,
+    the iteration limit, judge model and effort, tolerance
+- **Likely better first:** split the panel when an editor opens (editor beside the
+  current take), so the take stays in view for every device without duplicating
+  controls. If drawers come back, add them only for the settings people change
+  mid-session.
+- Waiting for: the split panel, or a mid-session tweak that still feels too heavy without one.

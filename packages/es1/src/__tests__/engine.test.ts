@@ -1,6 +1,6 @@
 import type { EngineTransport } from "@dh/ui-kit";
 import { beforeEach, describe, expect, it } from "vitest";
-import { Engine, EngineError } from "../engine";
+import { Engine, EngineError, engineCan, type Hello } from "../engine";
 
 class FakeTransport implements EngineTransport {
   readonly engine = "es1";
@@ -39,6 +39,16 @@ class FakeTransport implements EngineTransport {
     return this.sent[this.sent.length - 1].id as string;
   }
 }
+
+describe("engineCan", () => {
+  it("knows only what the running engine said in hello", () => {
+    const hello = { verbs: { auth_login: {} } } as unknown as Hello;
+    expect(engineCan(hello, "auth_login")).toBe(true);
+    expect(engineCan(hello, "draft_publish")).toBe(false);
+    expect(engineCan({} as Hello, "auth_login")).toBe(false);
+    expect(engineCan(null, "auth_login")).toBe(false);
+  });
+});
 
 describe("Engine", () => {
   let transport: FakeTransport;

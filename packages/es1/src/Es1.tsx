@@ -11,7 +11,7 @@ import { count, layoutMap, parseCatalog, prefixes, sharedPrefix, withPrefix, typ
 import { BuildPanel, BuildStrip, type Moved } from "./Build";
 import { DATA_PLANES, INITIAL_BUILD, pressed, type BuildState, type Press } from "./buildSpec";
 import { BatToggle, Jack, StopKnob } from "./controls";
-import { EngineError } from "./engine";
+import { EngineError, engineCan } from "./engine";
 import "./es1.css";
 import { LoginDrawer } from "./Login";
 import type { EngineConnection } from "./useEngine";
@@ -234,7 +234,10 @@ export function Es1({ connection, settings }: { connection: EngineConnection; se
           <div className="es1-login">
             <span className={`es1-led${reading && !loggedOut ? " on" : ""}`} role="img"
               aria-label={reading && !loggedOut ? "Logged in" : "Not logged in"} />
-            <button className="es1-button" disabled={status !== "ready"} onClick={() => setLoggingIn(true)}>LOGIN</button>
+            <button className="es1-button" disabled={status !== "ready"} onClick={() => {
+              if (engineCan(hello, "auth_login")) setLoggingIn(true);
+              else setProblem({ text: "The engine is older than this panel. Quit ES-1 and open it again to log in." });
+            }}>LOGIN</button>
           </div>
           <span className="es1-spec">flowctl auth login</span>
           <hr />

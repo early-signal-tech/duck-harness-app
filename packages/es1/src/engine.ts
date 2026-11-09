@@ -21,7 +21,13 @@ export interface Hello {
   version: string;
   device: string;
   tool: ToolReport;
+  /** The commands this engine can run, by name. */
+  verbs: Record<string, unknown>;
 }
+
+/** Whether the engine that's running knows a command. An engine started before an update doesn't
+ *  know the new ones, even though the panel does. */
+export const engineCan = (hello: Hello | null, verb: string) => !!hello?.verbs && verb in hello.verbs;
 
 /** What a finished `once` verb returns. */
 export interface OnceResult<Row> {

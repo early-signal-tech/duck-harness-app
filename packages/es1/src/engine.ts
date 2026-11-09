@@ -21,7 +21,13 @@ export interface Hello {
   version: string;
   device: string;
   tool: ToolReport;
+  /** The commands this engine can run, by name. */
+  verbs: Record<string, unknown>;
 }
+
+/** Whether the engine that's running knows a command. An engine started before an update doesn't
+ *  know the new ones, even though the panel does. */
+export const engineCan = (hello: Hello | null, verb: string) => !!hello?.verbs && verb in hello.verbs;
 
 /** What a finished `once` verb returns. */
 export interface OnceResult<Row> {
@@ -43,6 +49,7 @@ export class EngineError extends Error {
 type Message =
   | ({ id: string; type: "hello" } & Hello)
   | { id: string; type: "accepted" }
+  | { id: string; type: "ok" }
   | { id: string; type: "event"; event: string }
   | { id: string; type: "result"; result: { ok: boolean; error?: string; code?: string } & Record<string, unknown> }
   | { id: string | null; type: "error"; error: string; code?: string };
@@ -50,6 +57,17 @@ type Message =
 interface Pending {
   resolve: (message: Message) => void;
   reject: (error: Error) => void;
+  onEvent?: (event: string) => void;
+}
+
+/** A login in progress. flowctl has opened its token page once `waiting` resolves. */
+export interface Login {
+  waiting: Promise<void>;
+  /** Rejects if flowctl refuses the token, or it's stopped. */
+  done: Promise<void>;
+  /** Hand over the token. It's sent once, and kept nowhere here. */
+  submit: (token: string) => Promise<void>;
+  cancel: () => Promise<void>;
 }
 
 let counter = 0;
@@ -101,10 +119,37 @@ export class Engine {
     return reply.result as unknown as OnceResult<Row>;
   }
 
-  private request(body: Record<string, unknown>, id: string): Promise<Message> {
+  login(profile: string): Login {
+    const id = nextId("auth_login");
+    let opened: () => void = () => {};
+    let refused: (error: Error) => void = () => {};
+    const waiting = new Promise<void>((resolve, reject) => {
+      opened = resolve;
+      refused = reject;
+    });
+    const done = this.request({ type: "auth_login", profile }, id, (event) => {
+      if (event === "waiting") opened();
+    }).then((reply) => {
+      if (reply.type !== "result") throw new EngineError(`unexpected reply ${reply.type}`);
+      if (!reply.result.ok) throw new EngineError(reply.result.error ?? "the login failed", reply.result.code);
+    });
+    done.catch(refused);
+    return {
+      waiting,
+      done,
+      submit: async (token) => {
+        await this.request({ type: "secret", request: id, secret: token }, nextId("secret"));
+      },
+      cancel: async () => {
+        await this.request({ type: "stop", request: id }, nextId("stop"));
+      },
+    };
+  }
+
+  private request(body: Record<string, unknown>, id: string, onEvent?: (event: string) => void): Promise<Message> {
     if (this.exited) return Promise.reject(new EngineError("the flowctl bridge is not running"));
     return new Promise<Message>((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+      this.pending.set(id, { resolve, reject, onEvent });
       this.transport.send(JSON.stringify({ id, ...body })).catch((e) => {
         this.pending.delete(id);
         reject(new EngineError(String(e)));
@@ -125,7 +170,11 @@ export class Engine {
       if (message.type === "error") console.warn("bridge:", message.error);
       return;
     }
-    if (message.type === "accepted" || message.type === "event") return;
+    if (message.type === "accepted") return;
+    if (message.type === "event") {
+      pending.onEvent?.(message.event);
+      return;
+    }
     this.pending.delete(message.id!);
     if (message.type === "error") pending.reject(new EngineError(message.error, message.code));
     else pending.resolve(message);

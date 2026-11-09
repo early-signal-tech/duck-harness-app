@@ -208,13 +208,12 @@ const flowctl = (profile: string, rest: string) => `flowctl --profile ${profile}
 export const nextCommand = (state: BuildState, profile: string) =>
   flowctl(profile, `discover --source flow.yaml --data-plane ${dataPlaneName(state)}`);
 
-export type Press = "login" | "sourceConfig" | "discover" | "new" | "read" | "destinationConfig" | "draft" | "test" | "discard" | "publish";
+export type Press = "sourceConfig" | "discover" | "new" | "read" | "destinationConfig" | "draft" | "test" | "discard" | "publish";
 
 /** What a button would do. It's a rehearsal for now: the panel shows this and runs nothing. */
 export function pressed(press: Press, state: BuildState, prefix: string, profile: string): string {
   const firstOn = state.bindings.find((b) => b.on);
   switch (press) {
-    case "login": return `flowctl --profile ${profile} auth login`;
     case "sourceConfig": return `CONFIG ${SOURCES[state.source].image}: ${SOURCES[state.source].required.join(", ")}`;
     case "destinationConfig": return `CONFIG ${DESTINATIONS[state.destination].image}: ${DESTINATIONS[state.destination].required.join(", ")}`;
     case "discover": return nextCommand(state, profile);

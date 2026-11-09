@@ -113,6 +113,46 @@ describe("Engine", () => {
     await expect(engine.once("catalog_list", {}, "default")).rejects.toThrow("not running");
   });
 
+  describe("login", () => {
+    const TOKEN = "made-up-token";
+
+    it("waits for the page, sends the token once, and finishes on the result", async () => {
+      const login = engine.login("work");
+      const id = await transport.lastId();
+      expect(transport.sent[0]).toEqual({ id, type: "auth_login", profile: "work" });
+      transport.reply({ id, type: "accepted" });
+      transport.reply({ id, type: "event", event: "waiting" });
+      await login.waiting;
+
+      const submitted = login.submit(TOKEN);
+      const secretId = await transport.lastId();
+      expect(transport.sent[1]).toEqual({ id: secretId, type: "secret", request: id, secret: TOKEN });
+      transport.reply({ id: secretId, type: "ok" });
+      await submitted;
+
+      transport.reply({ id, type: "result", result: { ok: true, exit: 0 } });
+      await expect(login.done).resolves.toBeUndefined();
+    });
+
+    it("rejects with the bridge's code when the token is refused", async () => {
+      const login = engine.login("work");
+      transport.reply({ id: await transport.lastId(), type: "result", result: { ok: false, error: "refused", code: "login_failed" } });
+      await expect(login.done).rejects.toMatchObject({ code: "login_failed" });
+      await expect(login.waiting).rejects.toMatchObject({ code: "login_failed" });
+    });
+
+    it("cancels with a stop for that login", async () => {
+      const login = engine.login("work");
+      login.done.catch(() => {});
+      const id = await transport.lastId();
+      const cancelled = login.cancel();
+      const stopId = await transport.lastId();
+      expect(transport.sent[1]).toEqual({ id: stopId, type: "stop", request: id });
+      transport.reply({ id: stopId, type: "ok" });
+      await cancelled;
+    });
+  });
+
   it("fails what's waiting when disposed", async () => {
     const done = engine.once("catalog_list", {}, "default");
     await transport.lastId();

@@ -13,6 +13,7 @@ import { DATA_PLANES, INITIAL_BUILD, pressed, type BuildState, type Press } from
 import { BatToggle, Jack, StopKnob } from "./controls";
 import { EngineError } from "./engine";
 import "./es1.css";
+import { LoginDrawer } from "./Login";
 import type { EngineConnection } from "./useEngine";
 
 const PANEL_WIDTH = 1440;
@@ -146,6 +147,7 @@ export function Es1({ connection, settings }: { connection: EngineConnection; se
   const [build, setBuild] = useState<BuildState>(INITIAL_BUILD);
   const [moved, setMoved] = useState<Moved | null>(null);
   const [rehearsal, setRehearsal] = useState<string | null>(null);
+  const [loggingIn, setLoggingIn] = useState(false);
 
   // Only the newest read counts: changing profile mid-read mustn't show the old one's tasks.
   const latest = useRef(0);
@@ -221,7 +223,7 @@ export function Es1({ connection, settings }: { connection: EngineConnection; se
   const stripProblem = status === "down"
     ? `The flowctl bridge isn't running${engineError ? `: ${engineError}` : "."}`
     : loggedOut
-      ? `Not logged in as "${profile}". In a terminal: flowctl --profile ${profile} auth login`
+      ? `Not logged in as "${profile}". Press LOGIN to log in.`
       : problem?.text ?? (reading?.truncated ? "Too many specs to read them all: this shows the first part." : null);
 
   return (
@@ -232,8 +234,7 @@ export function Es1({ connection, settings }: { connection: EngineConnection; se
           <div className="es1-login">
             <span className={`es1-led${reading && !loggedOut ? " on" : ""}`} role="img"
               aria-label={reading && !loggedOut ? "Logged in" : "Not logged in"} />
-            <button className="es1-button" disabled={mode !== "build"} title={mode === "build" ? "Not connected yet: for now, log in from a terminal." : "Logging in is on the BUILD panel."}
-              onClick={() => press("login")}>LOGIN</button>
+            <button className="es1-button" disabled={status !== "ready"} onClick={() => setLoggingIn(true)}>LOGIN</button>
           </div>
           <span className="es1-spec">flowctl auth login</span>
           <hr />
@@ -307,6 +308,11 @@ export function Es1({ connection, settings }: { connection: EngineConnection; se
           {reading && <span className="es1-spec es1-read-at">READ {reading.at.toISOString().slice(11, 19)} UTC</span>}
         </section>
         </>}
+
+        {loggingIn && engine && (
+          <LoginDrawer engine={engine} profile={profile} onClose={() => setLoggingIn(false)}
+            onLoggedIn={() => { setLoggingIn(false); void refresh(); }} />
+        )}
 
         <div className={`es1-strip${stripProblem ? " problem" : ""}`}>
           {stripProblem ? (

@@ -1,0 +1,117 @@
+/* The ES-1 panel. Its own look rather than the kit's: colored modules on a black chassis.
+   Sizes are in panel pixels; the whole panel scales to fit the window. */
+
+.es1-stage { position: fixed; inset: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #121212; }
+.es1 { position: relative; flex: none; background: #121212; color: #111; font: 400 12px/1.3 var(--sans, Inter, system-ui, sans-serif); transform-origin: center; }
+.es1 *, .es1 *::before, .es1 *::after { box-sizing: border-box; }
+
+/* Modules */
+.es1-module { position: absolute; top: 14px; height: 560px; padding: 11px 14px; border-radius: 5px; color: #111; font-family: var(--mono, "JetBrains Mono", monospace); }
+.es1-module h2 { margin: 0; text-align: center; font: 700 13px/18px var(--mono, "JetBrains Mono", monospace); letter-spacing: 0.14em; }
+.es1-module hr { width: 100%; margin: 0; border: 0; border-top: 1px solid currentColor; opacity: 0.45; }
+.es1-module.yellow { background: #e4e578; }
+.es1-module.blue { background: #a4d3e6; }
+.es1-module.green { background: #9ad894; }
+.es1-module.black { background: #121212; color: #f2f2f0; border: 1.5px solid #d8d8d6; }
+.es1-session { left: 14px; width: 190px; display: flex; flex-direction: column; align-items: center; gap: 12px; padding-bottom: 8px; }
+.es1-source { left: 212px; width: 276px; }
+.es1-collection { left: 496px; width: 344px; }
+.es1-materialization { left: 848px; width: 358px; }
+.es1-readout-module { left: 1214px; width: 212px; display: flex; flex-direction: column; gap: 10px; }
+
+/* Lettering */
+.es1-lab { font: 700 11px/14px var(--mono, "JetBrains Mono", monospace); letter-spacing: 0.08em; }
+.es1-spec { max-width: 100%; font: 500 9px/12px var(--mono, "JetBrains Mono", monospace); opacity: 0.82; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.es1-read-at { text-align: left; opacity: 1; }
+
+/* Login and profile */
+.es1-login { display: flex; align-items: center; gap: 10px; align-self: stretch; margin-top: 6px; padding: 0 6px; }
+.es1-led { flex: none; display: inline-block; width: 12px; height: 12px; border: 1.5px solid #000; border-radius: 50%; background: #2b2b29; }
+.es1-led.on { background: #3ddc6b; box-shadow: 0 0 8px 1px rgba(61, 220, 107, 0.65); }
+.es1-led.bad { background: #ff3b2e; box-shadow: 0 0 9px 2px rgba(255, 59, 46, 0.8); }
+.es1-button { flex: 1; min-height: 30px; padding: 0 10px; border: 1.5px solid #111; border-radius: 3px; background: #1b1b1b; color: #f2f2f0; font: 700 11px/1 var(--mono, "JetBrains Mono", monospace); letter-spacing: 0.1em; cursor: pointer; }
+.es1-module.black .es1-button { background: #2a2a2a; border-color: #8a8a88; }
+.es1-button.wide { flex: none; width: 100%; min-height: 40px; }
+.es1-button:disabled { cursor: default; opacity: 0.55; }
+.es1-button:focus-visible, .es1-toggle button:focus-visible, .es1-dial:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.es1-profile { display: flex; flex-direction: column; align-items: center; gap: 2px; align-self: stretch; }
+.es1-profile input { width: 100%; height: 28px; margin-top: 4px; padding: 0 8px; border: 1.5px solid #111; border-radius: 3px; background: #f6f6f4; color: #111; font: 600 12px/1 var(--mono, "JetBrains Mono", monospace); text-align: center; }
+.es1-profile input:focus { outline: 2px solid #111; outline-offset: 1px; }
+
+/* Knobs */
+.es1-knob { display: flex; flex-direction: column; align-items: center; gap: 1px; max-width: 100%; }
+.es1-knob.disabled { opacity: 0.42; }
+.es1-dial { position: relative; flex: none; margin: 11px 0 12px; border-radius: 50%; cursor: ns-resize; touch-action: none; }
+.es1-knob.disabled .es1-dial { cursor: default; }
+.es1-dial svg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); overflow: visible; pointer-events: none; }
+.es1-tick { stroke: currentColor; stroke-width: 1.6; }
+.es1-stop { fill: currentColor; font: 500 8.5px var(--mono, "JetBrains Mono", monospace); }
+.es1-stop.on { font-weight: 700; }
+.es1-readout { width: 170px; }
+
+/* Toggle */
+.es1-toggle { display: flex; flex-direction: column; align-items: center; margin-top: auto; }
+.es1-toggle svg { overflow: visible; margin-bottom: -6px; }
+.es1-options { display: flex; gap: 6px; }
+.es1-options button { min-width: 50px; padding: 2px 0; border: 0; background: none; color: inherit; font: 500 9.5px/12px var(--mono, "JetBrains Mono", monospace); letter-spacing: 0.02em; cursor: pointer; }
+.es1-options button.on { font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+.es1-options button:disabled { cursor: default; opacity: 0.6; }
+
+/* Jacks */
+.es1-jacks { display: flex; justify-content: space-between; align-items: center; margin-top: 3px; }
+.es1-jacks.end { justify-content: flex-end; }
+.es1-jack { display: flex; align-items: center; gap: 6px; }
+.es1-jack-label { padding: 1px 5px; font: 700 9.5px/12px var(--mono, "JetBrains Mono", monospace); letter-spacing: 0.06em; }
+.es1-jack.out .es1-jack-label { border-radius: 2px; background: #111; color: #f2f2f0; }
+.es1-module.black .es1-jack.out .es1-jack-label { background: #f2f2f0; color: #111; }
+
+/* The rows of SOURCE, COLLECTION and MATERIALIZATION, which scroll together. */
+.es1-field { position: absolute; left: 212px; top: 90px; width: 994px; height: 472px; overflow: hidden auto; scrollbar-width: thin; font-family: var(--mono, "JetBrains Mono", monospace); }
+.es1-field-rows { position: relative; }
+.es1-row { position: absolute; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 0 10px 0 28px; border: 1.5px solid #111; border-radius: 3px; background: #f6f6f4; color: #111; }
+.es1-row.dark { background: #232321; border-color: #8a8a88; color: #f2f2f0; }
+.es1-row.plain { padding-left: 12px; }
+.es1-row.off { background: transparent; border-style: dashed; }
+.es1-row b { font-weight: 700; font-size: 11px; line-height: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.es1-row b.tagged { padding-right: 56px; }
+.es1-row span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-weight: 500; font-size: 9.5px; line-height: 12px; opacity: 0.82; overflow: hidden; }
+.es1-row .es1-status { position: absolute; left: 9px; top: 50%; margin-top: -6px; }
+.es1-tag { position: absolute; right: 6px; top: 5px; padding: 1px 4px; border-radius: 2px; background: #f2f2f0; color: #111; font: 700 8px/1.2 var(--mono, "JetBrains Mono", monospace); font-style: normal; letter-spacing: 0.06em; }
+.es1-status { display: block; flex: none; width: 12px; height: 12px; border: 1.5px solid #000; border-radius: 50%; background: #2b2b29; }
+.es1-status.ok { background: #3ddc6b; box-shadow: 0 0 7px 1px rgba(61, 220, 107, 0.65); }
+.es1-status.alert { background: #ffb02e; box-shadow: 0 0 7px 1px rgba(255, 176, 46, 0.7); }
+.es1-status.failing { background: #ff3b2e; box-shadow: 0 0 9px 2px rgba(255, 59, 46, 0.8); }
+.es1-socket { position: absolute; display: flex; align-items: center; justify-content: center; border: 1.5px dashed #111; border-radius: 3px; color: #111; font: 600 9.5px/1.2 var(--mono, "JetBrains Mono", monospace); letter-spacing: 0.06em; opacity: 0.65; }
+.es1-cables { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.es1-plug { fill: #1a1a1a; stroke: #ff8a2a; stroke-width: 2; stroke-dasharray: none; }
+.es1-empty { margin: 16px 324px; color: #f2f2f0; font-size: 11px; text-align: center; }
+
+/* Readout */
+.es1-counts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.es1-count { display: flex; flex-direction: column; justify-content: center; gap: 5px; height: 50px; padding: 0 10px; background: #0b0b0b; border: 1px solid #555; border-radius: 3px; color: #ffb066; }
+.es1-count span { font-weight: 600; font-size: 9px; line-height: 1; letter-spacing: 0.06em; color: #c7c7c4; }
+.es1-count b { font-weight: 700; font-size: 17px; line-height: 1; font-variant-numeric: tabular-nums; }
+.es1-count.bad b { color: #ff6a5c; }
+.es1-key { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; font: 500 9.5px/12px var(--mono, "JetBrains Mono", monospace); }
+.es1-key li { display: flex; align-items: center; gap: 8px; }
+
+/* Command strip */
+.es1-strip { position: absolute; left: 14px; top: 582px; width: 1412px; height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 14px; background: #060606; border: 1px solid #555; border-radius: 3px; color: #ffb066; font-family: var(--mono, "JetBrains Mono", monospace); }
+.es1-strip b { flex: none; font-weight: 700; font-size: 10px; letter-spacing: 0.12em; color: #c7c7c4; }
+.es1-strip code { min-width: 0; font: 500 13px/1 var(--mono, "JetBrains Mono", monospace); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text; }
+.es1-strip i { flex: 1; }
+.es1-strip.problem { border-color: #ff6a5c; color: #ff8a7d; }
+
+/* Name strip */
+.es1-name { position: absolute; left: 14px; top: 634px; width: 1412px; height: 76px; display: flex; align-items: center; gap: 20px; padding: 0 22px; background: #a4d3e6; border-radius: 5px; color: #111; font-family: var(--mono, "JetBrains Mono", monospace); }
+.es1-name > i { flex: 1; }
+.es1-word { font: 700 46px/1 var(--mono, "JetBrains Mono", monospace); letter-spacing: 0.02em; }
+.es1-desc { font: 700 14px/1.15 var(--mono, "JetBrains Mono", monospace); letter-spacing: 0.06em; }
+.es1-stat { display: flex; align-items: center; gap: 8px; font: 700 10.5px/1 var(--mono, "JetBrains Mono", monospace); letter-spacing: 0.08em; }
+.es1-stat em { font-style: normal; opacity: 0.65; }
+.es1-stat.warn { padding: 5px 8px; border-radius: 3px; background: #111; color: #ffb02e; }
+.es1-stat.warn em { opacity: 0.8; }
+
+/* The kit's Settings button and flyout, on the name strip at the panel's foot: it opens upward. */
+.es1-name .bar-button { height: 30px; padding: 0 12px; border: 1.5px solid #111; border-radius: 3px; background: #1b1b1b; color: #f2f2f0; }
+.es1-name .menu { top: auto; bottom: calc(100% + 6px); }

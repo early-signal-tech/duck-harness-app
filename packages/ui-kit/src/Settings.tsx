@@ -61,7 +61,7 @@ interface StartedEngine {
   version: string | null;
 }
 
-const ENGINE_NAMES: Record<string, string> = { dh1: "DH-1 · agent", eh1: "EH-1 · grader" };
+const ENGINE_NAMES: Record<string, string> = { dh1: "DH-1 · agent", eh1: "EH-1 · grader", es1: "ES-1 · flowctl bridge" };
 
 const ENGINE_SOURCE: Record<StartedEngine["source"], string> = {
   override: "dev override",
@@ -90,9 +90,12 @@ interface Props {
   traces?: TracesControls;
   appearance: Appearance;
   onAppearance: (appearance: Appearance) => void;
+  /** Only how the engine was started, for a host with no agent behind it and a panel with
+   *  its own fixed colors (ES-1): no appearance, Anthropic key or traces. */
+  engineOnly?: boolean;
 }
 
-export function SettingsMenu({ engine, traces: tracesControls, appearance, onAppearance }: Props) {
+export function SettingsMenu({ engine, traces: tracesControls, appearance, onAppearance, engineOnly }: Props) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<SettingsView | null>(null);
   // Which engine's command was just copied (its line says so for a moment).
@@ -170,11 +173,11 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
       }
     >
       <div className="settings">
-        <section>
+        {!engineOnly && <section>
           <AppearanceControls appearance={appearance} onChange={onAppearance} />
-        </section>
+        </section>}
 
-        <section>
+        {!engineOnly && <section>
           <label className="settings-label" htmlFor="api-key">ANTHROPIC API KEY</label>
           <p className={`settings-status${view?.apiKeySource === "none" ? " warn" : ""}`}>
             {view ? `${KEY_SOURCE[view.apiKeySource]}${view.apiKeyHint ? ` (${view.apiKeyHint})` : ""}` : "…"}
@@ -216,9 +219,9 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
               </>
             )}
           </p>
-        </section>
+        </section>}
 
-        <section>
+        {!engineOnly && <section>
           <span className="settings-label">TRACES DATABASE</span>
           <p className="settings-path selectable" title={tracesPath}>{tracesPath}</p>
           <p className="settings-hint">
@@ -250,7 +253,7 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
               </button>
             )}
           </div>
-        </section>
+        </section>}
 
         {tracesControls && <section>
           <span className="settings-label">TRACES SERVER</span>
@@ -293,7 +296,7 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
           {view.enginesFileProblem && <p className="settings-hint warn">{view.enginesFileProblem}</p>}
         </section>}
 
-        <section className="settings-actions">
+        {!engineOnly && <section className="settings-actions">
           <button className="pane-button wide" disabled={working !== null}
             onClick={() => void act("shell", async () => {
               await invoke("traces_shell_open");
@@ -321,14 +324,14 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
               </div>
             </div>
           ))}
-        </section>
+        </section>}
 
         {(working || note) && (
           <p className={`settings-note${note?.error ? " error" : ""}`} aria-live="polite">
             {working ? "Working…" : note?.text}
           </p>
         )}
-        <p className="settings-hint">Changing the key or the traces file restarts the engine: runs in progress stop.</p>
+        {!engineOnly && <p className="settings-hint">Changing the key or the traces file restarts the engine: runs in progress stop.</p>}
       </div>
     </Menu>
   );

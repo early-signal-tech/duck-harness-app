@@ -7,7 +7,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
 export interface EngineTransport {
-  /** The engine's name: "dh1" or "eh1". */
+  /** The engine's name: "dh1", "eh1" or "es1". */
   readonly engine: string;
   /** Send one request line (a JSON object, no newline). */
   send(line: string): Promise<void>;

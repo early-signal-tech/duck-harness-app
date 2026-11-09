@@ -1,0 +1,17 @@
+{
+  "name": "@dh/es1",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The ES-1 device: read, draft and create Estuary pipelines from a synth-style panel.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@dh/ui-kit": "*"
+  },
+  "peerDependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}

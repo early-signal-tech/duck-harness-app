@@ -62,6 +62,9 @@ export type AutoDiscover = "off" | "add" | "evolve";
 export interface Binding {
   table: string;
   on: boolean;
+  /** What DISCOVER found. Examples don't have these. */
+  target?: string;
+  resource?: unknown;
 }
 
 /** Until DISCOVER is connected these stand in for what it would find. */
@@ -84,6 +87,8 @@ export interface BuildState {
   logLevel: number;
   captureOn: boolean;
   bindings: Binding[];
+  /** The bindings are what DISCOVER found, not examples. */
+  found: boolean;
   codec: number;
   flush: number;
   retain: number;
@@ -107,6 +112,7 @@ export const INITIAL_BUILD: BuildState = {
   logLevel: 2,
   captureOn: true,
   bindings: EXAMPLE_TABLES.map((b) => ({ ...b })),
+  found: false,
   codec: 1,
   flush: 1,
   retain: 3,
@@ -140,6 +146,7 @@ export const specCount = (state: BuildState) => 2 + state.bindings.filter((b) =>
 
 /** Stands in for what CONFIG and DISCOVER will fill in. */
 const FROM_CONFIG = "<from CONFIG>";
+const ENCRYPTED = "<encrypted by Estuary>";
 const FROM_DISCOVER = "<from DISCOVER>";
 
 /** The draft the controls add up to, as flowctl's spec lays it out. A control that doesn't apply
@@ -148,7 +155,7 @@ export function draftSpec(state: BuildState, prefix: string) {
   const source = SOURCES[state.source];
   const destination = DESTINATIONS[state.destination];
   const captureName = sourceName(state, prefix);
-  const collection = (table: string) => `${captureName}/${table}`;
+  const collection = (b: Binding) => b.target ?? `${captureName}/${b.table}`;
   const on = state.bindings.filter((b) => b.on);
   const retention = RETENTIONS[state.retain].value;
 
@@ -160,15 +167,15 @@ export function draftSpec(state: BuildState, prefix: string) {
         }),
         ...(source.batch ? { interval: INTERVALS[state.interval].value } : {}),
         shards: { logLevel: LOG_LEVELS[state.logLevel].value, ...(state.captureOn ? {} : { disable: true }) },
-        endpoint: { connector: { image: `ghcr.io/estuary/${source.image}:${source.tag}`, config: FROM_CONFIG } },
+        endpoint: { connector: { image: `ghcr.io/estuary/${source.image}:${source.tag}`, config: state.found ? ENCRYPTED : FROM_CONFIG } },
         bindings: state.bindings.map((b) => ({
-          resource: FROM_DISCOVER,
-          target: collection(b.table),
+          resource: b.resource ?? FROM_DISCOVER,
+          target: collection(b),
           ...(b.on ? {} : { disable: true }),
         })),
       },
     },
-    collections: Object.fromEntries(on.map((b) => [collection(b.table), {
+    collections: Object.fromEntries(on.map((b) => [collection(b), {
       key: FROM_DISCOVER,
       schema: FROM_DISCOVER,
       journals: {
@@ -204,21 +211,21 @@ export function draftSpec(state: BuildState, prefix: string) {
 
 const flowctl = (profile: string, rest: string) => `flowctl --profile ${profile} ${rest}`;
 
-/** The panel's next step. There's only one until the steps are connected. */
+/** The panel's next step. */
 export const nextCommand = (state: BuildState, profile: string) =>
-  flowctl(profile, `discover --source flow.yaml --data-plane ${dataPlaneName(state)}`);
+  state.found
+    ? flowctl(profile, "draft create")
+    : flowctl(profile, `discover --source flow.yaml --flat --data-plane ${dataPlaneName(state)}`);
 
-export type Press = "sourceConfig" | "discover" | "new" | "read" | "destinationConfig" | "draft" | "test" | "discard" | "publish";
+/** The buttons that aren't connected yet. */
+export type Press = "new" | "read" | "draft" | "test" | "discard" | "publish";
 
 /** What a button would do. It's a rehearsal for now: the panel shows this and runs nothing. */
 export function pressed(press: Press, state: BuildState, prefix: string, profile: string): string {
   const firstOn = state.bindings.find((b) => b.on);
   switch (press) {
-    case "sourceConfig": return `CONFIG ${SOURCES[state.source].image}: ${SOURCES[state.source].required.join(", ")}`;
-    case "destinationConfig": return `CONFIG ${DESTINATIONS[state.destination].image}: ${DESTINATIONS[state.destination].required.join(", ")}`;
-    case "discover": return nextCommand(state, profile);
     case "new": return "New collection: key + schema";
-    case "read": return flowctl(profile, `collections read --collection ${firstOn ? `${sourceName(state, prefix)}/${firstOn.table}` : "<a collection>"} --since 1h`);
+    case "read": return flowctl(profile, `collections read --collection ${firstOn ? firstOn.target ?? `${sourceName(state, prefix)}/${firstOn.table}` : "<a collection>"} --since 1h`);
     case "draft": return `${flowctl(profile, "draft create")} && flowctl draft author --source flow.yaml`;
     case "test": return flowctl(profile, "draft test");
     case "discard": return flowctl(profile, "draft delete");

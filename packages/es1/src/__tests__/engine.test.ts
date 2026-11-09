@@ -123,6 +123,35 @@ describe("Engine", () => {
     await expect(engine.once("catalog_list", {}, "default")).rejects.toThrow("not running");
   });
 
+  describe("discover", () => {
+    const INPUT = { name: "a/b", image: "ghcr.io/estuary/source-mysql:v3", config: { password: "made-up" }, secret_paths: ["password"] };
+
+    it("sends the input, the plane and the profile, and returns what was found", async () => {
+      const job = engine.discover(INPUT, "ops/dp/public/x", "work");
+      const id = await transport.lastId();
+      expect(transport.sent[0]).toEqual({ id, type: "discover", args: { data_plane: "ops/dp/public/x" }, profile: "work", input: INPUT });
+      transport.reply({ id, type: "result", result: { ok: true, catalog: { captures: {} }, bindings: [{ target: "a/b/t", resource: {} }] } });
+      await expect(job.done).resolves.toMatchObject({ bindings: [{ target: "a/b/t" }] });
+    });
+
+    it("rejects with the bridge's message and code", async () => {
+      const job = engine.discover(INPUT, "p", "work");
+      transport.reply({ id: await transport.lastId(), type: "result", result: { ok: false, error: "can't connect", code: "tool_error" } });
+      await expect(job.done).rejects.toMatchObject({ message: "can't connect", code: "tool_error" });
+    });
+
+    it("stops with a stop for that discover", async () => {
+      const job = engine.discover(INPUT, "p", "work");
+      job.done.catch(() => {});
+      const id = await transport.lastId();
+      const stopped = job.stop();
+      const stopId = await transport.lastId();
+      expect(transport.sent[1]).toEqual({ id: stopId, type: "stop", request: id });
+      transport.reply({ id: stopId, type: "ok" });
+      await stopped;
+    });
+  });
+
   describe("login", () => {
     const TOKEN = "made-up-token";
 

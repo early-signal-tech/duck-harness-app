@@ -8,6 +8,7 @@ import {
   destinationName, draftSpec, nextCommand, sourceName, specCount, validName,
   type AutoDiscover, type BuildState, type Press,
 } from "./buildSpec";
+import type { Moved, Side } from "./useBuildSession";
 import { BatToggle, Jack, StopKnob } from "./controls";
 
 /** A knob's dial sits this far below its top; a toggle's pivot, this far. */
@@ -32,16 +33,16 @@ const AUTO_DISCOVER: readonly { value: AutoDiscover; label: string }[] = [
 ];
 const NOT_APPLICABLE = "doesn't apply";
 
-export interface Moved {
-  field: string;
-  value: string;
-}
-
 interface Props {
   state: BuildState;
   onChange: (patch: Partial<BuildState>, moved: Moved) => void;
   /** Press a button that isn't connected. */
   onPress: (press: Press) => void;
+  onConfig: (side: Side) => void;
+  /** Press DISCOVER: starts it, or stops it if it's running. */
+  onDiscover: () => void;
+  discovering: boolean;
+  configStatus: (side: Side) => string;
   prefix: string;
 }
 
@@ -57,7 +58,7 @@ function Name({ value, label, onChange }: { value: string; label: string; onChan
   );
 }
 
-export function BuildPanel({ state, onChange, onPress, prefix }: Props) {
+export function BuildPanel({ state, onChange, onPress, onConfig, onDiscover, discovering, configStatus, prefix }: Props) {
   const source = SOURCES[state.source];
   const destination = DESTINATIONS[state.destination];
   const onCount = state.bindings.filter((b) => b.on).length;
@@ -85,13 +86,14 @@ export function BuildPanel({ state, onChange, onPress, prefix }: Props) {
         <div className="es1-lcd" style={{ left: 220, top: 92, width: 116, height: 54 }}>
           <b>{source.stop} :{source.tag}</b><span>POSITION {state.source + 1} OF {SOURCES.length}</span>
         </div>
-        <button className="es1-button white" style={{ left: 220, top: 154, width: 116, height: 40 }} onClick={() => onPress("sourceConfig")}>CONFIG</button>
-        <Text x={278} y={197} width={130}>{source.required.length} required · secrets</Text>
+        <button className="es1-button white" style={{ left: 220, top: 154, width: 116, height: 40 }} onClick={() => onConfig("source")}>CONFIG</button>
+        <Text x={278} y={197} width={130}>{configStatus("source")}</Text>
         <Name value={sourceName(state, prefix)} label="Source name"
           onChange={(value) => onChange({ sourceName: value }, { field: "capture name", value })} />
-        <button className="es1-lit" style={{ left: 30, top: 290, width: 68, height: 68 }} aria-label="Discover" onClick={() => onPress("discover")} />
-        <div className="es1-at-text es1-lab" style={{ left: 64, top: 362 }}>DISCOVER</div>
-        <Text x={64} y={376} width={130}>flowctl discover</Text>
+        <button className={`es1-lit${discovering ? " running" : ""}`} style={{ left: 30, top: 290, width: 68, height: 68 }}
+          aria-label={discovering ? "Stop discovering" : "Discover"} aria-busy={discovering} onClick={onDiscover} />
+        <div className="es1-at-text es1-lab" style={{ left: 64, top: 362 }}>{discovering ? "RUNNING" : "DISCOVER"}</div>
+        <Text x={64} y={376} width={130}>{discovering ? "press to stop" : "flowctl discover"}</Text>
         <At x={222} y={316}>
           <BatToggle label="AUTO-DISCOVER" options={AUTO_DISCOVER} value={state.autoDiscover}
             spec="autoDiscover.addNewBindings" spec2="evolveIncompatibleCollections"
@@ -118,22 +120,22 @@ export function BuildPanel({ state, onChange, onPress, prefix }: Props) {
         <div className="es1-b-jack" style={{ left: 18 }}><Jack label="IN" /></div>
         <div className="es1-b-jack" style={{ right: 19 }}><Jack label="OUT" out /></div>
         <div className="es1-lcd" style={{ left: 92, top: 34, width: 86, height: 44 }}>
-          <b>{onCount} ON</b><span>{state.bindings.length} EXAMPLE</span>
+          <b>{onCount} ON</b><span>{state.bindings.length} {state.found ? "FOUND" : "EXAMPLE"}</span>
         </div>
         <div className="es1-bindings" style={{ left: 16, top: 90, width: 238 }}>
           {state.bindings.map((b, i) => (
-            <button key={b.table} role="switch" aria-checked={b.on} aria-label={b.table} className={`es1-binding${b.on ? " on" : ""}`}
+            <button key={b.target ?? b.table} role="switch" aria-checked={b.on} aria-label={b.table} className={`es1-binding${b.on ? " on" : ""}`}
               onClick={() => onChange(
                 { bindings: state.bindings.map((x, n) => (n === i ? { ...x, on: !x.on } : x)) },
                 { field: `bindings[${b.table}].disable`, value: String(b.on) },
               )}>
               <span className="es1-slide"><i /></span>
               <span className={`es1-led${b.on ? " lit" : ""}`} aria-hidden="true" />
-              <span className="es1-binding-name">{b.table}</span>
+              <span className="es1-binding-name" title={b.target}>{b.table}</span>
             </button>
           ))}
         </div>
-        <Text x={135} y={268} width={250}>bindings[].disable · examples until DISCOVER</Text>
+        <Text x={135} y={268} width={250}>{state.found ? "bindings[].disable" : "bindings[].disable · examples until DISCOVER"}</Text>
         <hr style={{ left: 16, top: 288, width: 238 }} />
         <Text x={135} y={298} width={240}>journals.fragments</Text>
         <At x={48} y={356} radius={22}>
@@ -165,8 +167,8 @@ export function BuildPanel({ state, onChange, onPress, prefix }: Props) {
         <div className="es1-lcd" style={{ left: 220, top: 92, width: 116, height: 54 }}>
           <b>{destination.stop} :{destination.tag}</b><span>POSITION {state.destination + 1} OF {DESTINATIONS.length}</span>
         </div>
-        <button className="es1-button white" style={{ left: 220, top: 154, width: 116, height: 40 }} onClick={() => onPress("destinationConfig")}>CONFIG</button>
-        <Text x={278} y={197} width={130}>{destination.required.length} required · secrets</Text>
+        <button className="es1-button white" style={{ left: 220, top: 154, width: 116, height: 40 }} onClick={() => onConfig("destination")}>CONFIG</button>
+        <Text x={278} y={197} width={130}>{configStatus("destination")}</Text>
         <Name value={destinationName(state, prefix)} label="Destination name"
           onChange={(value) => onChange({ destinationName: value }, { field: "materialization name", value })} />
         <At x={58} y={316} radius={24}>
@@ -254,7 +256,10 @@ export function BuildPanel({ state, onChange, onPress, prefix }: Props) {
   );
 }
 
-export function BuildStrip({ state, profile, moved, rehearsal }: { state: BuildState; profile: string; moved: Moved | null; rehearsal: string | null }) {
+export function BuildStrip({ state, profile, moved, rehearsal, discovering }: { state: BuildState; profile: string; moved: Moved | null; rehearsal: string | null; discovering: boolean }) {
+  if (discovering) {
+    return <><b>RUNNING</b><code>{nextCommand({ ...state, found: false }, profile)}</code><i /><b>TAKES UP TO</b><code className="es1-strip-end">5 minutes</code></>;
+  }
   if (rehearsal) {
     return (
       <>

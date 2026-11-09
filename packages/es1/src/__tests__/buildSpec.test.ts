@@ -74,6 +74,18 @@ describe("draftSpec", () => {
     expect(m.shards).toEqual({ disable: true });
   });
 
+  it("uses what DISCOVER found, and never holds its config", () => {
+    const found = build({ found: true, bindings: [
+      { table: "public/orders", on: true, target: "acme/x/public/orders", resource: { stream: "orders" } },
+      { table: "public/off", on: false, target: "acme/x/public/off", resource: { stream: "off" } },
+    ] });
+    const spec = draftSpec(found, PREFIX);
+    expect(only(spec.captures).bindings[0]).toEqual({ resource: { stream: "orders" }, target: "acme/x/public/orders" });
+    expect(only(spec.captures).endpoint.connector.config).toBe("<encrypted by Estuary>");
+    expect(Object.keys(spec.collections)).toEqual(["acme/x/public/orders"]);
+    expect(pressed("read", found, PREFIX, "p")).toContain("--collection acme/x/public/orders");
+  });
+
   it("never asks for delete or reset", () => {
     expect(JSON.stringify(draftSpec(build(), PREFIX))).not.toMatch(/"(delete|reset)"/);
   });
@@ -95,12 +107,12 @@ describe("the connector tables match the registry's required fields", () => {
 describe("commands", () => {
   it("name the profile and data plane", () => {
     expect(dataPlaneName(build({ dataPlane: 0 }))).toBe("ops/dp/public/aws-ap-southeast-2-c1");
-    expect(nextCommand(build(), "work")).toBe("flowctl --profile work discover --source flow.yaml --data-plane ops/dp/public/aws-us-east-1-c1");
+    expect(nextCommand(build(), "work")).toBe("flowctl --profile work discover --source flow.yaml --flat --data-plane ops/dp/public/aws-us-east-1-c1");
+    expect(nextCommand(build({ found: true }), "work")).toBe("flowctl --profile work draft create");
   });
 
   it("say what each button would do, using the current settings", () => {
     expect(pressed("publish", build(), PREFIX, "work")).toBe("flowctl --profile work draft publish");
-    expect(pressed("sourceConfig", build({ source: 3 }), PREFIX, "p")).toContain("address, user, password");
     expect(pressed("read", build(), PREFIX, "p")).toContain("--collection acme/postgres-source/public/orders");
     expect(pressed("read", build({ bindings: [] }), PREFIX, "p")).toContain("<a collection>");
   });

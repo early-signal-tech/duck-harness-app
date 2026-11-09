@@ -148,7 +148,7 @@
 .es1-drawer { position: absolute; left: 212px; top: 14px; width: 430px; height: 560px; display: flex; flex-direction: column; border-radius: 5px; background: #f6f6f4; color: #1f1f1f; font: 400 13px/1.45 var(--sans, Inter, system-ui, sans-serif); box-shadow: 0 0 0 1.5px #111, 0 8px 28px rgba(0, 0, 0, 0.5); }
 .es1-drawer header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-radius: 5px 5px 0 0; background: #e4e578; font: 700 13px/1 var(--mono, "JetBrains Mono", monospace); letter-spacing: 0.12em; }
 .es1-drawer header small { font: 500 10px/1 var(--mono, "JetBrains Mono", monospace); letter-spacing: 0; }
-.es1-drawer form { flex: 1; display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+.es1-drawer form { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; padding: 16px; }
 .es1-step { display: grid; grid-template-columns: 24px 1fr; gap: 10px; }
 .es1-step > i { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: #1f1f1f; color: #f6f6f4; font: 700 11px/1 var(--mono, "JetBrains Mono", monospace); font-style: normal; }
 .es1-step code { font: 500 12px/1.4 var(--mono, "JetBrains Mono", monospace); }
@@ -160,6 +160,31 @@
 .es1-drawer footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: auto; }
 .es1-drawer .es1-button { flex: none; min-height: 34px; padding: 0 14px; }
 .es1-drawer .es1-button.plain { background: #fff; color: #1f1f1f; }
+
+/* The CONFIG drawer: the LOGIN drawer's frame, colored for its module. */
+.es1-config { width: 560px; }
+.es1-config.destination { left: 638px; }
+.es1-config.source header { background: #a4d3e6; }
+.es1-config.destination header { background: #9ad894; }
+.es1-config form { min-height: 0; padding: 0; gap: 0; }
+.es1-config-body { flex: 1; min-height: 0; overflow: hidden auto; display: flex; flex-direction: column; gap: 12px; padding: 16px; scrollbar-width: thin; }
+.es1-config-body > p { margin: 0; }
+.es1-config-fields { display: flex; flex-direction: column; gap: 10px; }
+.es1-config label { display: flex; flex-direction: column; gap: 5px; font: 700 10px/1.2 var(--mono, "JetBrains Mono", monospace); letter-spacing: 0.08em; }
+.es1-config label em { font-style: normal; font-weight: 500; letter-spacing: 0; color: #555553; }
+.es1-config input:not([type="checkbox"]), .es1-config select, .es1-config textarea { width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid #8a8a88; border-radius: 4px; background: #fff; color: #1f1f1f; font: 500 12px var(--mono, "JetBrains Mono", monospace); resize: vertical; }
+.es1-config input:focus, .es1-config select:focus, .es1-config textarea:focus { outline: 2px solid #1f1f1f; outline-offset: 1px; }
+.es1-masked { -webkit-text-security: disc; }
+.es1-config-check.es1-config-check { flex-direction: row; align-items: center; gap: 8px; }
+.es1-config-fold { border-top: 1px solid #d0d0ce; padding-top: 8px; }
+.es1-config-fold summary { display: flex; justify-content: space-between; font: 700 10px/1.4 var(--mono, "JetBrains Mono", monospace); letter-spacing: 0.08em; color: #555553; cursor: pointer; list-style: none; }
+.es1-config-fold[open] > summary { margin-bottom: 10px; }
+.es1-config-note { margin: 0; font-size: 12px; color: #555553; }
+.es1-config footer { flex: none; display: flex; align-items: center; gap: 8px; margin: 0; padding: 12px 16px; border-top: 1px solid #d0d0ce; }
+.es1-config-left { flex: 1; font: 500 11px/1.3 var(--mono, "JetBrains Mono", monospace); color: #555553; }
+@keyframes es1-running { 50% { box-shadow: 0 0 26px 6px rgba(255, 138, 42, 0.95); filter: brightness(1.15); } }
+.es1-lit.running { animation: es1-running 900ms ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .es1-lit.running { animation: none; box-shadow: 0 0 22px 5px rgba(255, 138, 42, 0.9); } }
 
 /* Command strip */
 .es1-strip { position: absolute; left: 14px; top: 582px; width: 1412px; height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 14px; background: #060606; border: 1px solid #555; border-radius: 3px; color: #ffb066; font-family: var(--mono, "JetBrains Mono", monospace); }

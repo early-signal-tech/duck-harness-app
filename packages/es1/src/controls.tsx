@@ -133,15 +133,20 @@ interface ToggleProps<T extends string> {
   options: readonly { value: T; label: string; disabled?: string }[];
   value: T;
   onChange: (value: T) => void;
+  /** The field it sets, printed under it. */
+  spec?: string;
+  spec2?: string;
+  /** Doesn't apply here: printed dim, and can't be moved. */
+  disabled?: boolean;
 }
 
 /** `disabled` on an option is why it can't be chosen yet. */
-export function BatToggle<T extends string>({ label, options, value, onChange }: ToggleProps<T>) {
+export function BatToggle<T extends string>({ label, options, value, onChange, spec, spec2, disabled }: ToggleProps<T>) {
   const at = options.findIndex((o) => o.value === value);
   const lean = options.length > 1 ? -18 + (36 * at) / (options.length - 1) : 0;
   const [tipX, tipY] = polar(18, lean);
   return (
-    <div className="es1-toggle" role="radiogroup" aria-label={label}>
+    <div className={`es1-toggle${disabled ? " disabled" : ""}`} role="radiogroup" aria-label={label || options.map((o) => o.label).join(" or ")}>
       <svg width="44" height="44" viewBox="-22 -26 44 44" aria-hidden="true">
         <circle r="10" fill="#d9d9d7" stroke="#111" />
         <circle r="6.5" fill="#6e6e6c" stroke="#222" />
@@ -150,12 +155,14 @@ export function BatToggle<T extends string>({ label, options, value, onChange }:
       <div className="es1-options">
         {options.map((o) => (
           <button key={o.value} role="radio" aria-checked={o.value === value} className={o.value === value ? "on" : ""}
-            disabled={!!o.disabled} title={o.disabled} onClick={() => onChange(o.value)}>
+            disabled={disabled || !!o.disabled} title={o.disabled} onClick={() => onChange(o.value)}>
             {o.label}
           </button>
         ))}
       </div>
-      <span className="es1-lab">{label}</span>
+      {label && <span className="es1-lab">{label}</span>}
+      {spec && <span className="es1-spec">{spec}</span>}
+      {spec2 && <span className="es1-spec">{spec2}</span>}
     </div>
   );
 }

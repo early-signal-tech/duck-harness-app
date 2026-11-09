@@ -1,12 +1,15 @@
 // The ES-1 device: a panel of modules, left to right, the way a signal runs through it.
-// This first build is MAP mode: it reads what's live with `catalog list` and changes
-// nothing. BUILD and LOGS are printed on the MODE switch, and can't be chosen yet.
+// BUILD (Build.tsx) makes a pipeline, and isn't connected to flowctl yet. MAP reads what's
+// live with `catalog list` and changes nothing. LOGS is on the MODE switch but can't be
+// chosen yet.
 //
 // The panel is one fixed size, scaled to fit the window, like a piece of hardware. The rows
 // of MAP scroll together, so a cable stays attached to what it joins.
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { count, layoutMap, parseCatalog, prefixes, sharedPrefix, withPrefix, type CatalogRow, type Health, type Spec } from "./catalog";
+import { BuildPanel, BuildStrip, type Moved } from "./Build";
+import { DATA_PLANES, INITIAL_BUILD, pressed, type BuildState, type Press } from "./buildSpec";
 import { BatToggle, Jack, StopKnob } from "./controls";
 import { EngineError } from "./engine";
 import "./es1.css";
@@ -118,7 +121,7 @@ const KEY: { health: Health; label: string }[] = [
 ];
 
 const MODES = [
-  { value: "build", label: "BUILD", disabled: "Creating pipelines comes in a later build." },
+  { value: "build", label: "BUILD" },
   { value: "map", label: "MAP" },
   { value: "logs", label: "LOGS", disabled: "Live logs come in a later build." },
 ] as const;
@@ -139,6 +142,10 @@ export function Es1({ connection, settings }: { connection: EngineConnection; se
   const [reading, setReading] = useState<Reading | null>(null);
   const [loading, setLoading] = useState(false);
   const [problem, setProblem] = useState<{ text: string; code?: string } | null>(null);
+  const [mode, setMode] = useState<"build" | "map">("build");
+  const [build, setBuild] = useState<BuildState>(INITIAL_BUILD);
+  const [moved, setMoved] = useState<Moved | null>(null);
+  const [rehearsal, setRehearsal] = useState<string | null>(null);
 
   // Only the newest read counts: changing profile mid-read mustn't show the old one's tasks.
   const latest = useRef(0);
@@ -187,6 +194,14 @@ export function Es1({ connection, settings }: { connection: EngineConnection; se
   const hide = useMemo(() => sharedPrefix(allSpecs, prefix), [allSpecs, prefix]);
   const counts = reading ? count(shown) : null;
   const prefixStop = prefix === null ? 0 : Math.max(0, stops.indexOf(prefix));
+  // New specs go under the prefix on the knob, else the first one this login has.
+  const buildPrefix = prefix ?? available[0] ?? "your_prefix/";
+  const moveBuild = (patch: Partial<BuildState>, change: Moved) => {
+    setBuild((b) => ({ ...b, ...patch }));
+    setMoved(change);
+    setRehearsal(null);
+  };
+  const press = (button: Press) => setRehearsal(pressed(button, build, buildPrefix, profile));
 
   // The whole panel scales to fit the window.
   const stage = useRef<HTMLDivElement>(null);
@@ -217,7 +232,8 @@ export function Es1({ connection, settings }: { connection: EngineConnection; se
           <div className="es1-login">
             <span className={`es1-led${reading && !loggedOut ? " on" : ""}`} role="img"
               aria-label={reading && !loggedOut ? "Logged in" : "Not logged in"} />
-            <button className="es1-button" disabled title="Logging in from here comes in a later build. For now, use the terminal.">LOGIN</button>
+            <button className="es1-button" disabled={mode !== "build"} title={mode === "build" ? "Not connected yet: for now, log in from a terminal." : "Logging in is on the BUILD panel."}
+              onClick={() => press("login")}>LOGIN</button>
           </div>
           <span className="es1-spec">flowctl auth login</span>
           <hr />
@@ -229,11 +245,19 @@ export function Es1({ connection, settings }: { connection: EngineConnection; se
           </form>
           <StopKnob label="PREFIX" spec="--prefix" stops={stops} value={prefixStop} readout={stops[prefixStop]}
             onChange={(i) => setPrefix(i === 0 ? null : stops[i])} />
-          <StopKnob label="DATA PLANE" spec="used in BUILD" stops={["–"]} value={0} disabled />
+          {mode === "build" ? (
+            <StopKnob label="DATA PLANE" spec="--init-data-plane" stops={DATA_PLANES} value={build.dataPlane} readout={DATA_PLANES[build.dataPlane]}
+              onChange={(i) => moveBuild({ dataPlane: i }, { field: "--init-data-plane", value: DATA_PLANES[i] })} />
+          ) : (
+            <StopKnob label="DATA PLANE" spec="used in BUILD" stops={DATA_PLANES} value={build.dataPlane} disabled />
+          )}
           <hr />
-          <BatToggle label="MODE" options={MODES} value="map" onChange={() => {}} />
+          <BatToggle label="MODE" options={MODES} value={mode} onChange={(m) => { if (m !== "logs") setMode(m); }} />
         </section>
 
+        {mode === "build" && <BuildPanel state={build} onChange={moveBuild} onPress={press} prefix={buildPrefix} />}
+
+        {mode === "map" && <>
         <section className="es1-module blue es1-source">
           <h2>SOURCE</h2>
           <div className="es1-jacks end"><Jack label="OUT" out /></div>
@@ -282,10 +306,13 @@ export function Es1({ connection, settings }: { connection: EngineConnection; se
           <span className="es1-spec">catalog list --flows</span>
           {reading && <span className="es1-spec es1-read-at">READ {reading.at.toISOString().slice(11, 19)} UTC</span>}
         </section>
+        </>}
 
         <div className={`es1-strip${stripProblem ? " problem" : ""}`}>
           {stripProblem ? (
             <><b>{status === "down" ? "OFFLINE" : "PROBLEM"}</b><code title={stripProblem}>{stripProblem}</code></>
+          ) : mode === "build" ? (
+            <BuildStrip state={build} profile={profile} moved={moved} rehearsal={rehearsal} />
           ) : (
             <>
               <b>LAST RUN</b><code>flowctl --profile {profile} catalog list --flows -o json</code>

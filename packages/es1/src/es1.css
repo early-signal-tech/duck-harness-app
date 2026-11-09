@@ -12,6 +12,7 @@
 .es1-module.yellow { background: #e4e578; }
 .es1-module.blue { background: #a4d3e6; }
 .es1-module.green { background: #9ad894; }
+.es1-module.red { background: #e4574b; }
 .es1-module.black { background: #121212; color: #f2f2f0; border: 1.5px solid #d8d8d6; }
 .es1-session { left: 14px; width: 190px; display: flex; flex-direction: column; align-items: center; gap: 12px; padding-bottom: 8px; }
 .es1-source { left: 212px; width: 276px; }
@@ -95,11 +96,60 @@
 .es1-key { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; font: 500 9.5px/12px var(--mono, "JetBrains Mono", monospace); }
 .es1-key li { display: flex; align-items: center; gap: 8px; }
 
+/* BUILD: laid out to the wireframe's coordinates, inside each module. */
+.es1-b-source { left: 212px; width: 350px; }
+.es1-b-collection { left: 570px; width: 270px; }
+.es1-b-materialization { left: 848px; width: 350px; }
+.es1-b-output { left: 1206px; width: 220px; height: 340px; }
+.es1-b-golive { left: 1206px; top: 362px; width: 220px; height: 212px; }
+.es1-module > hr[style], .es1-at-label, .es1-at-left, .es1-at-text, .es1-at, .es1-button[style], .es1-lcd, .es1-lit, .es1-publish, .es1-name-field, .es1-bindings, .es1-b-jack, .es1-abs { position: absolute; }
+.es1-at { transform: translateX(-50%); }
+.es1-at .es1-toggle { margin-top: 0; min-width: 110px; }
+.es1-at .es1-readout { width: 150px; }
+.es1-toggle.disabled { opacity: 0.42; }
+.es1-at-text { transform: translateX(-50%); text-align: center; }
+.es1-at-text.es1-lab { white-space: nowrap; }
+.es1-at-left { white-space: nowrap; }
+.es1-b-jack { top: 26px; }
+.es1-button.white { background: #f6f6f4; color: #111; }
+.es1-module.black .es1-button { flex: none; }
+.es1-button[style] { flex: none; }
+.es1-lcd { display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 0 9px; border: 1px solid #555; border-radius: 3px; background: #0b0b0b; color: #ffb066; font-family: var(--mono, "JetBrains Mono", monospace); text-align: left; }
+.es1-lcd b { font-weight: 700; font-size: 11.5px; line-height: 1; white-space: nowrap; }
+.es1-lcd span { font-weight: 500; font-size: 9px; line-height: 1; color: #c7c7c4; white-space: nowrap; }
+.es1-lcd.as-button { cursor: pointer; }
+.es1-lcd.as-button:hover { border-color: #ffb066; }
+.es1-lit { border: 2px solid #4b1a02; border-radius: 6px; background: radial-gradient(circle at 50% 45%, #ffd089, #ff8a2a 62%, #d9601a); box-shadow: 0 0 14px rgba(255, 138, 42, 0.6); cursor: pointer; }
+.es1-lit:active { box-shadow: 0 0 6px rgba(255, 138, 42, 0.5); transform: translateY(1px); }
+.es1-name-field { height: 30px; padding: 0 10px; border: 1.5px solid #111; border-radius: 3px; background: #f6f6f4; color: #111; font: 600 12px/1 var(--mono, "JetBrains Mono", monospace); }
+.es1-name-field.bad { border-color: #c0261a; box-shadow: 0 0 0 1px #c0261a; }
+.es1-name-field:focus { outline: 2px solid #111; outline-offset: 1px; }
+.es1-bindings { display: flex; flex-direction: column; gap: 0; height: 172px; overflow: hidden auto; scrollbar-width: thin; }
+.es1-binding { flex: none; display: flex; align-items: center; gap: 10px; height: 28px; padding: 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
+.es1-binding-name { font: 500 11.5px/18px var(--mono, "JetBrains Mono", monospace); opacity: 0.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.es1-binding.on .es1-binding-name { opacity: 1; }
+.es1-binding:focus-visible { outline: 2px solid #f2f2f0; }
+.es1-slide { position: relative; flex: none; width: 28px; height: 14px; border: 1px solid #8a8a88; border-radius: 2px; background: #3a3a38; }
+.es1-slide i { position: absolute; left: 1px; top: 1px; width: 12px; height: 10px; border-radius: 1px; background: #c9c9c7; transition: left 80ms; }
+.es1-binding.on .es1-slide i { left: 13px; background: #f2f2f0; }
+.es1-led.lit { background: #ff4b36; box-shadow: 0 0 9px 2px rgba(255, 75, 54, 0.65); }
+.es1-publish { border: 3px solid #3a0d08; border-radius: 6px; background: #3a120e; color: #d9a29c; font: 700 10.5px/1 var(--mono, "JetBrains Mono", monospace); letter-spacing: 0.06em; }
+.es1-publish.armed { background: #b3160b; color: #fff; box-shadow: 0 0 14px 2px rgba(255, 75, 54, 0.7); cursor: pointer; }
+.es1-publish.armed:active { transform: translateY(1px); }
+.es1-patch { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.es1-spec-view { position: absolute; left: 212px; top: 14px; width: 986px; height: 560px; display: flex; flex-direction: column; border: 1.5px solid #d8d8d6; border-radius: 5px; background: #0b0b0b; color: #ffb066; font-family: var(--mono, "JetBrains Mono", monospace); }
+.es1-spec-view header { display: flex; align-items: center; gap: 14px; padding: 10px 14px; border-bottom: 1px solid #555; color: #c7c7c4; font-size: 11px; }
+.es1-spec-view header b { color: #f2f2f0; font-size: 13px; letter-spacing: 0.14em; }
+.es1-spec-view header span { flex: 1; }
+.es1-spec-view header .es1-button { flex: none; background: #2a2a2a; border-color: #8a8a88; }
+.es1-spec-view pre { flex: 1; margin: 0; padding: 12px 14px; overflow: auto; font: 500 11.5px/1.45 var(--mono, "JetBrains Mono", monospace); user-select: text; }
+
 /* Command strip */
 .es1-strip { position: absolute; left: 14px; top: 582px; width: 1412px; height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 14px; background: #060606; border: 1px solid #555; border-radius: 3px; color: #ffb066; font-family: var(--mono, "JetBrains Mono", monospace); }
 .es1-strip b { flex: none; font-weight: 700; font-size: 10px; letter-spacing: 0.12em; color: #c7c7c4; }
 .es1-strip code { min-width: 0; font: 500 13px/1 var(--mono, "JetBrains Mono", monospace); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text; }
 .es1-strip i { flex: 1; }
+.es1-strip code.es1-strip-end { flex: none; max-width: 42%; }
 .es1-strip.problem { border-color: #ff6a5c; color: #ff8a7d; }
 
 /* Name strip */

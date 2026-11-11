@@ -25,8 +25,8 @@ packages/
             agent server's protocol
   eh1/      the EH-1 device: grading a setlist, the scorecard, and the client for the
             grader's protocol (eh1-grader)
-  es1/      the ES-1 device: a synth-style panel over Estuary's flowctl (BUILD, not yet
-            connected, and MAP), and the client for the bridge's protocol (cli-bridge)
+  es1/      the ES-1 device: a synth-style panel over Estuary's flowctl (BUILD, connected
+            up to DISCOVER, and MAP), and the client for the bridge's protocol (cli-bridge)
 apps/
   dh1/      DH-1 as a standalone app: a Tauri window (src-tauri/) around the device
   eh1/      EH-1 as a standalone app (npm run eh1), starting eh1-grader's eh1-serve

@@ -70,6 +70,26 @@ export interface Login {
   cancel: () => Promise<void>;
 }
 
+/** A discover in progress. */
+export interface Discovering {
+  done: Promise<Discovered>;
+  stop: () => Promise<void>;
+}
+
+export interface Discovered {
+  /** The whole result, with secrets encrypted by Estuary. */
+  catalog: Record<string, unknown>;
+  bindings: { target: string; resource: unknown }[];
+}
+
+export interface DiscoverInput {
+  name: string;
+  image: string;
+  /** Can hold real secrets. It goes in one message to the engine and is kept nowhere here. */
+  config: Record<string, unknown>;
+  secret_paths: string[];
+}
+
 let counter = 0;
 const nextId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(counter++).toString(36)}`;
 
@@ -141,6 +161,21 @@ export class Engine {
         await this.request({ type: "secret", request: id, secret: token }, nextId("secret"));
       },
       cancel: async () => {
+        await this.request({ type: "stop", request: id }, nextId("stop"));
+      },
+    };
+  }
+
+  discover(input: DiscoverInput, dataPlane: string, profile: string): Discovering {
+    const id = nextId("discover");
+    const done = this.request({ type: "discover", args: { data_plane: dataPlane }, profile, input }, id).then((reply) => {
+      if (reply.type !== "result") throw new EngineError(`unexpected reply ${reply.type}`);
+      if (!reply.result.ok) throw new EngineError(reply.result.error ?? "discover failed", reply.result.code);
+      return reply.result as unknown as Discovered;
+    });
+    return {
+      done,
+      stop: async () => {
         await this.request({ type: "stop", request: id }, nextId("stop"));
       },
     };

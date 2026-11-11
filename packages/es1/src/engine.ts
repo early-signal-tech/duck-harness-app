@@ -82,6 +82,17 @@ export interface Discovered {
   bindings: { target: string; resource: unknown }[];
 }
 
+export interface Drafted {
+  draft_id: string;
+  specs: { catalog_name: string; spec_type: string }[];
+}
+
+/** A long step the engine runs, which pressing its button again can stop. */
+export interface Running<T> {
+  done: Promise<T>;
+  stop: () => Promise<void>;
+}
+
 export interface DiscoverInput {
   name: string;
   image: string;
@@ -167,11 +178,29 @@ export class Engine {
   }
 
   discover(input: DiscoverInput, dataPlane: string, profile: string): Discovering {
-    const id = nextId("discover");
-    const done = this.request({ type: "discover", args: { data_plane: dataPlane }, profile, input }, id).then((reply) => {
+    return this.run<Discovered>("discover", { data_plane: dataPlane }, input, profile);
+  }
+
+  /** A new draft of this catalog, replacing ES-1's last one. The catalog can hold a destination's
+   *  secrets: they go in one message to the engine, which checks Estuary encrypted them. */
+  draftAuthor(catalog: Record<string, unknown>, secretPaths: string[][], replace: string | null, profile: string): Running<Drafted> {
+    return this.run<Drafted>("draft_author", {}, { catalog, secret_paths: secretPaths, replace }, profile);
+  }
+
+  draftTest(draftId: string, dataPlane: string, profile: string): Running<unknown> {
+    return this.run("draft_test", { data_plane: dataPlane }, { draft_id: draftId }, profile);
+  }
+
+  draftDelete(draftId: string, profile: string): Running<unknown> {
+    return this.run("draft_delete", {}, { draft_id: draftId }, profile);
+  }
+
+  private run<T>(verb: string, args: Record<string, unknown>, input: unknown, profile: string): Running<T> {
+    const id = nextId(verb);
+    const done = this.request({ type: verb, args, profile, input }, id).then((reply) => {
       if (reply.type !== "result") throw new EngineError(`unexpected reply ${reply.type}`);
-      if (!reply.result.ok) throw new EngineError(reply.result.error ?? "discover failed", reply.result.code);
-      return reply.result as unknown as Discovered;
+      if (!reply.result.ok) throw new EngineError(reply.result.error ?? `${verb} failed`, reply.result.code);
+      return reply.result as unknown as T;
     });
     return {
       done,

@@ -186,6 +186,17 @@
 .es1-lit.running { animation: es1-running 900ms ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .es1-lit.running { animation: none; box-shadow: 0 0 22px 5px rgba(255, 138, 42, 0.9); } }
 
+/* A failed step's reason, over OUTPUT and MATERIALIZATION. */
+.es1-failure { left: 848px; width: 578px; }
+.es1-failure header { background: #e4574b; color: #111; }
+.es1-failure pre { flex: 1; min-height: 0; margin: 0; overflow: auto; white-space: pre-wrap; font: 500 12px/1.5 var(--mono, "JetBrains Mono", monospace); user-select: text; }
+.es1-led.ok { background: #3ddc6b; box-shadow: 0 0 8px 1px rgba(61, 220, 107, 0.65); }
+.es1-led.warn { background: #ffb02e; box-shadow: 0 0 7px 1px rgba(255, 176, 46, 0.7); }
+@keyframes es1-blink { 50% { background: #5a3a08; box-shadow: none; } }
+.es1-led.running { background: #ffb02e; box-shadow: 0 0 7px 1px rgba(255, 176, 46, 0.7); animation: es1-blink 700ms steps(1) infinite; }
+@media (prefers-reduced-motion: reduce) { .es1-led.running { animation: none; } }
+.es1-button[aria-busy="true"] { border-color: #ffb066; color: #ffb066; }
+
 /* Command strip */
 .es1-strip { position: absolute; left: 14px; top: 582px; width: 1412px; height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 14px; background: #060606; border: 1px solid #555; border-radius: 3px; color: #ffb066; font-family: var(--mono, "JetBrains Mono", monospace); }
 .es1-strip b { flex: none; font-weight: 700; font-size: 10px; letter-spacing: 0.12em; color: #c7c7c4; }

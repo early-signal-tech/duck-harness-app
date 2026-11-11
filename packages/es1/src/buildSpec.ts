@@ -141,8 +141,9 @@ export const destinationName = (state: BuildState, prefix: string) =>
 
 export const dataPlaneName = (state: BuildState) => `ops/dp/public/${DATA_PLANES[state.dataPlane]}`;
 
-/** Captures, collections and a materialization: what would be published. */
-export const specCount = (state: BuildState) => 2 + state.bindings.filter((b) => b.on).length;
+/** Captures, collections and a materialization: what would be published. A found table's
+ *  collection is drafted even when its switch is off, because its binding still names it. */
+export const specCount = (state: BuildState) => 2 + (state.found ? state.bindings.length : state.bindings.filter((b) => b.on).length);
 
 /** Stands in for what CONFIG and DISCOVER will fill in. */
 const FROM_CONFIG = "<from CONFIG>";
@@ -156,7 +157,7 @@ export function draftSpec(state: BuildState, prefix: string) {
   const destination = DESTINATIONS[state.destination];
   const captureName = sourceName(state, prefix);
   const collection = (b: Binding) => b.target ?? `${captureName}/${b.table}`;
-  const on = state.bindings.filter((b) => b.on);
+  const on = state.found ? state.bindings : state.bindings.filter((b) => b.on);
   const retention = RETENTIONS[state.retain].value;
 
   return {
@@ -209,16 +210,77 @@ export function draftSpec(state: BuildState, prefix: string) {
   };
 }
 
+type Spec = Record<string, any>;
+
+/** What DRAFT authors: what DISCOVER found, set the way the panel's controls are, and the
+ *  destination with its config from CONFIG. It never deletes or resets anything. */
+export function draftCatalog(state: BuildState, prefix: string, found: Spec, destinationConfig: Spec, destinationTag: string) {
+  const source = SOURCES[state.source];
+  const destination = DESTINATIONS[state.destination];
+  const captureName = sourceName(state, prefix);
+  const capture: Spec = structuredClone(found.captures?.[captureName] ?? {});
+  const off = new Set(state.bindings.filter((b) => !b.on).map((b) => b.target));
+
+  delete capture.autoDiscover;
+  if (state.autoDiscover !== "off") {
+    capture.autoDiscover = { addNewBindings: true, evolveIncompatibleCollections: state.autoDiscover === "evolve" };
+  }
+  delete capture.interval;
+  if (source.batch) capture.interval = INTERVALS[state.interval].value;
+  capture.shards = { ...(capture.shards ?? {}), logLevel: LOG_LEVELS[state.logLevel].value };
+  if (state.captureOn) delete capture.shards.disable;
+  else capture.shards.disable = true;
+  capture.bindings = (capture.bindings ?? []).map((binding: Spec) => {
+    const { disable: _was, ...rest } = binding;
+    return off.has(binding.target) ? { ...rest, disable: true } : rest;
+  });
+
+  const retention = RETENTIONS[state.retain].value;
+  const collections = Object.fromEntries(Object.entries<Spec>(found.collections ?? {}).map(([name, spec]) => {
+    const fragments = { ...(spec.journals?.fragments ?? {}), compressionCodec: CODECS[state.codec].value, flushInterval: FLUSHES[state.flush].value };
+    if (retention) fragments.retention = retention;
+    else delete fragments.retention;
+    return [name, { ...spec, journals: { ...(spec.journals ?? {}), fragments } }];
+  }));
+
+  const config: Spec = { ...destinationConfig };
+  if (destination.sync) config.syncSchedule = { ...(config.syncSchedule ?? {}), syncFrequency: SYNCS[state.sync].value };
+  const materialization: Spec = {
+    source: {
+      capture: captureName,
+      targetNaming: NAMINGS[state.naming].value,
+      fieldsRecommended: state.fields,
+      ...(destination.delta ? { deltaUpdates: state.delta } : {}),
+    },
+    onIncompatibleSchemaChange: ON_CHANGES[state.onChange].value,
+    endpoint: { connector: { image: `ghcr.io/estuary/${destination.image}${destinationTag}`, config } },
+    // Its source capture fills these in, one for each of the capture's collections.
+    bindings: [],
+    ...(state.materializationOn ? {} : { shards: { disable: true } }),
+  };
+
+  return {
+    captures: { [captureName]: capture },
+    collections,
+    materializations: { [destinationName(state, prefix)]: materialization },
+  };
+}
+
 const flowctl = (profile: string, rest: string) => `flowctl --profile ${profile} ${rest}`;
 
+/** Where the draft stands. */
+export type DraftStage = "none" | "drafted" | "edited" | "tested" | "failed";
+
 /** The panel's next step. */
-export const nextCommand = (state: BuildState, profile: string) =>
-  state.found
-    ? flowctl(profile, "draft create")
-    : flowctl(profile, `discover --source flow.yaml --flat --data-plane ${dataPlaneName(state)}`);
+export function nextCommand(state: BuildState, profile: string, stage: DraftStage = "none") {
+  if (stage === "tested") return flowctl(profile, "draft publish");
+  if (stage === "drafted" || stage === "failed") return flowctl(profile, `draft test --init-data-plane ${dataPlaneName(state)}`);
+  if (state.found) return `${flowctl(profile, "draft create")} && flowctl draft author --source draft.json`;
+  return flowctl(profile, `discover --source flow.yaml --flat --data-plane ${dataPlaneName(state)}`);
+}
 
 /** The buttons that aren't connected yet. */
-export type Press = "new" | "read" | "draft" | "test" | "discard" | "publish";
+export type Press = "new" | "read" | "publish";
 
 /** What a button would do. It's a rehearsal for now: the panel shows this and runs nothing. */
 export function pressed(press: Press, state: BuildState, prefix: string, profile: string): string {
@@ -226,9 +288,6 @@ export function pressed(press: Press, state: BuildState, prefix: string, profile
   switch (press) {
     case "new": return "New collection: key + schema";
     case "read": return flowctl(profile, `collections read --collection ${firstOn ? firstOn.target ?? `${sourceName(state, prefix)}/${firstOn.table}` : "<a collection>"} --since 1h`);
-    case "draft": return `${flowctl(profile, "draft create")} && flowctl draft author --source flow.yaml`;
-    case "test": return flowctl(profile, "draft test");
-    case "discard": return flowctl(profile, "draft delete");
     case "publish": return flowctl(profile, "draft publish");
   }
 }

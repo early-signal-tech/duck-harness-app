@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  DESTINATIONS, INITIAL_BUILD, SOURCES, dataPlaneName, destinationName, draftSpec, nextCommand, pressed, sourceName,
+  DESTINATIONS, INITIAL_BUILD, SOURCES, dataPlaneName, destinationName, draftCatalog, draftSpec, nextCommand, pressed, sourceName,
   specCount, validName, type BuildState,
 } from "../buildSpec";
 
@@ -82,12 +82,85 @@ describe("draftSpec", () => {
     const spec = draftSpec(found, PREFIX);
     expect(only(spec.captures).bindings[0]).toEqual({ resource: { stream: "orders" }, target: "acme/x/public/orders" });
     expect(only(spec.captures).endpoint.connector.config).toBe("<encrypted by Estuary>");
-    expect(Object.keys(spec.collections)).toEqual(["acme/x/public/orders"]);
+    expect(Object.keys(spec.collections)).toEqual(["acme/x/public/orders", "acme/x/public/off"]);
+    expect(specCount(found)).toBe(4);
     expect(pressed("read", found, PREFIX, "p")).toContain("--collection acme/x/public/orders");
   });
 
   it("never asks for delete or reset", () => {
     expect(JSON.stringify(draftSpec(build(), PREFIX))).not.toMatch(/"(delete|reset)"/);
+  });
+});
+
+describe("draftCatalog", () => {
+  const NAME = "acme/postgres-source";
+  const found = {
+    captures: { [NAME]: {
+      endpoint: { connector: { image: "ghcr.io/estuary/source-postgres:v3", config: { password_sops: "ENC[x]", sops: { mac: "m" } } } },
+      bindings: [
+        { resource: { stream: "orders" }, target: `${NAME}/public/orders` },
+        { resource: { stream: "logs" }, target: `${NAME}/public/logs`, disable: true },
+      ],
+    } },
+    collections: {
+      [`${NAME}/public/orders`]: { key: ["/id"], schema: { type: "object" } },
+      [`${NAME}/public/logs`]: { key: ["/id"], schema: { type: "object" }, journals: { fragments: { retention: "1h", length: 5 } } },
+    },
+  };
+  const state = (patch: Partial<BuildState> = {}) => build({
+    found: true,
+    bindings: [
+      { table: "public/orders", target: `${NAME}/public/orders`, on: false },
+      { table: "public/logs", target: `${NAME}/public/logs`, on: true },
+    ],
+    ...patch,
+  });
+  const catalog = (patch: Partial<BuildState> = {}, config: Record<string, unknown> = { token: "made-up" }) =>
+    draftCatalog(state(patch), PREFIX, found, config, ":v4");
+
+  it("keeps the encrypted config and resources DISCOVER found, and sets the switches", () => {
+    const capture = only(catalog().captures) as any;
+    expect(capture.endpoint).toEqual(found.captures[NAME].endpoint);
+    expect(capture.bindings).toEqual([
+      { resource: { stream: "orders" }, target: `${NAME}/public/orders`, disable: true },
+      { resource: { stream: "logs" }, target: `${NAME}/public/logs` },
+    ]);
+  });
+
+  it("sets the capture's knobs, and an interval only for a batch connector", () => {
+    const capture = only(catalog({ autoDiscover: "off", logLevel: 0, captureOn: false }).captures) as any;
+    expect(capture).not.toHaveProperty("autoDiscover");
+    expect(capture).not.toHaveProperty("interval");
+    expect(capture.shards).toEqual({ logLevel: "error", disable: true });
+  });
+
+  it("puts the collection knobs on every found collection, keeping what else they had", () => {
+    const collections = catalog({ codec: 2, flush: 2, retain: 3 }).collections as any;
+    expect(collections[`${NAME}/public/logs`]).toMatchObject({ key: ["/id"], journals: { fragments: { compressionCodec: "ZSTANDARD", flushInterval: "24h", length: 5 } } });
+    expect(collections[`${NAME}/public/logs`].journals.fragments).not.toHaveProperty("retention");
+    expect(collections[`${NAME}/public/orders`].journals.fragments).toMatchObject({ compressionCodec: "ZSTANDARD" });
+  });
+
+  it("builds the destination from CONFIG and the knobs", () => {
+    const m = only(catalog({ sync: 1, naming: 0, onChange: 1, delta: true, fields: false }).materializations) as any;
+    expect(m.endpoint.connector).toEqual({ image: "ghcr.io/estuary/materialize-motherduck:v4", config: { token: "made-up", syncSchedule: { syncFrequency: "1m" } } });
+    expect(m.source).toEqual({ capture: NAME, targetNaming: "noSchema", fieldsRecommended: false, deltaUpdates: true });
+    expect(m.onIncompatibleSchemaChange).toBe("backfill");
+    expect(m.bindings).toEqual([]);
+    expect(m).not.toHaveProperty("shards");
+  });
+
+  it("leaves out what a destination doesn't have", () => {
+    const postgres = only(draftCatalog(state({ destination: 3, delta: true }), PREFIX, found, { address: "db" }, ":v5").materializations) as any;
+    expect(postgres.endpoint.connector.config).toEqual({ address: "db" });
+    const iceberg = only(draftCatalog(state({ destination: 4, delta: true }), PREFIX, found, { url: "x" }, ":v1").materializations) as any;
+    expect(iceberg.source).not.toHaveProperty("deltaUpdates");
+  });
+
+  it("doesn't change what DISCOVER found, and never deletes or resets", () => {
+    const before = JSON.stringify(found);
+    expect(JSON.stringify(catalog())).not.toMatch(/"(delete|reset)"/);
+    expect(JSON.stringify(found)).toBe(before);
   });
 });
 
@@ -108,7 +181,9 @@ describe("commands", () => {
   it("name the profile and data plane", () => {
     expect(dataPlaneName(build({ dataPlane: 0 }))).toBe("ops/dp/public/aws-ap-southeast-2-c1");
     expect(nextCommand(build(), "work")).toBe("flowctl --profile work discover --source flow.yaml --flat --data-plane ops/dp/public/aws-us-east-1-c1");
-    expect(nextCommand(build({ found: true }), "work")).toBe("flowctl --profile work draft create");
+    expect(nextCommand(build({ found: true }), "work")).toBe("flowctl --profile work draft create && flowctl draft author --source draft.json");
+    expect(nextCommand(build({ found: true }), "work", "drafted")).toBe("flowctl --profile work draft test --init-data-plane ops/dp/public/aws-us-east-1-c1");
+    expect(nextCommand(build({ found: true }), "work", "tested")).toBe("flowctl --profile work draft publish");
   });
 
   it("say what each button would do, using the current settings", () => {

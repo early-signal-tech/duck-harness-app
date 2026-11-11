@@ -11,7 +11,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { count, layoutMap, parseCatalog, prefixes, sharedPrefix, withPrefix, type CatalogRow, type Health, type Spec } from "./catalog";
 import { BuildPanel, BuildStrip } from "./Build";
 import { DATA_PLANES } from "./buildSpec";
-import { ConfigDrawer } from "./ConfigDrawer";
+import { ConfigDrawer, FailureDrawer } from "./ConfigDrawer";
 import { BatToggle, Jack, StopKnob } from "./controls";
 import { EngineError, engineCan } from "./engine";
 import "./es1.css";
@@ -257,7 +257,9 @@ export function Es1({ connection, settings }: { connection: EngineConnection; se
 
         {mode === "build" && (
           <BuildPanel state={build} onChange={session.move} onPress={session.press} onConfig={session.openConfig} onDiscover={() => void session.discover()}
-            discovering={session.discovering} configStatus={session.configStatus} prefix={buildPrefix} />
+            discovering={session.discovering} configStatus={session.configStatus} prefix={buildPrefix}
+            draftStage={session.draftStage} busy={session.busy} onDraft={() => void session.draftNow()} onTest={() => void session.testNow()}
+            onDiscard={() => void session.discardNow()} />
         )}
 
         {mode === "map" && <>
@@ -315,6 +317,10 @@ export function Es1({ connection, settings }: { connection: EngineConnection; se
           <ConfigDrawer {...session.drawer} onSave={session.saveConfig} onCancel={session.closeConfig} />
         )}
 
+        {mode === "build" && session.failure && (
+          <FailureDrawer failure={session.failure} onClose={session.closeFailure} />
+        )}
+
         {loggingIn && engine && (
           <LoginDrawer engine={engine} profile={profile} onClose={() => setLoggingIn(false)}
             onLoggedIn={() => { setLoggingIn(false); void refresh(); }} />
@@ -324,7 +330,7 @@ export function Es1({ connection, settings }: { connection: EngineConnection; se
           {stripProblem ? (
             <><b>{status === "down" ? "OFFLINE" : "PROBLEM"}</b><code title={stripProblem}>{stripProblem}</code></>
           ) : mode === "build" ? (
-            <BuildStrip state={build} profile={profile} moved={session.moved} rehearsal={session.rehearsal} discovering={session.discovering} />
+            <BuildStrip state={build} profile={profile} moved={session.moved} rehearsal={session.rehearsal} busy={session.busy} stage={session.draftStage} />
           ) : (
             <>
               <b>LAST RUN</b><code>flowctl --profile {profile} catalog list --flows -o json</code>

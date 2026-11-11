@@ -6,9 +6,9 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   CODECS, DESTINATIONS, FLUSHES, INTERVALS, LOG_LEVELS, NAMINGS, ON_CHANGES, RETENTIONS, SOURCES, SYNCS,
   destinationName, draftSpec, nextCommand, sourceName, specCount, validName,
-  type AutoDiscover, type BuildState, type Press,
+  type AutoDiscover, type BuildState, type DraftStage, type Press,
 } from "./buildSpec";
-import type { Moved, Side } from "./useBuildSession";
+import type { Busy, Moved, Side } from "./useBuildSession";
 import { BatToggle, Jack, StopKnob } from "./controls";
 
 /** A knob's dial sits this far below its top; a toggle's pivot, this far. */
@@ -44,7 +44,20 @@ interface Props {
   discovering: boolean;
   configStatus: (side: Side) => string;
   prefix: string;
+  draftStage: DraftStage;
+  busy: Busy | null;
+  onDraft: () => void;
+  onTest: () => void;
+  onDiscard: () => void;
 }
+
+const OUTPUT_SCREEN: Record<DraftStage, string> = {
+  none: "NOT DRAFTED",
+  drafted: "DRAFTED",
+  edited: "EDITED · DRAFT AGAIN",
+  tested: "TEST PASSED",
+  failed: "TEST FAILED",
+};
 
 function Name({ value, label, onChange }: { value: string; label: string; onChange: (value: string) => void }) {
   const ok = validName(value);
@@ -58,7 +71,14 @@ function Name({ value, label, onChange }: { value: string; label: string; onChan
   );
 }
 
-export function BuildPanel({ state, onChange, onPress, onConfig, onDiscover, discovering, configStatus, prefix }: Props) {
+export function BuildPanel({ state, onChange, onPress, onConfig, onDiscover, discovering, configStatus, prefix, draftStage, busy, onDraft, onTest, onDiscard }: Props) {
+  const draftLed = busy === "draft" ? "running" : draftStage === "edited" ? "warn" : draftStage === "none" ? "" : "ok";
+  const testLed = busy === "test" ? "running" : draftStage === "tested" ? "ok" : draftStage === "failed" ? "bad" : "";
+  const steps = [
+    { press: onDraft, label: busy === "draft" ? "DRAFTING…" : "DRAFT", spec: "draft create + author", led: draftLed, active: busy === "draft" },
+    { press: onTest, label: busy === "test" ? "TESTING…" : "TEST", spec: "draft test", led: testLed, active: busy === "test" },
+    { press: onDiscard, label: busy === "discard" ? "DISCARDING…" : "DISCARD", spec: "draft delete", led: null, active: busy === "discard" },
+  ];
   const source = SOURCES[state.source];
   const destination = DESTINATIONS[state.destination];
   const onCount = state.bindings.filter((b) => b.on).length;
@@ -204,13 +224,15 @@ export function BuildPanel({ state, onChange, onPress, onConfig, onDiscover, dis
       <section className="es1-module black es1-b-output">
         <h2>OUTPUT</h2>
         <button className="es1-lcd as-button" style={{ left: 16, top: 40, width: 188, height: 50 }} onClick={() => setShowSpec(true)} title="See the draft spec">
-          <b>NOT DRAFTED</b><span>SEE SPEC · {specCount(state)} SPECS</span>
+          <b>{OUTPUT_SCREEN[draftStage]}</b><span>SEE SPEC · {specCount(state)} SPECS</span>
         </button>
-        {([["draft", "DRAFT", "draft create + author"], ["test", "TEST", "draft test"], ["discard", "DISCARD", "draft delete"]] as const).map(([press, label, spec2], i) => (
-          <div key={press}>
-            <button className="es1-button" style={{ left: 16, top: 106 + i * 74, width: 126, height: 36 }} onClick={() => onPress(press)}>{label}</button>
-            {press !== "discard" && <span className="es1-led es1-abs" style={{ left: 158, top: 119 + i * 74 }} aria-hidden="true" />}
-            <div className="es1-at-left es1-spec" style={{ left: 16, top: 146 + i * 74 }}>{spec2}</div>
+        {steps.map((s, i) => (
+          <div key={s.spec}>
+            <button className="es1-button" style={{ left: 16, top: 106 + i * 74, width: 126, height: 36 }} aria-busy={s.active}
+              disabled={!!busy && !s.active} title={s.active ? "Press to stop" : undefined} onClick={s.press}>{s.label}</button>
+            {s.led !== null && <span className={`es1-led es1-abs ${s.led}`} style={{ left: 158, top: 119 + i * 74 }}
+              role="img" aria-label={`${s.spec}: ${s.led === "ok" ? "done" : s.led === "bad" ? "failed" : s.led === "warn" ? "out of date" : s.led === "running" ? "running" : "not yet"}`} />}
+            <div className="es1-at-left es1-spec" style={{ left: 16, top: 146 + i * 74 }}>{s.spec}</div>
           </div>
         ))}
       </section>
@@ -256,9 +278,17 @@ export function BuildPanel({ state, onChange, onPress, onConfig, onDiscover, dis
   );
 }
 
-export function BuildStrip({ state, profile, moved, rehearsal, discovering }: { state: BuildState; profile: string; moved: Moved | null; rehearsal: string | null; discovering: boolean }) {
-  if (discovering) {
-    return <><b>RUNNING</b><code>{nextCommand({ ...state, found: false }, profile)}</code><i /><b>TAKES UP TO</b><code className="es1-strip-end">5 minutes</code></>;
+const RUNNING: Record<Busy, (state: BuildState, profile: string) => [string, string]> = {
+  discover: (state, profile) => [nextCommand({ ...state, found: false }, profile), "5 minutes"],
+  draft: (state, profile) => [nextCommand(state, profile), "a minute"],
+  test: (state, profile) => [nextCommand(state, profile, "drafted"), "a few minutes"],
+  discard: (_, profile) => [`flowctl --profile ${profile} draft delete`, "a moment"],
+};
+
+export function BuildStrip({ state, profile, moved, rehearsal, busy, stage }: { state: BuildState; profile: string; moved: Moved | null; rehearsal: string | null; busy: Busy | null; stage: DraftStage }) {
+  if (busy) {
+    const [command, takes] = RUNNING[busy](state, profile);
+    return <><b>RUNNING</b><code title={command}>{command}</code><i /><b>TAKES UP TO</b><code className="es1-strip-end">{takes}</code></>;
   }
   if (rehearsal) {
     return (
@@ -269,7 +299,7 @@ export function BuildStrip({ state, profile, moved, rehearsal, discovering }: { 
       </>
     );
   }
-  const next = nextCommand(state, profile);
+  const next = nextCommand(state, profile, stage);
   return (
     <>
       <b>NEXT</b><code title={next}>{next}</code>

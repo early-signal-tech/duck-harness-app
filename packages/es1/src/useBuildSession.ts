@@ -1,10 +1,14 @@
-// What the BUILD panel holds while it's open: the controls, each connector's form and what
-// DISCOVER found. Secrets live here, in memory only, until DISCOVER encrypts them. Nothing here
-// is saved to disk.
+// What the BUILD panel holds while it's open: the controls, each connector's form, what DISCOVER
+// found and ES-1's draft. A source's secrets live here, in memory only, until DISCOVER encrypts
+// them. A destination's stay until the app closes, so it can be drafted again: Estuary encrypts
+// them in the draft. Only the draft's ID is saved, so a draft left on Estuary can be discarded.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DESTINATIONS, INITIAL_BUILD, EXAMPLE_TABLES, SOURCES, pressed, sourceName, validName, dataPlaneName, type BuildState, type Press } from "./buildSpec";
-import { EngineError, type Discovering, type Engine } from "./engine";
+import {
+  DESTINATIONS, INITIAL_BUILD, EXAMPLE_TABLES, SOURCES, dataPlaneName, destinationName, draftCatalog, pressed, sourceName, validName,
+  type BuildState, type DraftStage, type Press,
+} from "./buildSpec";
+import { EngineError, type Engine, type Running } from "./engine";
 import { buildConfig, initialValues, parseFields, problems, requiredProgress, secretPaths, withoutSecrets, type Field, type Values } from "./schemaForm";
 
 export interface Moved {
@@ -26,6 +30,41 @@ interface SchemaRow {
 }
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+const stopped = (e: unknown) => e instanceof EngineError && e.code === "stopped";
+
+export interface Draft {
+  id: string;
+  stage: Exclude<DraftStage, "none">;
+}
+
+export type Busy = "discover" | "draft" | "test" | "discard";
+
+/** Why a step failed, shown in full. */
+export interface Failure {
+  title: string;
+  text: string;
+}
+
+const draftKey = (profile: string) => `es1.draft.${profile}`;
+
+/** A draft from an earlier session: its contents aren't known, so it counts as edited. */
+function loadDraft(profile: string): Draft | null {
+  try {
+    const id = localStorage.getItem(draftKey(profile));
+    return id ? { id, stage: "edited" } : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveDraftId(profile: string, id: string | null): void {
+  try {
+    if (id) localStorage.setItem(draftKey(profile), id);
+    else localStorage.removeItem(draftKey(profile));
+  } catch {
+    // Not remembered: a draft left behind can still be deleted on Estuary's dashboard.
+  }
+}
 
 export function useBuildSession(engine: Engine | null, profile: string, prefix: string) {
   const [state, setState] = useState<BuildState>(INITIAL_BUILD);
@@ -34,8 +73,11 @@ export function useBuildSession(engine: Engine | null, profile: string, prefix: 
   const [schemas, setSchemas] = useState<Record<string, Schema>>({});
   const [configs, setConfigs] = useState<Record<string, Values>>({});
   const [drawer, setDrawer] = useState<{ side: Side; note?: string; loadError?: string } | null>(null);
-  const [discovering, setDiscovering] = useState(false);
-  const running = useRef<Discovering | null>(null);
+  const [busy, setBusy] = useState<Busy | null>(null);
+  const running = useRef<Running<unknown> | null>(null);
+  const [found, setFound] = useState<Record<string, any> | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(() => loadDraft(profile));
+  const [failure, setFailure] = useState<Failure | null>(null);
   const loading = useRef<Map<string, Promise<Schema>>>(new Map());
 
   const imageOf = useCallback((side: Side, s: BuildState) => (side === "source" ? SOURCES[s.source] : DESTINATIONS[s.destination]), []);
@@ -61,8 +103,15 @@ export function useBuildSession(engine: Engine | null, profile: string, prefix: 
     loading.current.clear();
     setSchemas({});
     setConfigs({});
+    setFound(null);
     setState((s) => (s.found ? { ...s, found: false, bindings: EXAMPLE_TABLES.map((b) => ({ ...b })) } : s));
   }, [engine, profile]);
+
+  // A draft belongs to its profile.
+  useEffect(() => setDraft(loadDraft(profile)), [profile]);
+
+  /** The draft no longer matches the panel. */
+  const edited = useCallback(() => setDraft((d) => (d && d.stage !== "edited" ? { ...d, stage: "edited" } : d)), []);
 
   const valuesFor = useCallback((image: string, fields: Field[]) => configs[image] ?? initialValues(fields), [configs]);
 
@@ -71,11 +120,13 @@ export function useBuildSession(engine: Engine | null, profile: string, prefix: 
       const next = { ...s, ...patch };
       // What was found belongs to this source, on this plane.
       const stale = s.found && (next.source !== s.source || next.sourceName !== s.sourceName || next.dataPlane !== s.dataPlane);
+      if (stale) setFound(null);
       return stale ? { ...next, found: false, bindings: EXAMPLE_TABLES.map((b) => ({ ...b })) } : next;
     });
+    if (!("armed" in patch)) edited();
     setMoved(change);
     setRehearsal(null);
-  }, []);
+  }, [edited]);
 
   const press = useCallback((button: Press) => setRehearsal(pressed(button, state, prefix, profile)), [state, prefix, profile]);
 
@@ -93,15 +144,17 @@ export function useBuildSession(engine: Engine | null, profile: string, prefix: 
     setDrawer(null);
     if (drawer.side === "source") {
       // New settings mean what was found no longer stands.
+      setFound(null);
       setState((s) => (s.found ? { ...s, found: false, bindings: EXAMPLE_TABLES.map((b) => ({ ...b })) } : s));
     }
+    edited();
     setMoved({ field: `${image} config`, value: "saved" });
     setRehearsal(null);
-  }, [drawer, imageOf, state]);
+  }, [drawer, edited, imageOf, state]);
 
   const discover = useCallback(async () => {
     if (running.current) {
-      await running.current.stop().catch(() => {});
+      if (busy === "discover") await running.current.stop().catch(() => {});
       return;
     }
     if (!engine) return;
@@ -125,16 +178,17 @@ export function useBuildSession(engine: Engine | null, profile: string, prefix: 
       setDrawer({ side: "source", note: `DISCOVER needs: ${missing.join(", ")}.` });
       return;
     }
-    const job = engine.discover({
+    const discovering = engine.discover({
       name,
       image: `ghcr.io/estuary/${source.image}${schema.tag}`,
       config: buildConfig(schema.fields, values),
       secret_paths: secretPaths(schema.fields, values),
     }, dataPlaneName(state), profile);
-    running.current = job;
-    setDiscovering(true);
+    running.current = discovering;
+    setBusy("discover");
     try {
-      const found = await job.done;
+      const result = await discovering.done;
+      const found = result;
       const lead = `${name}/`;
       setState((s) => ({
         ...s,
@@ -146,18 +200,123 @@ export function useBuildSession(engine: Engine | null, profile: string, prefix: 
           on: true,
         })),
       }));
+      setFound(result.catalog);
       // Estuary has encrypted them, so the plain text has nothing left to do.
       setConfigs((all) => ({ ...all, [source.image]: withoutSecrets(schema.fields, values) }));
+      edited();
       setMoved({ field: "DISCOVER", value: `${found.bindings.length} found` });
     } catch (e) {
-      if (!(e instanceof EngineError && e.code === "stopped")) {
-        setDrawer({ side: "source", note: message(e) });
+      if (!stopped(e)) setDrawer({ side: "source", note: message(e) });
+    } finally {
+      running.current = null;
+      setBusy(null);
+    }
+  }, [busy, edited, engine, loadSchema, prefix, profile, state, valuesFor]);
+
+  /** Run one step at a time. Pressing the running step's button again stops it. */
+  const step = useCallback(async <T,>(which: Busy, start: () => Running<T>, onDone: (result: T) => void, failed: string) => {
+    if (running.current) {
+      if (busy === which) await running.current.stop().catch(() => {});
+      return;
+    }
+    setRehearsal(null);
+    setFailure(null);
+    const job = start();
+    running.current = job as Running<unknown>;
+    setBusy(which);
+    try {
+      onDone(await job.done);
+    } catch (e) {
+      if (!stopped(e)) setFailure({ title: failed, text: message(e) });
+      if (e instanceof EngineError && e.code === "no_draft") {
+        setDraft(null);
+        saveDraftId(profile, null);
+      } else if (which === "test" && !stopped(e)) {
+        setDraft((d) => (d ? { ...d, stage: "failed" } : d));
       }
     } finally {
       running.current = null;
-      setDiscovering(false);
+      setBusy(null);
     }
-  }, [engine, loadSchema, prefix, profile, state, valuesFor]);
+  }, [busy, profile]);
+
+  const draftNow = useCallback(async () => {
+    if (running.current) {
+      if (busy === "draft") await running.current.stop().catch(() => {});
+      return;
+    }
+    if (!engine) return;
+    if (!state.found || !found) {
+      setMoved({ field: "DRAFT", value: "press DISCOVER first" });
+      return;
+    }
+    if (!found.captures?.[sourceName(state, prefix)]) {
+      setMoved({ field: "DRAFT", value: "what DISCOVER found doesn't match this source: press DISCOVER again" });
+      return;
+    }
+    const destination = DESTINATIONS[state.destination];
+    const name = destinationName(state, prefix);
+    if (!validName(name)) {
+      setMoved({ field: "materialization name", value: "has to look like prefix/name" });
+      return;
+    }
+    let schema: Schema;
+    try {
+      schema = await loadSchema(destination.image);
+    } catch (e) {
+      setDrawer({ side: "destination", loadError: message(e) });
+      return;
+    }
+    const values = valuesFor(destination.image, schema.fields);
+    const missing = problems(schema.fields, values);
+    if (missing.length) {
+      setDrawer({ side: "destination", note: `DRAFT needs: ${missing.join(", ")}.` });
+      return;
+    }
+    const catalog = draftCatalog(state, prefix, found, buildConfig(schema.fields, values), schema.tag);
+    const secrets = secretPaths(schema.fields, values).map((path) => ["materializations", name, "endpoint", "connector", "config", ...path.split(".")]);
+    await step("draft", () => engine.draftAuthor(catalog, secrets, draft?.id ?? null, profile), (result) => {
+      setDraft({ id: result.draft_id, stage: "drafted" });
+      saveDraftId(profile, result.draft_id);
+      setMoved({ field: "DRAFT", value: `${result.specs.length} specs on Estuary` });
+    }, "DRAFT FAILED");
+  }, [busy, draft, engine, found, loadSchema, prefix, profile, state, step, valuesFor]);
+
+  const testNow = useCallback(async () => {
+    if (running.current) {
+      if (busy === "test") await running.current.stop().catch(() => {});
+      return;
+    }
+    if (!engine) return;
+    if (!draft) {
+      setMoved({ field: "TEST", value: "press DRAFT first" });
+      return;
+    }
+    if (draft.stage === "edited") {
+      setMoved({ field: "TEST", value: "the panel changed since DRAFT: press DRAFT again" });
+      return;
+    }
+    const id = draft.id;
+    await step("test", () => engine.draftTest(id, dataPlaneName(state), profile), () => {
+      setDraft((d) => (d && d.id === id ? { ...d, stage: "tested" } : d));
+      setMoved({ field: "TEST", value: "passed" });
+    }, "TEST FAILED");
+  }, [busy, draft, engine, profile, state, step]);
+
+  const discardNow = useCallback(async () => {
+    if (running.current) return;
+    if (!engine) return;
+    if (!draft) {
+      setMoved({ field: "DISCARD", value: "no draft to discard" });
+      return;
+    }
+    const id = draft.id;
+    await step("discard", () => engine.draftDelete(id, profile), () => {
+      setDraft(null);
+      saveDraftId(profile, null);
+      setMoved({ field: "DISCARD", value: "draft deleted" });
+    }, "DISCARD FAILED");
+  }, [draft, engine, profile, step]);
 
   /** The line under a CONFIG button. */
   const configStatus = useCallback((side: Side) => {
@@ -183,5 +342,9 @@ export function useBuildSession(engine: Engine | null, profile: string, prefix: 
     };
   }, [drawer, imageOf, schemas, state, valuesFor]);
 
-  return { state, moved, rehearsal, move, press, openConfig, closeConfig, saveConfig, discover, discovering, configStatus, drawer: openDrawer };
+  return {
+    state, moved, rehearsal, move, press, openConfig, closeConfig, saveConfig, configStatus, drawer: openDrawer,
+    discover, draftNow, testNow, discardNow, busy, discovering: busy === "discover",
+    draftStage: (draft?.stage ?? "none") as DraftStage, failure, closeFailure: () => setFailure(null),
+  };
 }

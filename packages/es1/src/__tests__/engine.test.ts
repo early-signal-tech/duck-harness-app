@@ -152,6 +152,31 @@ describe("Engine", () => {
     });
   });
 
+  describe("drafts", () => {
+    it("authors with the catalog, secret paths and the draft it replaces", async () => {
+      const job = engine.draftAuthor({ captures: {} }, [["materializations", "a/m", "token"]], "00000000000000ab", "work");
+      const id = await transport.lastId();
+      expect(transport.sent[0]).toEqual({ id, type: "draft_author", args: {}, profile: "work",
+        input: { catalog: { captures: {} }, secret_paths: [["materializations", "a/m", "token"]], replace: "00000000000000ab" } });
+      transport.reply({ id, type: "result", result: { ok: true, draft_id: "00000000000000cd", specs: [] } });
+      await expect(job.done).resolves.toMatchObject({ draft_id: "00000000000000cd" });
+    });
+
+    it("tests on a data plane, and deletes, by the draft's ID", async () => {
+      engine.draftTest("00000000000000cd", "ops/dp/public/x", "work").done.catch(() => {});
+      expect(transport.sent[0]).toMatchObject({ type: "draft_test", args: { data_plane: "ops/dp/public/x" }, input: { draft_id: "00000000000000cd" } });
+      engine.draftDelete("00000000000000cd", "work").done.catch(() => {});
+      await transport.lastId();
+      expect(transport.sent[1]).toMatchObject({ type: "draft_delete", args: {}, input: { draft_id: "00000000000000cd" } });
+    });
+
+    it("rejects a failed test with the bridge's reason", async () => {
+      const job = engine.draftTest("00000000000000cd", "p", "work");
+      transport.reply({ id: await transport.lastId(), type: "result", result: { ok: false, error: "cannot connect", code: "tool_error" } });
+      await expect(job.done).rejects.toMatchObject({ message: "cannot connect" });
+    });
+  });
+
   describe("login", () => {
     const TOKEN = "made-up-token";
 

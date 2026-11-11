@@ -95,6 +95,26 @@ function FieldList({ fields, values, onChange, path }: Omit<FieldProps, "field">
   );
 }
 
+/** A step that failed, with Estuary's whole reason. */
+export function FailureDrawer({ failure, onClose }: { failure: { title: string; text: string }; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="es1-drawer es1-failure" role="alertdialog" aria-label={failure.title}>
+      <header>{failure.title}<small>from flowctl</small></header>
+      <form onSubmit={(e) => { e.preventDefault(); onClose(); }}>
+        <pre>{failure.text}</pre>
+        <footer><button type="submit" className="es1-button" autoFocus>CLOSE</button></footer>
+      </form>
+    </div>
+  );
+}
+
 interface Props {
   side: "source" | "destination";
   /** The connector's image and tag, for the header. */

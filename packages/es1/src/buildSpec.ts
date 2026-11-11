@@ -271,19 +271,20 @@ export function draftCatalog(state: BuildState, prefix: string, found: Spec, des
 
 const flowctl = (profile: string, rest: string) => `flowctl --profile ${profile} ${rest}`;
 
-/** Where the draft stands. */
-export type DraftStage = "none" | "drafted" | "edited" | "tested" | "failed";
+/** Where the draft stands. "published" is shown until the panel changes again. */
+export type DraftStage = "none" | "drafted" | "edited" | "tested" | "failed" | "published";
 
 /** The panel's next step. */
 export function nextCommand(state: BuildState, profile: string, stage: DraftStage = "none") {
-  if (stage === "tested") return flowctl(profile, "draft publish");
+  if (stage === "tested") return flowctl(profile, `draft publish --init-data-plane ${dataPlaneName(state)}`);
+  if (stage === "published") return "Live. Turn MODE to MAP to see it.";
   if (stage === "drafted" || stage === "failed") return flowctl(profile, `draft test --init-data-plane ${dataPlaneName(state)}`);
   if (state.found) return `${flowctl(profile, "draft create")} && flowctl draft author --source draft.json`;
   return flowctl(profile, `discover --source flow.yaml --flat --data-plane ${dataPlaneName(state)}`);
 }
 
 /** The buttons that aren't connected yet. */
-export type Press = "new" | "read" | "publish";
+export type Press = "new" | "read";
 
 /** What a button would do. It's a rehearsal for now: the panel shows this and runs nothing. */
 export function pressed(press: Press, state: BuildState, prefix: string, profile: string): string {
@@ -291,6 +292,5 @@ export function pressed(press: Press, state: BuildState, prefix: string, profile
   switch (press) {
     case "new": return "New collection: key + schema";
     case "read": return flowctl(profile, `collections read --collection ${firstOn ? firstOn.target ?? `${sourceName(state, prefix)}/${firstOn.table}` : "<a collection>"} --since 1h`);
-    case "publish": return flowctl(profile, "draft publish");
   }
 }

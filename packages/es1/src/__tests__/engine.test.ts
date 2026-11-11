@@ -7,7 +7,15 @@ class FakeTransport implements EngineTransport {
   sent: Record<string, unknown>[] = [];
   private message: (line: string) => void = () => {};
   private exit: (generation: number) => void = () => {};
+  confirmed: Record<string, unknown>[] = [];
+  /** What the host's dialog answers. */
+  answer: "publish" | "cancel" = "publish";
   async send(line: string) {
+    this.sent.push(JSON.parse(line));
+  }
+  async sendConfirmed(line: string) {
+    this.confirmed.push(JSON.parse(line));
+    if (this.answer === "cancel") throw "cancelled";
     this.sent.push(JSON.parse(line));
   }
   async generation() {
@@ -168,6 +176,23 @@ describe("Engine", () => {
       engine.draftDelete("00000000000000cd", "work").done.catch(() => {});
       await transport.lastId();
       expect(transport.sent[1]).toMatchObject({ type: "draft_delete", args: {}, input: { draft_id: "00000000000000cd" } });
+    });
+
+    it("publishes through the host's confirmation, never a plain send", async () => {
+      const job = engine.draftPublish("00000000000000cd", ["a/x", "a/y"], "ops/dp/public/x", "work");
+      const id = await transport.lastId();
+      expect(transport.confirmed).toHaveLength(1);
+      expect(transport.confirmed[0]).toEqual({ id, type: "draft_publish", args: { data_plane: "ops/dp/public/x" }, profile: "work",
+        input: { draft_id: "00000000000000cd", expect: ["a/x", "a/y"] } });
+      transport.reply({ id, type: "result", result: { ok: true, published: ["a/x", "a/y"] } });
+      await expect(job.done).resolves.toEqual({ ok: true, published: ["a/x", "a/y"] });
+    });
+
+    it("says so when the person cancels in the host's dialog", async () => {
+      transport.answer = "cancel";
+      const job = engine.draftPublish("00000000000000cd", ["a/x"], "p", "work");
+      await expect(job.done).rejects.toMatchObject({ code: "cancelled" });
+      expect(transport.sent).toEqual([]);
     });
 
     it("rejects a failed test with the bridge's reason", async () => {

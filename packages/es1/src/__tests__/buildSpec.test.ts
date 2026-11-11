@@ -192,11 +192,11 @@ describe("commands", () => {
     expect(nextCommand(build(), "work")).toBe("flowctl --profile work discover --source flow.yaml --flat --data-plane ops/dp/public/aws-us-east-1-c1");
     expect(nextCommand(build({ found: true }), "work")).toBe("flowctl --profile work draft create && flowctl draft author --source draft.json");
     expect(nextCommand(build({ found: true }), "work", "drafted")).toBe("flowctl --profile work draft test --init-data-plane ops/dp/public/aws-us-east-1-c1");
-    expect(nextCommand(build({ found: true }), "work", "tested")).toBe("flowctl --profile work draft publish");
+    expect(nextCommand(build({ found: true }), "work", "tested")).toBe("flowctl --profile work draft publish --init-data-plane ops/dp/public/aws-us-east-1-c1");
   });
 
   it("say what each button would do, using the current settings", () => {
-    expect(pressed("publish", build(), PREFIX, "work")).toBe("flowctl --profile work draft publish");
+    expect(pressed("new", build(), PREFIX, "work")).toBe("New collection: key + schema");
     expect(pressed("read", build(), PREFIX, "p")).toContain("--collection acme/postgres-source/public/orders");
     expect(pressed("read", build({ bindings: [] }), PREFIX, "p")).toContain("<a collection>");
   });

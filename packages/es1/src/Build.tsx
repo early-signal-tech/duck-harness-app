@@ -49,6 +49,7 @@ interface Props {
   onDraft: () => void;
   onTest: () => void;
   onDiscard: () => void;
+  onPublish: () => void;
 }
 
 const OUTPUT_SCREEN: Record<DraftStage, string> = {
@@ -57,6 +58,7 @@ const OUTPUT_SCREEN: Record<DraftStage, string> = {
   edited: "EDITED · DRAFT AGAIN",
   tested: "TEST PASSED",
   failed: "TEST FAILED",
+  published: "PUBLISHED · LIVE",
 };
 
 function Name({ value, label, onChange }: { value: string; label: string; onChange: (value: string) => void }) {
@@ -71,7 +73,8 @@ function Name({ value, label, onChange }: { value: string; label: string; onChan
   );
 }
 
-export function BuildPanel({ state, onChange, onPress, onConfig, onDiscover, discovering, configStatus, prefix, draftStage, busy, onDraft, onTest, onDiscard }: Props) {
+export function BuildPanel({ state, onChange, onPress, onConfig, onDiscover, discovering, configStatus, prefix, draftStage, busy, onDraft, onTest, onDiscard, onPublish }: Props) {
+  const canPublish = state.armed && draftStage === "tested" && !busy;
   const draftLed = busy === "draft" ? "running" : draftStage === "edited" ? "warn" : draftStage === "none" ? "" : "ok";
   const testLed = busy === "test" ? "running" : draftStage === "tested" ? "ok" : draftStage === "failed" ? "bad" : "";
   const steps = [
@@ -245,7 +248,11 @@ export function BuildPanel({ state, onChange, onPress, onConfig, onDiscover, dis
             options={[{ value: "safe", label: "SAFE" }, { value: "arm", label: "ARM" }]}
             onChange={(v) => onChange({ armed: v === "arm" }, { field: "GO LIVE", value: v === "arm" ? "armed" : "safe" })} />
         </At>
-        <button className={`es1-publish${state.armed ? " armed" : ""}`} style={{ left: 116, top: 58, width: 84, height: 84 }} disabled={!state.armed} onClick={() => onPress("publish")}>PUBLISH</button>
+        <button className={`es1-publish${canPublish ? " armed" : ""}`} style={{ left: 116, top: 58, width: 84, height: 84 }}
+          disabled={!canPublish} aria-busy={busy === "publish"} onClick={onPublish}
+          title={canPublish ? "Publish: you'll be asked to confirm" : state.armed ? "TEST has to pass first" : "Flip to ARM first"}>
+          {busy === "publish" ? "PUBLISHING…" : "PUBLISH"}
+        </button>
         <div className="es1-at-left es1-spec" style={{ left: 16, top: 156, opacity: 1 }}>draft publish, after TEST passes.</div>
         <div className="es1-at-left es1-spec" style={{ left: 16, top: 170, opacity: 1 }}>This one makes it live.</div>
       </section>
@@ -284,6 +291,7 @@ const RUNNING: Record<Busy, (state: BuildState, profile: string) => [string, str
   draft: (state, profile) => [nextCommand(state, profile), "a minute"],
   test: (state, profile) => [nextCommand(state, profile, "drafted"), "a few minutes"],
   discard: (_, profile) => [`flowctl --profile ${profile} draft delete`, "a moment"],
+  publish: (state, profile) => [nextCommand(state, profile, "tested"), "a few minutes"],
 };
 
 export function BuildStrip({ state, profile, moved, rehearsal, busy, stage }: { state: BuildState; profile: string; moved: Moved | null; rehearsal: string | null; busy: Busy | null; stage: DraftStage }) {

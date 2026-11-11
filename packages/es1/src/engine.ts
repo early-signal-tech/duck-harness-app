@@ -195,9 +195,16 @@ export class Engine {
     return this.run("draft_delete", {}, { draft_id: draftId }, profile);
   }
 
-  private run<T>(verb: string, args: Record<string, unknown>, input: unknown, profile: string): Running<T> {
+  /** Publish ES-1's draft: the only request that makes anything live. The host asks the person
+   *  in a native dialog first (code "cancelled" if they say no), and the engine publishes only
+   *  if the draft holds exactly `expect`. */
+  draftPublish(draftId: string, expect: string[], dataPlane: string, profile: string): Running<{ published: string[] }> {
+    return this.run("draft_publish", { data_plane: dataPlane }, { draft_id: draftId, expect }, profile, true);
+  }
+
+  private run<T>(verb: string, args: Record<string, unknown>, input: unknown, profile: string, confirmed = false): Running<T> {
     const id = nextId(verb);
-    const done = this.request({ type: verb, args, profile, input }, id).then((reply) => {
+    const done = this.request({ type: verb, args, profile, input }, id, undefined, confirmed).then((reply) => {
       if (reply.type !== "result") throw new EngineError(`unexpected reply ${reply.type}`);
       if (!reply.result.ok) throw new EngineError(reply.result.error ?? `${verb} failed`, reply.result.code);
       return reply.result as unknown as T;
@@ -210,13 +217,15 @@ export class Engine {
     };
   }
 
-  private request(body: Record<string, unknown>, id: string, onEvent?: (event: string) => void): Promise<Message> {
+  private request(body: Record<string, unknown>, id: string, onEvent?: (event: string) => void, confirmed = false): Promise<Message> {
     if (this.exited) return Promise.reject(new EngineError("the flowctl bridge is not running"));
     return new Promise<Message>((resolve, reject) => {
       this.pending.set(id, { resolve, reject, onEvent });
-      this.transport.send(JSON.stringify({ id, ...body })).catch((e) => {
+      const line = JSON.stringify({ id, ...body });
+      (confirmed ? this.transport.sendConfirmed(line) : this.transport.send(line)).catch((e) => {
         this.pending.delete(id);
-        reject(new EngineError(String(e)));
+        const text = String(e);
+        reject(text === "cancelled" ? new EngineError("Not published: cancelled.", "cancelled") : new EngineError(text));
       });
     });
   }

@@ -10,8 +10,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { count, layoutMap, parseCatalog, prefixes, sharedPrefix, withPrefix, type CatalogRow, type Health, type Spec } from "./catalog";
 import { BuildPanel, BuildStrip } from "./Build";
-import { DATA_PLANES } from "./buildSpec";
-import { ConfigDrawer, FailureDrawer } from "./ConfigDrawer";
+import { DATA_PLANES, dataPlaneName } from "./buildSpec";
+import { ConfigDrawer, FailureDrawer, PublishDrawer } from "./ConfigDrawer";
 import { BatToggle, Jack, StopKnob } from "./controls";
 import { EngineError, engineCan } from "./engine";
 import "./es1.css";
@@ -200,6 +200,8 @@ export function Es1({ connection, settings }: { connection: EngineConnection; se
   const buildPrefix = prefix ?? available[0] ?? "your_prefix/";
   const session = useBuildSession(engine, profile, buildPrefix);
   const build = session.state;
+  // What's just gone live should show in MAP.
+  session.onPublished.current = () => void refresh();
 
   // The whole panel scales to fit the window.
   const stage = useRef<HTMLDivElement>(null);
@@ -259,7 +261,7 @@ export function Es1({ connection, settings }: { connection: EngineConnection; se
           <BuildPanel state={build} onChange={session.move} onPress={session.press} onConfig={session.openConfig} onDiscover={() => void session.discover()}
             discovering={session.discovering} configStatus={session.configStatus} prefix={buildPrefix}
             draftStage={session.draftStage} busy={session.busy} onDraft={() => void session.draftNow()} onTest={() => void session.testNow()}
-            onDiscard={() => void session.discardNow()} />
+            onDiscard={() => void session.discardNow()} onPublish={session.askPublish} />
         )}
 
         {mode === "map" && <>
@@ -315,6 +317,11 @@ export function Es1({ connection, settings }: { connection: EngineConnection; se
 
         {mode === "build" && session.drawer && (
           <ConfigDrawer {...session.drawer} onSave={session.saveConfig} onCancel={session.closeConfig} />
+        )}
+
+        {mode === "build" && session.confirming && (
+          <PublishDrawer specs={session.draftSpecs} profile={profile} dataPlane={dataPlaneName(build)}
+            onCancel={session.cancelPublish} onPublish={() => void session.publishNow()} />
         )}
 
         {mode === "build" && session.failure && (

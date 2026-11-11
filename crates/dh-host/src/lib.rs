@@ -36,6 +36,7 @@ pub fn run(engines: &[Engine], context: tauri::Context) {
         })
         .invoke_handler(tauri::generate_handler![
             engines::engine_send,
+            engines::engine_send_confirmed,
             engines::engine_generation,
             engines::engine_restart,
             settings::settings_get,

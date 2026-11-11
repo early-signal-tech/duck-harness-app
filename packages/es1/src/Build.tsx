@@ -200,7 +200,8 @@ export function BuildPanel({ state, onChange, onPress, onConfig, onDiscover, dis
             onChange={(i) => onChange({ onChange: i }, { field: "onIncompatibleSchemaChange", value: ON_CHANGES[i].value })} />
         </At>
         <At x={280} y={316} radius={24}>
-          <StopKnob label="NAMING" spec="source.targetNaming" radius={24} labelled stops={labels(NAMINGS)} value={state.naming}
+          <StopKnob label="NAMING" spec="source.targetNaming" readout={destination.naming ? undefined : NOT_APPLICABLE} radius={24} labelled
+            disabled={!destination.naming} stops={labels(NAMINGS)} value={state.naming}
             onChange={(i) => onChange({ naming: i }, { field: "source.targetNaming", value: NAMINGS[i].value })} />
         </At>
         <hr style={{ left: 16, top: 408, width: 318 }} />

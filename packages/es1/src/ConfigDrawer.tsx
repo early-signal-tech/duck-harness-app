@@ -115,6 +115,45 @@ export function FailureDrawer({ failure, onClose }: { failure: { title: string; 
   );
 }
 
+const KINDS: Record<string, string> = { capture: "NEW CAPTURE", collection: "NEW COLLECTION", materialization: "NEW MATERIALIZATION" };
+
+/** The PUBLISH drawer: exactly what goes live, before the host asks once more. */
+export function PublishDrawer({ specs, profile, dataPlane, onCancel, onPublish }: {
+  specs: { catalog_name: string; spec_type: string }[];
+  profile: string;
+  dataPlane: string;
+  onCancel: () => void;
+  onPublish: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+  const order = ["capture", "collection", "materialization"];
+  const sorted = [...specs].sort((a, b) => order.indexOf(a.spec_type) - order.indexOf(b.spec_type) || a.catalog_name.localeCompare(b.catalog_name));
+  return (
+    <div className="es1-drawer es1-publish-drawer" role="alertdialog" aria-label="Publish">
+      <header>PUBLISH<small>flowctl draft publish</small></header>
+      <form onSubmit={(e) => { e.preventDefault(); onPublish(); }}>
+        <p className="es1-publish-lead">This starts live tasks. <b>TEST</b> passed, and flowctl tests once more before publishing.</p>
+        <ul className="es1-publish-list">
+          {sorted.map((s) => <li key={s.catalog_name}><b>{KINDS[s.spec_type] ?? s.spec_type.toUpperCase()}</b><span title={s.catalog_name}>{s.catalog_name}</span></li>)}
+          <li><b>PROFILE</b><span>{profile}</span></li>
+          <li><b>DATA PLANE</b><span>{dataPlane.replace("ops/dp/public/", "")}</span></li>
+        </ul>
+        <p className="es1-publish-note">Capturing from the source and writing to the destination begin as soon as this publishes. They can't be unpublished from ES-1.</p>
+        <footer>
+          <button type="button" className="es1-button plain" onClick={onCancel} autoFocus>CANCEL</button>
+          <button type="submit" className="es1-button go">PUBLISH {specs.length} SPECS</button>
+        </footer>
+      </form>
+    </div>
+  );
+}
+
 interface Props {
   side: "source" | "destination";
   /** The connector's image and tag, for the header. */

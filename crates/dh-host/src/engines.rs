@@ -1,7 +1,10 @@
 //! The engines: each device's server, run as a child process speaking JSON Lines.
 //! A host runs one engine (a standalone app) or several (the rack), each by its name.
 //!
-//! UI -> engine: `engine_send(engine, line)` writes one request line to its stdin.
+//! UI -> engine: `engine_send(engine, line)` writes one request line to its stdin. A request
+//! that changes something outside the app (an engine's `writes`, such as publishing an Estuary
+//! spec) is refused there: it goes through `engine_send_confirmed`, which asks the person in a
+//! native dialog first. The face can't skip that (DEVICE_SPEC §10).
 //! Engine -> UI: each stdout line is an `engine-message` event, `{engine, line}` (the raw
 //! JSON string; the TypeScript client parses it). stderr (the engine's logs) goes to this
 //! process's stderr, prefixed with the engine's name. When an engine exits, an
@@ -26,6 +29,7 @@ use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
 use crate::discovery::{self, Found, Source};
 use crate::settings;
@@ -84,6 +88,14 @@ impl Engine {
             Engine::Dh1 => "DH1_AGENT_DIR",
             Engine::Eh1 => "EH1_GRADER_DIR",
             Engine::Es1 => "ES1_BRIDGE_DIR",
+        }
+    }
+
+    /// Requests that change something outside the app. Each one is confirmed by the host.
+    pub(crate) fn writes(self) -> &'static [&'static str] {
+        match self {
+            Engine::Es1 => &["draft_publish"],
+            Engine::Dh1 | Engine::Eh1 => &[],
         }
     }
 
@@ -283,13 +295,89 @@ fn stop(process: &Process) {
     }
 }
 
-/// Send one request to an engine. `line` is a JSON object; the newline is added here.
+/// What the person is asked before a request that writes: None if it doesn't write.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct Confirmation {
+    pub title: String,
+    pub message: String,
+    pub button: String,
+}
+
+/// Whether this request line needs the person's confirmation, and what to ask. A line that
+/// can't be read is treated as needing it, so a malformed write can't slip through.
+pub(crate) fn confirmation(engine: Engine, line: &str) -> Option<Confirmation> {
+    let writes = engine.writes();
+    if writes.is_empty() {
+        return None;
+    }
+    let request: serde_json::Value = match serde_json::from_str(line) {
+        Ok(value) => value,
+        Err(_) => return Some(Confirmation { title: "Send this request?".into(), message: "It couldn't be read.".into(), button: "Send".into() }),
+    };
+    let kind = request.get("type").and_then(|t| t.as_str()).unwrap_or("");
+    if !writes.contains(&kind) {
+        return None;
+    }
+    let names: Vec<&str> = request
+        .pointer("/input/expect")
+        .and_then(|e| e.as_array())
+        .map(|list| list.iter().filter_map(|n| n.as_str()).collect())
+        .unwrap_or_default();
+    let profile = request.get("profile").and_then(|p| p.as_str()).unwrap_or("default");
+    let plane = request.pointer("/args/data_plane").and_then(|p| p.as_str());
+    let listed = names.iter().map(|n| format!("• {n}")).collect::<Vec<_>>().join("\n");
+    let count = names.len();
+    Some(Confirmation {
+        title: format!("Publish {count} spec{} to Estuary?", if count == 1 { "" } else { "s" }),
+        message: format!(
+            "This makes them live for profile {profile}{}:\n\n{listed}\n\nCapturing and writing data start as soon as it publishes. They can't be unpublished from ES-1.",
+            plane.map(|p| format!(", on {p}")).unwrap_or_default(),
+        ),
+        button: "Publish".into(),
+    })
+}
+
+/// Send one request to an engine. `line` is a JSON object; the newline is added here. A request
+/// that writes is refused here: it has to go through `engine_send_confirmed`.
 #[tauri::command]
 pub fn engine_send(engine: String, line: String, engines: State<Engines>) -> Result<(), String> {
+    let process = engines.get(&engine)?;
+    if confirmation(process.engine, &line).is_some() {
+        return Err("this request changes something outside the app, so it needs the person's confirmation".into());
+    }
+    write_line(process, &line)
+}
+
+/// Ask the person in a native dialog, then send. Cancelling sends nothing and returns an error
+/// saying so. A request that doesn't write is sent without asking.
+#[tauri::command]
+pub async fn engine_send_confirmed(app: AppHandle, engine: String, line: String) -> Result<(), String> {
+    let kind = app.state::<Engines>().get(&engine)?.engine;
+    if let Some(ask) = confirmation(kind, &line) {
+        let (tx, rx) = std::sync::mpsc::channel();
+        app.dialog()
+            .message(ask.message)
+            .title(ask.title)
+            .kind(MessageDialogKind::Warning)
+            .buttons(MessageDialogButtons::OkCancelCustom(ask.button, "Cancel".into()))
+            .show(move |ok| {
+                let _ = tx.send(ok);
+            });
+        let confirmed = tauri::async_runtime::spawn_blocking(move || rx.recv().unwrap_or(false))
+            .await
+            .unwrap_or(false);
+        if !confirmed {
+            return Err("cancelled".into());
+        }
+    }
+    let engines = app.state::<Engines>();
+    write_line(engines.get(&engine)?, &line)
+}
+
+fn write_line(process: &Process, line: &str) -> Result<(), String> {
     if line.contains('\n') {
         return Err("a request must be a single line of JSON".into());
     }
-    let process = engines.get(&engine)?;
     let label = process.engine.label();
     let mut stdin = process.stdin.lock().unwrap();
     let pipe = stdin.as_mut().ok_or_else(|| format!("the {label} is not running"))?;
@@ -332,6 +420,23 @@ mod tests {
         assert!(Engine::Dh1.uses_agent_settings());
         assert!(Engine::Eh1.uses_agent_settings());
         assert!(!Engine::Es1.uses_agent_settings());
+    }
+
+    #[test]
+    fn only_es1s_publish_needs_confirming() {
+        let publish = r#"{"id":"p","type":"draft_publish","profile":"work","args":{"data_plane":"ops/dp/public/x"},"input":{"draft_id":"ab","expect":["acme/a","acme/b"]}}"#;
+        let ask = confirmation(Engine::Es1, publish).unwrap();
+        assert_eq!(ask.title, "Publish 2 specs to Estuary?");
+        assert!(ask.message.contains("profile work, on ops/dp/public/x"));
+        assert!(ask.message.contains("• acme/a\n• acme/b"));
+        assert_eq!(confirmation(Engine::Es1, r#"{"id":"t","type":"draft_test"}"#), None);
+        assert_eq!(confirmation(Engine::Dh1, publish), None);
+    }
+
+    #[test]
+    fn a_line_that_cant_be_read_is_confirmed_rather_than_sent() {
+        assert!(confirmation(Engine::Es1, "not json").is_some());
+        assert_eq!(confirmation(Engine::Eh1, "not json"), None);
     }
 
     #[test]

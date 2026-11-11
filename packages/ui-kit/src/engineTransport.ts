@@ -11,6 +11,9 @@ export interface EngineTransport {
   readonly engine: string;
   /** Send one request line (a JSON object, no newline). */
   send(line: string): Promise<void>;
+  /** Send a request that changes something outside the app. The host asks the person first,
+   *  and rejects with "cancelled" if they say no. */
+  sendConfirmed(line: string): Promise<void>;
   /** Which start of the engine is current (it goes up on every start). */
   generation(): Promise<number>;
   /** Stop the engine and start it again; resolves with the new generation. */
@@ -42,6 +45,7 @@ export function tauriTransport(engine: string): EngineTransport {
   return {
     engine,
     send: (line) => invoke("engine_send", { engine, line }),
+    sendConfirmed: (line) => invoke("engine_send_confirmed", { engine, line }),
     generation: () => invoke<number>("engine_generation", { engine }),
     restart: () => invoke<number>("engine_restart", { engine }),
     onMessage: (handler) => listen<MessageEvent>("engine-message", forEngine(engine, (p) => handler(p.line))),

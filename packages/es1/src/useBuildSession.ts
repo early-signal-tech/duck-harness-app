@@ -35,10 +35,12 @@ const stopped = (e: unknown) => e instanceof EngineError && e.code === "stopped"
 
 export interface Draft {
   id: string;
-  stage: Exclude<DraftStage, "none">;
+  stage: Exclude<DraftStage, "none" | "published">;
+  /** What's in it, from DRAFT. A draft from an earlier session doesn't know. */
+  specs: { catalog_name: string; spec_type: string }[];
 }
 
-export type Busy = "discover" | "draft" | "test" | "discard";
+export type Busy = "discover" | "draft" | "test" | "discard" | "publish";
 
 /** Why a step failed, shown in full. */
 export interface Failure {
@@ -52,7 +54,7 @@ const draftKey = (profile: string) => `es1.draft.${profile}`;
 function loadDraft(profile: string): Draft | null {
   try {
     const id = localStorage.getItem(draftKey(profile));
-    return id ? { id, stage: "edited" } : null;
+    return id ? { id, stage: "edited", specs: [] } : null;
   } catch {
     return null;
   }
@@ -76,9 +78,13 @@ export function useBuildSession(engine: Engine | null, profile: string, prefix: 
   const [drawer, setDrawer] = useState<{ side: Side; note?: string; loadError?: string } | null>(null);
   const [busy, setBusy] = useState<Busy | null>(null);
   const running = useRef<Running<unknown> | null>(null);
+  /** Set by the host page: what to do once something's live (read the catalog again). */
+  const onPublished = useRef<(() => void) | null>(null);
   const [found, setFound] = useState<Record<string, any> | null>(null);
   const [draft, setDraft] = useState<Draft | null>(() => loadDraft(profile));
   const [failure, setFailure] = useState<Failure | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [published, setPublished] = useState<string[] | null>(null);
   const loading = useRef<Map<string, Promise<Schema>>>(new Map());
 
   const imageOf = useCallback((side: Side, s: BuildState) => (side === "source" ? SOURCES[s.source] : DESTINATIONS[s.destination]), []);
@@ -112,10 +118,15 @@ export function useBuildSession(engine: Engine | null, profile: string, prefix: 
   useEffect(() => setDraft(loadDraft(profile)), [profile]);
 
   /** The draft no longer matches the panel. */
-  const edited = useCallback(() => setDraft((d) => (d && d.stage !== "edited" ? { ...d, stage: "edited" } : d)), []);
+  const edited = useCallback(() => {
+    setDraft((d) => (d && d.stage !== "edited" ? { ...d, stage: "edited" } : d));
+    setPublished(null);
+  }, []);
 
   const valuesFor = useCallback((image: string, fields: Field[]) => configs[image] ?? initialValues(fields), [configs]);
 
+  const s_armed = useRef(false);
+  s_armed.current = state.armed;
   const move = useCallback((patch: Partial<BuildState>, change: Moved) => {
     setState((s) => {
       const next = { ...s, ...patch };
@@ -124,7 +135,11 @@ export function useBuildSession(engine: Engine | null, profile: string, prefix: 
       if (stale) setFound(null);
       return stale ? { ...next, found: false, bindings: EXAMPLE_TABLES.map((b) => ({ ...b })) } : next;
     });
-    if (!("armed" in patch)) edited();
+    if (!("armed" in patch)) {
+      edited();
+      // Any change disarms GO LIVE, so PUBLISH is never one press from something new.
+      if (s_armed.current) setState((s) => ({ ...s, armed: false }));
+    }
     setMoved(change);
     setRehearsal(null);
   }, [edited]);
@@ -240,11 +255,12 @@ export function useBuildSession(engine: Engine | null, profile: string, prefix: 
     try {
       onDone(await job.done);
     } catch (e) {
-      if (!stopped(e)) setFailure({ title: failed, text: message(e) });
+      if (e instanceof EngineError && e.code === "cancelled") setMoved({ field: "PUBLISH", value: "cancelled, nothing sent" });
+      else if (!stopped(e)) setFailure({ title: failed, text: message(e) });
       if (e instanceof EngineError && e.code === "no_draft") {
         setDraft(null);
         saveDraftId(profile, null);
-      } else if (which === "test" && !stopped(e)) {
+      } else if ((which === "test" || which === "publish") && !stopped(e) && !(e instanceof EngineError && e.code === "cancelled")) {
         setDraft((d) => (d ? { ...d, stage: "failed" } : d));
       }
     } finally {
@@ -289,7 +305,7 @@ export function useBuildSession(engine: Engine | null, profile: string, prefix: 
     const catalog = draftCatalog(state, prefix, found, buildConfig(schema.fields, values), schema.tag);
     const secrets = secretPaths(schema.fields, values).map((path) => ["materializations", name, "endpoint", "connector", "config", ...path.split(".")]);
     await step("draft", () => engine.draftAuthor(catalog, secrets, draft?.id ?? null, profile), (result) => {
-      setDraft({ id: result.draft_id, stage: "drafted" });
+      setDraft({ id: result.draft_id, stage: "drafted", specs: result.specs });
       saveDraftId(profile, result.draft_id);
       setMoved({ field: "DRAFT", value: `${result.specs.length} specs on Estuary` });
     }, "DRAFT FAILED");
@@ -315,6 +331,35 @@ export function useBuildSession(engine: Engine | null, profile: string, prefix: 
       setMoved({ field: "TEST", value: "passed" });
     }, "TEST FAILED");
   }, [busy, draft, engine, profile, state, step]);
+
+  /** PUBLISH opens the confirmation; nothing is sent until it's confirmed there and by the host. */
+  const askPublish = useCallback(() => {
+    if (running.current || !engine) return;
+    if (!state.armed) {
+      setMoved({ field: "PUBLISH", value: "flip GO LIVE to ARM first" });
+      return;
+    }
+    if (!draft || draft.stage !== "tested" || !draft.specs.length) {
+      setMoved({ field: "PUBLISH", value: "press DRAFT and TEST first" });
+      return;
+    }
+    setConfirming(true);
+  }, [draft, engine, state.armed]);
+
+  const publishNow = useCallback(async () => {
+    setConfirming(false);
+    if (!engine || !draft || draft.stage !== "tested") return;
+    const { id, specs } = draft;
+    const names = specs.map((s) => s.catalog_name);
+    await step("publish", () => engine.draftPublish(id, names, dataPlaneName(state), profile), (result) => {
+      setDraft(null);
+      saveDraftId(profile, null);
+      setPublished(result.published);
+      setState((s) => ({ ...s, armed: false }));
+      setMoved({ field: "PUBLISH", value: `${result.published.length} specs live` });
+      onPublished.current?.();
+    }, "PUBLISH FAILED");
+  }, [draft, engine, profile, state, step]);
 
   const discardNow = useCallback(async () => {
     if (running.current) return;
@@ -358,6 +403,8 @@ export function useBuildSession(engine: Engine | null, profile: string, prefix: 
   return {
     state, moved, rehearsal, move, press, openConfig, closeConfig, saveConfig, configStatus, drawer: openDrawer,
     discover, draftNow, testNow, discardNow, busy, discovering: busy === "discover",
-    draftStage: (draft?.stage ?? "none") as DraftStage, failure, closeFailure: () => setFailure(null),
+    draftStage: (published ? "published" : draft?.stage ?? "none") as DraftStage, failure, closeFailure: () => setFailure(null),
+    askPublish, publishNow, confirming, cancelPublish: () => setConfirming(false), draftSpecs: draft?.specs ?? [], published,
+    onPublished,
   };
 }

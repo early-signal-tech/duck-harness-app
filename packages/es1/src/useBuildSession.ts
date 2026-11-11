@@ -1,7 +1,8 @@
 // What the BUILD panel holds while it's open: the controls, each connector's form, what DISCOVER
-// found and ES-1's draft. A source's secrets live here, in memory only, until DISCOVER encrypts
-// them. A destination's stay until the app closes, so it can be drafted again: Estuary encrypts
-// them in the draft. Only the draft's ID is saved, so a draft left on Estuary can be discarded.
+// found and ES-1's draft. Secrets are held here, in memory only, until the app closes, so that
+// DISCOVER and DRAFT can run again without retyping them. They're never saved to disk here, and
+// only reach flowctl inside the engine's private folder. Only the draft's ID is saved, so a draft
+// left on Estuary can be discarded.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -9,7 +10,7 @@ import {
   type BuildState, type DraftStage, type Press,
 } from "./buildSpec";
 import { EngineError, type Engine, type Running } from "./engine";
-import { buildConfig, initialValues, parseFields, problems, requiredProgress, secretPaths, withoutSecrets, type Field, type Values } from "./schemaForm";
+import { buildConfig, initialValues, parseFields, problems, requiredProgress, secretPaths, type Field, type Values } from "./schemaForm";
 
 export interface Moved {
   field: string;
@@ -140,8 +141,17 @@ export function useBuildSession(engine: Engine | null, profile: string, prefix: 
   const saveConfig = useCallback((values: Values) => {
     if (!drawer) return;
     const { image } = imageOf(drawer.side, state);
-    setConfigs((all) => ({ ...all, [image]: values }));
+    const schema = schemas[image];
+    const before = schema ? valuesFor(image, schema.fields) : configs[image];
     setDrawer(null);
+    setRehearsal(null);
+    // Saving what was already there changes nothing, so what was found and drafted still stands.
+    if (JSON.stringify(values) === JSON.stringify(before)) {
+      setConfigs((all) => ({ ...all, [image]: values }));
+      setMoved({ field: `${image} config`, value: "unchanged" });
+      return;
+    }
+    setConfigs((all) => ({ ...all, [image]: values }));
     if (drawer.side === "source") {
       // New settings mean what was found no longer stands.
       setFound(null);
@@ -149,8 +159,7 @@ export function useBuildSession(engine: Engine | null, profile: string, prefix: 
     }
     edited();
     setMoved({ field: `${image} config`, value: "saved" });
-    setRehearsal(null);
-  }, [drawer, edited, imageOf, state]);
+  }, [configs, drawer, edited, imageOf, schemas, state, valuesFor]);
 
   const discover = useCallback(async () => {
     if (running.current) {
@@ -189,20 +198,24 @@ export function useBuildSession(engine: Engine | null, profile: string, prefix: 
     try {
       const result = await discovering.done;
       const found = result;
-      const lead = `${name}/`;
+      // Estuary names a found collection under the capture, or under the prefix: show the rest.
+      const short = (target: string) => {
+        for (const lead of [`${name}/`, prefix]) if (lead && target.startsWith(lead)) return target.slice(lead.length);
+        return target;
+      };
       setState((s) => ({
         ...s,
         found: true,
         bindings: found.bindings.map((b) => ({
-          table: b.target.startsWith(lead) ? b.target.slice(lead.length) : b.target,
+          table: short(b.target),
           target: b.target,
           resource: b.resource,
           on: true,
         })),
       }));
       setFound(result.catalog);
-      // Estuary has encrypted them, so the plain text has nothing left to do.
-      setConfigs((all) => ({ ...all, [source.image]: withoutSecrets(schema.fields, values) }));
+      // Kept, so DISCOVER can run again; the catalog has them encrypted.
+      setConfigs((all) => ({ ...all, [source.image]: values }));
       edited();
       setMoved({ field: "DISCOVER", value: `${found.bindings.length} found` });
     } catch (e) {

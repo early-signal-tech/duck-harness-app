@@ -22,6 +22,8 @@ export interface Destination extends Connector {
   sync: boolean;
   /** Has delta_updates on its bindings. */
   delta: boolean;
+  /** Has a schema or namespace on its bindings, for source.targetNaming to set. */
+  naming: boolean;
 }
 
 export const SOURCES: readonly Source[] = [
@@ -33,11 +35,12 @@ export const SOURCES: readonly Source[] = [
 ];
 
 export const DESTINATIONS: readonly Destination[] = [
-  { stop: "MOTHERDUCK", image: "materialize-motherduck", tag: "v4", required: ["token", "database", "schema", "stagingBucket"], sync: true, delta: true },
-  { stop: "SNOWFLAKE", image: "materialize-snowflake", tag: "v4", required: ["host", "database", "schema", "timestamp_type", "credentials"], sync: true, delta: true },
-  { stop: "BIGQUERY", image: "materialize-bigquery", tag: "v3", required: ["project_id", "region", "dataset", "bucket", "credentials"], sync: true, delta: true },
-  { stop: "POSTGRES", image: "materialize-postgres", tag: "v5", required: ["address", "user", "credentials"], sync: false, delta: true },
-  { stop: "ICEBERG", image: "materialize-iceberg", tag: "v1", required: ["url", "warehouse", "namespace", "credentials", "compute"], sync: true, delta: false },
+  { stop: "MOTHERDUCK", image: "materialize-motherduck", tag: "v4", required: ["token", "database", "schema", "stagingBucket"], sync: true, delta: true, naming: true },
+  { stop: "SNOWFLAKE", image: "materialize-snowflake", tag: "v4", required: ["host", "database", "schema", "timestamp_type", "credentials"], sync: true, delta: true, naming: true },
+  { stop: "BIGQUERY", image: "materialize-bigquery", tag: "v3", required: ["project_id", "region", "dataset", "bucket", "credentials"], sync: true, delta: true, naming: true },
+  // Files at a path: no sync schedule (uploadInterval is in its CONFIG), no delta and no schema.
+  { stop: "S3", image: "materialize-s3-parquet", tag: "v3", required: ["bucket", "region", "credentials", "uploadInterval"], sync: false, delta: false, naming: false },
+  { stop: "ICEBERG", image: "materialize-iceberg", tag: "v1", required: ["url", "warehouse", "namespace", "credentials", "compute"], sync: true, delta: false, naming: true },
 ];
 
 export const DATA_PLANES = [
@@ -191,7 +194,7 @@ export function draftSpec(state: BuildState, prefix: string) {
       [destinationName(state, prefix)]: {
         source: {
           capture: captureName,
-          targetNaming: NAMINGS[state.naming].value,
+          ...(destination.naming ? { targetNaming: NAMINGS[state.naming].value } : {}),
           fieldsRecommended: state.fields,
           ...(destination.delta ? { deltaUpdates: state.delta } : {}),
         },
@@ -248,7 +251,7 @@ export function draftCatalog(state: BuildState, prefix: string, found: Spec, des
   const materialization: Spec = {
     source: {
       capture: captureName,
-      targetNaming: NAMINGS[state.naming].value,
+      ...(destination.naming ? { targetNaming: NAMINGS[state.naming].value } : {}),
       fieldsRecommended: state.fields,
       ...(destination.delta ? { deltaUpdates: state.delta } : {}),
     },

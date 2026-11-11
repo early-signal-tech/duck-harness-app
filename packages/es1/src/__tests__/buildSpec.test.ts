@@ -61,6 +61,12 @@ describe("draftSpec", () => {
     expect(config(3)).toBe("<from CONFIG>");
   });
 
+  it("leaves naming out of a destination without a schema", () => {
+    const source = (destination: number) => only(draftSpec(build({ destination }), PREFIX).materializations).source;
+    expect(source(0)).toHaveProperty("targetNaming");
+    expect(source(3)).not.toHaveProperty("targetNaming");
+  });
+
   it("leaves delta out of a destination without it", () => {
     const source = (destination: number) => only(draftSpec(build({ destination, delta: true }), PREFIX).materializations).source;
     expect(source(0).deltaUpdates).toBe(true);
@@ -151,8 +157,9 @@ describe("draftCatalog", () => {
   });
 
   it("leaves out what a destination doesn't have", () => {
-    const postgres = only(draftCatalog(state({ destination: 3, delta: true }), PREFIX, found, { address: "db" }, ":v5").materializations) as any;
-    expect(postgres.endpoint.connector.config).toEqual({ address: "db" });
+    const s3 = only(draftCatalog(state({ destination: 3, delta: true }), PREFIX, found, { bucket: "b" }, ":v3").materializations) as any;
+    expect(s3.endpoint.connector).toEqual({ image: "ghcr.io/estuary/materialize-s3-parquet:v3", config: { bucket: "b" } });
+    expect(s3.source).toEqual({ capture: NAME, fieldsRecommended: true });
     const iceberg = only(draftCatalog(state({ destination: 4, delta: true }), PREFIX, found, { url: "x" }, ":v1").materializations) as any;
     expect(iceberg.source).not.toHaveProperty("deltaUpdates");
   });
@@ -172,8 +179,10 @@ describe("the connector tables match the registry's required fields", () => {
       expect(c.tag).toMatch(/^v\d+$/);
       expect(c.required.length).toBeGreaterThan(0);
     }
-    expect(DESTINATIONS.filter((d) => !d.sync).map((d) => d.stop)).toEqual(["POSTGRES"]);
-    expect(DESTINATIONS.filter((d) => !d.delta).map((d) => d.stop)).toEqual(["ICEBERG"]);
+    expect(DESTINATIONS.map((d) => d.stop)).toEqual(["MOTHERDUCK", "SNOWFLAKE", "BIGQUERY", "S3", "ICEBERG"]);
+    expect(DESTINATIONS.filter((d) => !d.sync).map((d) => d.stop)).toEqual(["S3"]);
+    expect(DESTINATIONS.filter((d) => !d.delta).map((d) => d.stop)).toEqual(["S3", "ICEBERG"]);
+    expect(DESTINATIONS.filter((d) => !d.naming).map((d) => d.stop)).toEqual(["S3"]);
   });
 });
 

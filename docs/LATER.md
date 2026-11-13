@@ -189,3 +189,22 @@ A PREVIEW control running `flowctl preview` before publishing.
   TEST and READ already cover that path. A materialization preview writes to the real
   destination, and works through all historical data unless it's given a fixture.
 - Waiting for: a safe way to preview a materialization, or a real need for a source preview.
+
+## Dictation into the prompt
+Speak a question into DH-1's prompt instead of typing it.
+
+- **Try first, nothing to build:** macOS dictation should already work in the prompt box
+  (it's a standard text field in the WebKit view). Click into the prompt, press the
+  dictation shortcut (🌐/Fn twice by default), speak, then Enter. Not yet tested in the
+  Tauri app.
+- **Column names matter less than they seem:** "L extended price" for `l_extendedprice`
+  is fine, since the agent looks up the schema before writing SQL. Unusual names and exact
+  values (IDs) are where dictation will slip.
+- **If system dictation isn't enough, then native speech in dh-host** (Apple's on-device
+  speech recognition, or a local Whisper model), which allows:
+  - **push-to-talk from MIDI:** hold a pad to talk, release and the text lands in the
+    prompt, then PLAY. Fits after the MIDI first build (DEVICE_SPEC §13).
+  - vocabulary hints: the source's table and column names
+- **Not the web speech API:** in an embedded WebKit view it's unreliable and needs extra
+  microphone and speech permissions.
+- Waiting for: a few days of system dictation, and the MIDI first build.

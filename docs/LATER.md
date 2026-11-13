@@ -197,6 +197,10 @@ Speak a question into DH-1's prompt instead of typing it.
   (it's a standard text field in the WebKit view). Click into the prompt, press the
   dictation shortcut (🌐/Fn twice by default), speak, then Enter. Not yet tested in the
   Tauri app.
+  - Enter while the spoken words are still underlined finishes them rather than running
+    (#48). Press Enter again to run.
+  - Esc cancels dictation but is also DH-1's STOP, so it will stop a run in progress.
+  - Dictation usually ends with a full stop; harmless in a question.
 - **Column names matter less than they seem:** "L extended price" for `l_extendedprice`
   is fine, since the agent looks up the schema before writing SQL. Unusual names and exact
   values (IDs) are where dictation will slip.

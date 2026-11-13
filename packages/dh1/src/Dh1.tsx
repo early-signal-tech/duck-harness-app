@@ -112,7 +112,9 @@ export function Dh1PromptBar({ model }: { model: Dh1Model }) {
         placeholder="Ask a question about your data…"
         onChange={(e) => update({ prompt: e.currentTarget.value })}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) {
+          // While dictation or an input method is still composing, Enter finishes the
+          // text instead of running a half-entered prompt.
+          if (e.key === "Enter" && !e.metaKey && !e.ctrlKey && !e.nativeEvent.isComposing) {
             e.preventDefault();
             start();
           }

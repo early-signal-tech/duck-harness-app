@@ -129,6 +129,32 @@ Connect a MotherDuck account and query its databases with the same SQL as local 
   - a Handbook section
 - Waiting for: MotherDuck support for DuckDB 2.0, and someone asking for it.
 
+## S3 credentials in the loop and DH-1
+Add AWS (S3) credentials from the CLI and from DH-1's Settings, so private buckets work
+without setting DuckDB up by hand first.
+
+- **What works today:** a remote database is just a path in LINE IN or `--db`:
+  `s3://bucket/data.duckdb`, `https://…/data.duckdb`, or a DuckLake with its data in S3.
+  It's attached read-only, and a remote file still reads after the agent's lockdown
+  (agent PR #20; tested over https on 2026-11-15). Private S3 needs credentials, which
+  can only come from a DuckDB persistent secret made beforehand in the duckdb CLI
+  (`CREATE PERSISTENT SECRET … (TYPE s3, …)`). DuckDB reads it at attach time.
+- **Left to do:**
+  - **The agent:** take credentials in the request and the CLI, either key/secret/region
+    or `credential_chain` (the AWS profile or environment). Create a temporary
+    (non-persistent) secret, and load httpfs, *before* `lock_down`, since once locked
+    nothing can be created or loaded. Never put keys in `agent_runs`, `config`, or
+    events: record the provider and region only.
+  - **DH-1:** credentials in Settings, kept in the Keychain like the API key and passed
+    to the engine as environment variables (or one secret per run). Never in presets
+    or question sets.
+  - **Single remote files (CSV / Parquet):** `--load s3://…/x.parquet` fails today
+    because `populate` checks that the file exists on local disk. Skip that check for
+    URLs. DH-1's files list also needs a way to type a URL, since the picker is local
+    only.
+  - A Handbook section.
+- Waiting for: agent PR #20 merged, and someone needing a private bucket.
+
 ## Preload table schemas from the face
 Give the agent the chosen tables' `DESCRIBE` output in its first message, so it skips
 the discovery calls.

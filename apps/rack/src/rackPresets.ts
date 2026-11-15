@@ -48,6 +48,10 @@ export const FACTORY_RACK_PRESETS: RackPreset[] = [
     id: "factory-eh1", name: "EH-1", revision: 1, savedAt: "2026-11-06T00:00:00Z", factory: true,
     devices: [{ type: "eh1" }],
   },
+  {
+    id: "factory-es1", name: "ES-1", revision: 1, savedAt: "2026-11-15T00:00:00Z", factory: true,
+    devices: [{ type: "es1" }],
+  },
 ];
 
 /** The file's text for a preset (a factory flag isn't saved: files are always yours). */
@@ -97,6 +101,7 @@ export interface RackState {
 export function slotsOf(state: RackState): RackSlot[] {
   return state.chain.map((type) => {
     if (type === "dh1") return state.dh1Preset ? { type, preset: state.dh1Preset } : { type };
+    if (type === "es1") return { type };
     const grader = state.graders[type];
     return grader ? { type, grader: { ...grader } } : { type };
   });
@@ -109,6 +114,7 @@ export function rackEdited(preset: RackPreset, state: RackState): boolean {
   return preset.devices.some((slot, i) => {
     if (slot.type !== state.chain[i]) return true;
     if (slot.type === "dh1") return slot.preset !== undefined && slot.preset !== state.dh1Preset;
+    if (slot.type === "es1") return false;
     const grader = state.graders[slot.type as "eh1" | "autograder"];
     if (!slot.grader || !grader) return false;
     return Object.entries(slot.grader).some(([key, value]) => grader[key as keyof GraderSettings] !== value);

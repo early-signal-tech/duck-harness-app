@@ -9,11 +9,11 @@
 .es1-module { position: absolute; top: 14px; height: 560px; padding: 11px 14px; border-radius: 5px; color: #111; font-family: var(--mono, "JetBrains Mono", monospace); }
 .es1-module h2 { margin: 0; text-align: center; font: 700 13px/18px var(--mono, "JetBrains Mono", monospace); letter-spacing: 0.14em; }
 .es1-module hr { width: 100%; margin: 0; border: 0; border-top: 1px solid currentColor; opacity: 0.45; }
-.es1-module.yellow { background: #e4e578; }
-.es1-module.blue { background: #a4d3e6; }
-.es1-module.green { background: #9ad894; }
-.es1-module.red { background: #e4574b; }
-.es1-module.black { background: #121212; color: #f2f2f0; border: 1.5px solid #d8d8d6; }
+.es1-module.yellow { background-color: #e4e578; }
+.es1-module.blue { background-color: #a4d3e6; }
+.es1-module.green { background-color: #9ad894; }
+.es1-module.red { background-color: #e4574b; }
+.es1-module.black { background-color: #151514; color: #f2f2f0; }
 .es1-session { left: 14px; width: 190px; display: flex; flex-direction: column; align-items: center; gap: 12px; padding-bottom: 8px; }
 .es1-source { left: 212px; width: 276px; }
 .es1-collection { left: 496px; width: 344px; }
@@ -31,7 +31,6 @@
 .es1-led.on { background: #3ddc6b; box-shadow: 0 0 8px 1px rgba(61, 220, 107, 0.65); }
 .es1-led.bad { background: #ff3b2e; box-shadow: 0 0 9px 2px rgba(255, 59, 46, 0.8); }
 .es1-button { flex: 1; min-height: 30px; padding: 0 10px; border: 1.5px solid #111; border-radius: 3px; background: #1b1b1b; color: #f2f2f0; font: 700 11px/1 var(--mono, "JetBrains Mono", monospace); letter-spacing: 0.1em; cursor: pointer; }
-.es1-module.black .es1-button { background: #2a2a2a; border-color: #8a8a88; }
 .es1-button.wide { flex: none; width: 100%; min-height: 40px; }
 .es1-button:disabled { cursor: default; opacity: 0.55; }
 .es1-button:focus-visible, .es1-toggle button:focus-visible, .es1-dial:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
@@ -111,7 +110,6 @@
 .es1-at-text.es1-lab { white-space: nowrap; }
 .es1-at-left { white-space: nowrap; }
 .es1-b-jack { top: 26px; }
-.es1-button.white { background: #f6f6f4; color: #111; }
 .es1-module.black .es1-button { flex: none; }
 .es1-button[style] { flex: none; }
 .es1-lcd { display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 0 9px; border: 1px solid #555; border-radius: 3px; background: #0b0b0b; color: #ffb066; font-family: var(--mono, "JetBrains Mono", monospace); text-align: left; }
@@ -130,8 +128,8 @@
 .es1-binding.on .es1-binding-name { opacity: 1; }
 .es1-binding:focus-visible { outline: 2px solid #f2f2f0; }
 .es1-slide { position: relative; flex: none; width: 28px; height: 14px; border: 1px solid #8a8a88; border-radius: 2px; background: #3a3a38; }
-.es1-slide i { position: absolute; left: 1px; top: 1px; width: 12px; height: 10px; border-radius: 1px; background: #c9c9c7; transition: left 80ms; }
-.es1-binding.on .es1-slide i { left: 13px; background: #f2f2f0; }
+.es1-slide i { position: absolute; left: 1px; top: 1px; width: 12px; height: 10px; border-radius: 1px; transition: left 80ms; }
+.es1-binding.on .es1-slide i { left: 13px; }
 .es1-led.lit { background: #ff4b36; box-shadow: 0 0 9px 2px rgba(255, 75, 54, 0.65); }
 .es1-publish { border: 3px solid #3a0d08; border-radius: 6px; background: #3a120e; color: #d9a29c; font: 700 10.5px/1 var(--mono, "JetBrains Mono", monospace); letter-spacing: 0.06em; }
 .es1-publish.armed { background: #b3160b; color: #fff; box-shadow: 0 0 14px 2px rgba(255, 75, 54, 0.7); cursor: pointer; }
@@ -141,7 +139,7 @@
 .es1-spec-view header { display: flex; align-items: center; gap: 14px; padding: 10px 14px; border-bottom: 1px solid #555; color: #c7c7c4; font-size: 11px; }
 .es1-spec-view header b { color: #f2f2f0; font-size: 13px; letter-spacing: 0.14em; }
 .es1-spec-view header span { flex: 1; }
-.es1-spec-view header .es1-button { flex: none; background: #2a2a2a; border-color: #8a8a88; }
+.es1-spec-view header .es1-button { flex: none; }
 .es1-spec-view pre { flex: 1; margin: 0; padding: 12px 14px; overflow: auto; font: 500 11.5px/1.45 var(--mono, "JetBrains Mono", monospace); user-select: text; }
 
 /* The LOGIN drawer, over SOURCE. */
@@ -217,7 +215,7 @@
 .es1-strip.problem { border-color: #ff6a5c; color: #ff8a7d; }
 
 /* Name strip */
-.es1-name { position: absolute; left: 14px; top: 634px; width: 1412px; height: 76px; display: flex; align-items: center; gap: 20px; padding: 0 22px; background: #a4d3e6; border-radius: 5px; color: #111; font-family: var(--mono, "JetBrains Mono", monospace); }
+.es1-name { position: absolute; left: 14px; top: 634px; width: 1412px; height: 76px; display: flex; align-items: center; gap: 20px; padding: 0 22px; background-color: #a4d3e6; border-radius: 5px; color: #111; font-family: var(--mono, "JetBrains Mono", monospace); }
 .es1-name > i { flex: 1; }
 .es1-word { font: 700 46px/1 var(--mono, "JetBrains Mono", monospace); letter-spacing: 0.02em; }
 .es1-desc { font: 700 14px/1.15 var(--mono, "JetBrains Mono", monospace); letter-spacing: 0.06em; }
@@ -227,5 +225,129 @@
 .es1-stat.warn em { opacity: 0.8; }
 
 /* The kit's Settings button and flyout, on the name strip at the panel's foot: it opens upward. */
-.es1-name .bar-button { height: 30px; padding: 0 12px; border: 1.5px solid #111; border-radius: 3px; background: #1b1b1b; color: #f2f2f0; }
+.es1-name .bar-button { height: 30px; padding: 0 12px; border: 1px solid #050505; border-radius: 3px; background: linear-gradient(180deg, #3b3b3a, #1d1d1c 55%, #151514); color: #f2f2f0; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 2px 0 #050505, 0 3px 5px rgba(0, 0, 0, 0.4); }
 .es1-name .menu { top: auto; bottom: calc(100% + 6px); }
+
+/* Materials. Light comes from above: highlights on top edges, shadows fall downward. Shading
+   that belongs to the light never turns with a control; only the part that moves does. */
+.es1 {
+  --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .2 0 0 0 -.06'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --screw: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cdefs%3E%3CradialGradient id='g' cx='35%25' cy='30%25' r='75%25'%3E%3Cstop offset='0' stop-color='%23fbfbf9'/%3E%3Cstop offset='.6' stop-color='%23a9a9a6'/%3E%3Cstop offset='1' stop-color='%235f5f5c'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='5' cy='5.5' r='4.4' fill='rgba(0,0,0,.35)'/%3E%3Ccircle cx='5' cy='5' r='4.2' fill='url(%23g)' stroke='%234a4a48' stroke-width='.4'/%3E%3Cpath d='M2.6 6.3 L7.4 3.7' stroke='%23353533' stroke-width='1' stroke-linecap='round'/%3E%3Cpath d='M2.8 6.9 L7.6 4.3' stroke='rgba(255,255,255,.55)' stroke-width='.4'/%3E%3C/svg%3E");
+  --wood: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='480'%3E%3Cfilter id='w'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.55 .011' numOctaves='3' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 .16 0 0 0 0 .07 0 0 0 0 .03 -1.6 0 0 0 1.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' fill='%23744223'/%3E%3Crect width='100%25' height='100%25' filter='url(%23w)'/%3E%3C/svg%3E");
+  background-color: #151514;
+  background-image: var(--noise), linear-gradient(180deg, #1d1d1c, #0f0f0e);
+}
+.es1-stage { background: radial-gradient(ellipse at 50% 40%, #1a1a19, #080808 75%); }
+
+/* Wooden end cheeks, outside the panel's own box. */
+.es1::before, .es1::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 26px; border-radius: 4px;
+  background-image: linear-gradient(90deg, rgba(0, 0, 0, 0.5), rgba(255, 220, 180, 0.1) 30%, rgba(0, 0, 0, 0.05) 60%, rgba(0, 0, 0, 0.55)), var(--wood);
+  background-size: 100% 100%, 60px 480px;
+  box-shadow: inset 0 1px 0 rgba(255, 220, 180, 0.25), inset 0 -2px 3px rgba(0, 0, 0, 0.5), 0 6px 18px rgba(0, 0, 0, 0.6);
+}
+.es1::before { left: -26px; }
+.es1::after { right: -26px; }
+
+/* Painted steel plates, screwed to the chassis. */
+.es1-module, .es1-name {
+  background-image: var(--screw), var(--screw), var(--screw), var(--screw), var(--noise),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 16%, rgba(0, 0, 0, 0) 72%, rgba(0, 0, 0, 0.13));
+  background-size: 10px 10px, 10px 10px, 10px 10px, 10px 10px, 180px 180px, 100% 100%;
+  background-position: left 6px top 6px, right 6px top 6px, left 6px bottom 6px, right 6px bottom 6px, 0 0, 0 0;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat, no-repeat;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 1px 0 0 rgba(255, 255, 255, 0.22), inset 0 -1.5px 0 rgba(0, 0, 0, 0.3),
+    inset -1px 0 0 rgba(0, 0, 0, 0.18), 0 2px 0 rgba(0, 0, 0, 0.7), 0 7px 16px rgba(0, 0, 0, 0.55);
+}
+.es1-module.black {
+  box-shadow: inset 0 0 0 1.5px rgba(216, 216, 214, 0.5), inset 0 2px 0 rgba(255, 255, 255, 0.12), inset 0 -1.5px 0 rgba(0, 0, 0, 0.5),
+    0 2px 0 rgba(0, 0, 0, 0.7), 0 7px 16px rgba(0, 0, 0, 0.55);
+}
+
+/* Knobs: a black skirt that throws a shadow, a spun-aluminium cap, and the grooves and pointer
+   that turn. */
+.es1-knob-body {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle at 50% 30%, #3c3c3b, #141413 62%, #050505);
+  box-shadow: 0 0 0 1px #000, 0 4px 5px -1px rgba(0, 0, 0, 0.6), 0 9px 12px -4px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.es1-knob-cap {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 28%, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0) 42%),
+    radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0) 70%, rgba(0, 0, 0, 0.25)),
+    conic-gradient(from 15deg, #d0d0cd, #f6f6f4 9%, #a2a29f 21%, #e4e4e1 34%, #979794 47%, #f1f1ef 60%, #a8a8a5 73%, #e7e7e4 86%, #d0d0cd);
+  box-shadow: 0 1.5px 2px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.85), inset 0 -1.5px 2px rgba(0, 0, 0, 0.4);
+}
+.es1-dial .es1-knob-turn { position: absolute; left: 0; top: 0; overflow: visible; transition: transform 90ms ease-out; }
+.es1-bat, .es1-bat-shadow { transition: transform 110ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .es1-dial .es1-knob-turn, .es1-bat, .es1-bat-shadow { transition: none; } }
+
+/* Buttons: hard plastic caps that press in. */
+.es1-button {
+  border: 1px solid #050505; color: #efefeb; text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.8);
+  background: linear-gradient(180deg, #3b3b3a, #1d1d1c 55%, #151514);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 2px 0 #050505, 0 3px 6px rgba(0, 0, 0, 0.45);
+}
+.es1-button.white {
+  border-color: #5b5b59; color: #161615; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+  background: linear-gradient(180deg, #ffffff, #ececea 55%, #d9d9d6);
+  box-shadow: inset 0 1px 0 #fff, 0 2px 0 #4a4a48, 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+.es1-button:not(:disabled):active { transform: translateY(1.5px); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5), 0 0.5px 0 #050505; }
+.es1-drawer .es1-button { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 1px 2px rgba(0, 0, 0, 0.3); }
+.es1-drawer .es1-button.plain { text-shadow: none; }
+
+/* Screens: dark glass set into the panel, with the readout glowing behind it. */
+.es1-lcd, .es1-count, .es1-strip {
+  border: 1px solid #000;
+  background: radial-gradient(ellipse at 30% -20%, rgba(255, 176, 102, 0.07), rgba(255, 176, 102, 0) 60%), linear-gradient(180deg, #030303, #0e0d0c);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.95), inset 0 0 0 1px rgba(255, 255, 255, 0.03), 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+.es1-lcd::after, .es1-count::after, .es1-strip::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 38%);
+}
+.es1-count { position: relative; }
+.es1-lcd b, .es1-count b, .es1-strip code { text-shadow: 0 0 6px rgba(255, 138, 42, 0.5); }
+.es1-lcd.as-button:hover { border-color: #000; box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.95), 0 0 0 1px #ffb066; }
+.es1-strip.problem { border-color: #ff6a5c; }
+
+/* Lamps: a lens with a glint, in a dark bezel. */
+.es1 .es1-led[class], .es1 .es1-status[class] {
+  border-color: #000; outline: 1.5px solid #3a3a38; outline-offset: 0;
+  background-image: radial-gradient(circle at 36% 30%, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.06) 40%, rgba(0, 0, 0, 0.28));
+}
+
+/* DISCOVER: a lit lens in a metal bezel. */
+.es1-lit {
+  border: 2px solid #4b1a02;
+  background: radial-gradient(ellipse at 40% 22%, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0) 38%), radial-gradient(circle at 50% 45%, #ffd089, #ff8a2a 62%, #d9601a);
+  box-shadow: 0 0 0 3px #2a2a28, 0 0 0 4px #000, 0 4px 8px 3px rgba(0, 0, 0, 0.45), 0 0 18px 4px rgba(255, 138, 42, 0.55), inset 0 -5px 10px rgba(140, 50, 0, 0.45);
+}
+.es1-lit:active { transform: translateY(1px); box-shadow: 0 0 0 3px #2a2a28, 0 0 0 4px #000, 0 2px 4px 2px rgba(0, 0, 0, 0.45), 0 0 10px 2px rgba(255, 138, 42, 0.5), inset 0 -3px 8px rgba(140, 50, 0, 0.5); }
+@keyframes es1-running { 50% { box-shadow: 0 0 0 3px #2a2a28, 0 0 0 4px #000, 0 4px 8px 3px rgba(0, 0, 0, 0.45), 0 0 30px 8px rgba(255, 138, 42, 0.95), inset 0 -5px 10px rgba(140, 50, 0, 0.3); filter: brightness(1.15); } }
+@media (prefers-reduced-motion: reduce) { .es1-lit.running { box-shadow: 0 0 0 3px #2a2a28, 0 0 0 4px #000, 0 0 26px 6px rgba(255, 138, 42, 0.9); } }
+
+/* PUBLISH: a dark red lens until it's armed. */
+.es1-publish {
+  border: 2px solid #1e0503;
+  background: radial-gradient(ellipse at 40% 20%, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 40%), radial-gradient(circle at 50% 45%, #4a1712, #2a0b08);
+  box-shadow: 0 0 0 3px #2a2a28, 0 0 0 4px #000, 0 4px 8px 3px rgba(0, 0, 0, 0.4), inset 0 -4px 8px rgba(0, 0, 0, 0.5);
+}
+.es1-publish.armed {
+  background: radial-gradient(ellipse at 40% 20%, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0) 40%), radial-gradient(circle at 50% 45%, #ff5a44, #c4180c 62%, #8a0f06);
+  box-shadow: 0 0 0 3px #2a2a28, 0 0 0 4px #000, 0 4px 8px 3px rgba(0, 0, 0, 0.4), 0 0 20px 5px rgba(255, 75, 54, 0.7), inset 0 -4px 8px rgba(90, 0, 0, 0.4);
+  text-shadow: 0 1px 1px rgba(90, 0, 0, 0.7);
+}
+
+/* Name fields: label strips set into the plate. */
+.es1-name-field, .es1-profile input { border-color: #2a2a28; box-shadow: inset 0 1.5px 3px rgba(0, 0, 0, 0.3), 0 1px 0 rgba(255, 255, 255, 0.35); }
+
+/* The bindings' slide switches: a recessed slot and a ridged metal thumb. */
+.es1-slide { border-color: #000; background: linear-gradient(180deg, #0c0c0b, #2a2a29); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.12); }
+.es1-slide i {
+  background: repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.18) 0 1px, rgba(0, 0, 0, 0) 1px 3px), linear-gradient(180deg, #f4f4f2, #b3b3b0);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+}
+.es1-binding.on .es1-slide i { background: repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.14) 0 1px, rgba(0, 0, 0, 0) 1px 3px), linear-gradient(180deg, #ffffff, #c9c9c6); }

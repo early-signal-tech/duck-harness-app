@@ -21,6 +21,8 @@ import type { EngineConnection } from "./useEngine";
 
 const PANEL_WIDTH = 1440;
 const PANEL_HEIGHT = 724;
+/** The wooden end cheeks either side of the panel (.es1::before and ::after in es1.css). */
+const CHEEK = 26;
 
 // Where MAP's rows sit in the shared scrolling field (see .es1-field in es1.css).
 const ROW_STEP = 68;
@@ -209,7 +211,7 @@ export function Es1({ connection, settings }: { connection: EngineConnection; se
   useLayoutEffect(() => {
     const element = stage.current;
     if (!element) return;
-    const fit = () => setScale(Math.min(element.clientWidth / PANEL_WIDTH, element.clientHeight / PANEL_HEIGHT));
+    const fit = () => setScale(Math.min(element.clientWidth / (PANEL_WIDTH + CHEEK * 2), element.clientHeight / PANEL_HEIGHT));
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(element);

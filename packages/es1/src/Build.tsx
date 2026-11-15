@@ -257,15 +257,31 @@ export function BuildPanel({ state, onChange, onPress, onConfig, onDiscover, dis
         <div className="es1-at-left es1-spec" style={{ left: 16, top: 170, opacity: 1 }}>This one makes it live.</div>
       </section>
 
+      {/* Patch cables hang between the jacks and cast a shadow on the panel below them. */}
       <svg className="es1-patch" width="1440" height="724" viewBox="0 0 1440 724" aria-hidden="true">
+        <defs>
+          <filter id="es1-cable-shadow" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="2.4" /></filter>
+          <radialGradient id="es1-plug" cx="40%" cy="35%" r="70%">
+            <stop offset="0" stopColor="#4a4a48" /><stop offset=".7" stopColor="#161615" /><stop offset="1" stopColor="#050505" />
+          </radialGradient>
+          <radialGradient id="es1-plug-tip" cx="40%" cy="35%" r="70%">
+            <stop offset="0" stopColor="#ffd2a0" /><stop offset=".6" stopColor="#ff8a2a" /><stop offset="1" stopColor="#b5520f" />
+          </radialGradient>
+        </defs>
         {[[522, 56, 606, 56], [804, 56, 884, 56]].map(([x1, y1, x2, y2]) => {
-          const d = `M${x1} ${y1} C${x1 + 34} ${y1 + 44}, ${x2 - 34} ${y2 + 44}, ${x2} ${y2}`;
+          const d = `M${x1} ${y1} C${x1 + 30} ${y1 + 62}, ${x2 - 30} ${y2 + 62}, ${x2} ${y2}`;
           return (
             <g key={x1}>
-              <path d={d} fill="none" stroke="#0a0a0a" strokeWidth="6" strokeLinecap="round" />
-              <path d={d} fill="none" stroke="#ff8a2a" strokeWidth="3.5" strokeLinecap="round" />
+              <path d={d} transform="translate(2 7)" fill="none" stroke="rgba(0,0,0,0.5)" strokeWidth="6" strokeLinecap="round" filter="url(#es1-cable-shadow)" />
+              <path d={d} fill="none" stroke="#3a1704" strokeWidth="6.5" strokeLinecap="round" />
+              <path d={d} fill="none" stroke="#ff8a2a" strokeWidth="4.5" strokeLinecap="round" />
+              <path d={d} transform="translate(-0.6 -1.1)" fill="none" stroke="rgba(255,226,190,0.65)" strokeWidth="1.1" strokeLinecap="round" />
               {[[x1, y1], [x2, y2]].map(([cx, cy]) => (
-                <g key={cx}><circle cx={cx} cy={cy} r="9" fill="#1a1a1a" stroke="#000" /><circle cx={cx} cy={cy} r="4" fill="#ff8a2a" /></g>
+                <g key={cx}>
+                  <circle cx={cx + 1} cy={cy + 3} r="10" fill="rgba(0,0,0,0.45)" filter="url(#es1-cable-shadow)" />
+                  <circle cx={cx} cy={cy} r="9.5" fill="url(#es1-plug)" stroke="#000" strokeWidth=".8" />
+                  <circle cx={cx} cy={cy} r="4.6" fill="url(#es1-plug-tip)" stroke="#5a2606" strokeWidth=".6" />
+                </g>
               ))}
             </g>
           );

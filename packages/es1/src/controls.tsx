@@ -30,7 +30,6 @@ interface KnobProps {
 }
 
 export function StopKnob({ label, spec, stops, value, onChange, labelled, radius = 25, disabled, readout }: KnobProps) {
-  const id = useId().replace(/[^a-zA-Z0-9]/g, "");
   const drag = useRef<{ y: number; value: number } | null>(null);
   const last = stops.length - 1;
   const inert = disabled || last < 1 || !onChange;
@@ -63,10 +62,8 @@ export function StopKnob({ label, spec, stops, value, onChange, labelled, radius
 
   const ticks = Math.max(stops.length, labelled ? 0 : 5);
   const angle = angleOf(value, stops.length);
-  const [pointerX1, pointerY1] = polar(radius * 0.26, angle);
-  const [pointerX2, pointerY2] = polar(radius + 0.5, angle);
-  const [capX, capY] = polar(radius * 0.6, angle);
   const size = (radius + 74) * 2;
+  const body = radius * 2 + 2;
   return (
     <div className={`es1-knob${disabled ? " disabled" : ""}`}>
       <div
@@ -89,13 +86,6 @@ export function StopKnob({ label, spec, stops, value, onChange, labelled, radius
         onKeyDown={onKeyDown}
       >
         <svg width={size} height={size} viewBox={`${-size / 2} ${-size / 2} ${size} ${size}`} aria-hidden="true">
-          <defs>
-            <radialGradient id={id} cx="42%" cy="36%" r="70%">
-              <stop offset="0" stopColor="#f4f4f2" />
-              <stop offset=".55" stopColor="#c4c4c2" />
-              <stop offset="1" stopColor="#8a8a88" />
-            </radialGradient>
-          </defs>
           {Array.from({ length: ticks }, (_, i) => {
             const a = angleOf(i, ticks);
             const [x1, y1] = polar(radius + 4, a);
@@ -110,16 +100,23 @@ export function StopKnob({ label, spec, stops, value, onChange, labelled, radius
                 textAnchor={Math.abs(a) < 25 ? "middle" : a > 0 ? "start" : "end"}>{stop}</text>
             );
           })}
-          <circle r={radius + 1} fill="#0d0d0d" />
-          {Array.from({ length: 12 }, (_, i) => {
-            const [x1, y1] = polar(radius * 0.72, i * 30);
-            const [x2, y2] = polar(radius + 1, i * 30);
-            return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#2c2c2c" strokeWidth="1.5" />;
-          })}
-          <circle r={radius * 0.62} fill={`url(#${id})`} stroke="#111" />
-          <line x1={pointerX1} y1={pointerY1} x2={pointerX2} y2={pointerY2} stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
-          <line x1={pointerX1} y1={pointerY1} x2={capX} y2={capY} stroke="#111" strokeWidth="2.6" strokeLinecap="round" />
         </svg>
+        {/* The knob itself, in layers: the skirt's shading and the cap's sheen stay put, because
+            the light doesn't move; only the grooves and the pointer turn. */}
+        <span className="es1-knob-body" style={{ width: body, height: body }} aria-hidden="true">
+          <span className="es1-knob-cap" style={{ width: radius * 1.24, height: radius * 1.24 }} />
+          <svg className="es1-knob-turn" width={body} height={body} viewBox={`${-body / 2} ${-body / 2} ${body} ${body}`}
+            style={{ transform: `rotate(${angle}deg)` }}>
+            {Array.from({ length: 36 }, (_, i) => {
+              const [x1, y1] = polar(radius * 0.7, i * 10);
+              const [x2, y2] = polar(radius + 0.5, i * 10);
+              return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={i % 2 ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.55)"} strokeWidth="1.1" />;
+            })}
+            <line x1="0" y1={-radius * 0.66} x2="0" y2={-radius + 1} stroke="#f4f4f0" strokeWidth="2.6" strokeLinecap="round" />
+            <line x1="0" y1={-radius * 0.22} x2="0" y2={-radius * 0.56} stroke="#1a1a19" strokeWidth="2.4" strokeLinecap="round" />
+            <line x1="0.9" y1={-radius * 0.22} x2="0.9" y2={-radius * 0.56} stroke="rgba(255,255,255,0.55)" strokeWidth="0.6" />
+          </svg>
+        </span>
       </div>
       <span className="es1-lab">{label}</span>
       {spec && <span className="es1-spec">{spec}</span>}
@@ -144,13 +141,34 @@ interface ToggleProps<T extends string> {
 export function BatToggle<T extends string>({ label, options, value, onChange, spec, spec2, disabled }: ToggleProps<T>) {
   const at = options.findIndex((o) => o.value === value);
   const lean = options.length > 1 ? -18 + (36 * at) / (options.length - 1) : 0;
-  const [tipX, tipY] = polar(18, lean);
+  const id = useId().replace(/[^a-zA-Z0-9]/g, "");
+  // A chrome bat handle on a hex nut. Drawn pointing up, then leaned.
+  const bat = "M-1.6 0 L-2.9 -13.6 A3.5 3.5 0 1 1 2.9 -13.6 L1.6 0 Z";
   return (
     <div className={`es1-toggle${disabled ? " disabled" : ""}`} role="radiogroup" aria-label={label || options.map((o) => o.label).join(" or ")}>
       <svg width="44" height="44" viewBox="-22 -26 44 44" aria-hidden="true">
-        <circle r="10" fill="#d9d9d7" stroke="#111" />
-        <circle r="6.5" fill="#6e6e6c" stroke="#222" />
-        <line x1="0" y1="0" x2={tipX} y2={tipY} stroke="#d7d7d5" strokeWidth="6" strokeLinecap="round" />
+        <defs>
+          <linearGradient id={`${id}n`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#f6f6f4" /><stop offset=".5" stopColor="#bdbdba" /><stop offset="1" stopColor="#6d6d6a" />
+          </linearGradient>
+          <radialGradient id={`${id}b`} cx="40%" cy="35%" r="70%">
+            <stop offset="0" stopColor="#9a9a97" /><stop offset="1" stopColor="#232322" />
+          </radialGradient>
+          <linearGradient id={`${id}h`} gradientUnits="userSpaceOnUse" x1="-3.6" y1="0" x2="3.6" y2="0">
+            <stop offset="0" stopColor="#5e5e5b" /><stop offset=".3" stopColor="#fbfbf9" /><stop offset=".55" stopColor="#d2d2cf" /><stop offset="1" stopColor="#545452" />
+          </linearGradient>
+          <filter id={`${id}s`} x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.3" /></filter>
+        </defs>
+        <polygon points="0,-11 9.5,-5.5 9.5,5.5 0,11 -9.5,5.5 -9.5,-5.5" fill="rgba(0,0,0,0.4)" transform="translate(0 2)" filter={`url(#${id}s)`} />
+        <polygon points="0,-11 9.5,-5.5 9.5,5.5 0,11 -9.5,5.5 -9.5,-5.5" fill={`url(#${id}n)`} stroke="#3b3b39" strokeWidth=".6" />
+        <circle r="6.4" fill={`url(#${id}b)`} stroke="#151514" strokeWidth=".8" />
+        <g className="es1-bat-shadow" style={{ transform: `translate(1px, 3px) rotate(${lean}deg)` }}>
+          <path d={bat} fill="rgba(0,0,0,0.45)" filter={`url(#${id}s)`} />
+        </g>
+        <g className="es1-bat" style={{ transform: `rotate(${lean}deg)` }}>
+          <path d={bat} fill={`url(#${id}h)`} stroke="#3a3a38" strokeWidth=".5" />
+          <ellipse cx="-1" cy="-15.6" rx="1.1" ry="1.6" fill="rgba(255,255,255,0.85)" />
+        </g>
       </svg>
       <div className="es1-options">
         {options.map((o) => (
@@ -178,12 +196,26 @@ export function Jack({ label, out }: { label: string; out?: boolean }) {
   );
 }
 
+/** A threaded socket: a hex nut, a collar, and a hole deep enough to be dark. */
 function JackIcon() {
+  const id = useId().replace(/[^a-zA-Z0-9]/g, "");
   return (
     <svg width="34" height="34" viewBox="-17 -17 34 34" aria-hidden="true">
-      <polygon points="0,-15 13,-7.5 13,7.5 0,15 -13,7.5 -13,-7.5" fill="#cfcfcd" stroke="#111" />
-      <circle r="8.5" fill="#8c8c8a" stroke="#222" />
-      <circle r="5" fill="#050505" />
+      <defs>
+        <linearGradient id={`${id}n`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#f7f7f5" /><stop offset=".5" stopColor="#c2c2bf" /><stop offset="1" stopColor="#737370" />
+        </linearGradient>
+        <linearGradient id={`${id}c`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#6c6c69" /><stop offset="1" stopColor="#d9d9d6" />
+        </linearGradient>
+        <radialGradient id={`${id}h`} cx="50%" cy="58%" r="55%">
+          <stop offset="0" stopColor="#000" /><stop offset=".75" stopColor="#0b0b0b" /><stop offset="1" stopColor="#3a3a38" />
+        </radialGradient>
+      </defs>
+      <polygon points="0,-14 12,-7 12,7 0,14 -12,7 -12,-7" fill="rgba(0,0,0,0.35)" transform="translate(0 1.6)" />
+      <polygon points="0,-14 12,-7 12,7 0,14 -12,7 -12,-7" fill={`url(#${id}n)`} stroke="#3b3b39" strokeWidth=".7" />
+      <circle r="8.6" fill={`url(#${id}c)`} stroke="#2b2b29" strokeWidth=".7" />
+      <circle r="5.4" fill={`url(#${id}h)`} />
     </svg>
   );
 }

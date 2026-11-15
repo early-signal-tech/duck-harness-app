@@ -219,10 +219,15 @@ A PREVIEW control running `flowctl preview` before publishing.
 ## Dictation into the prompt
 Speak a question into DH-1's prompt instead of typing it.
 
-- **Try first, nothing to build:** macOS dictation should already work in the prompt box
-  (it's a standard text field in the WebKit view). Click into the prompt, press the
-  dictation shortcut (🌐/Fn twice by default), speak, then Enter. Not yet tested in the
-  Tauri app.
+- **Works now, nothing to build, in a built app only** (tested 2026-11-15): macOS
+  dictation works in the prompt box of a built DH-1.app. Click into the prompt, start
+  dictation (Edit → Start Dictation, or the shortcut set in System Settings → Keyboard →
+  Dictation), speak, then Enter.
+  - **Not in `npm run dh1`:** dev mode runs a bare binary rather than an app bundle.
+    Dictation starts (typing stops) but shows no mic and inserts nothing; Esc gets out.
+    To try it from a checkout, build one:
+    `npm run tauri -w dh1-app -- build --debug --bundles app`, then open
+    `apps/dh1/src-tauri/target/debug/bundle/macos/DH-1.app`.
   - Enter while the spoken words are still underlined finishes them rather than running
     (#48). Press Enter again to run.
   - Esc cancels dictation but is also DH-1's STOP, so it will stop a run in progress.
@@ -237,4 +242,4 @@ Speak a question into DH-1's prompt instead of typing it.
   - vocabulary hints: the source's table and column names
 - **Not the web speech API:** in an embedded WebKit view it's unreliable and needs extra
   microphone and speech permissions.
-- Waiting for: a few days of system dictation, and the MIDI first build.
+- Waiting for: a few days of system dictation in a built app, and the MIDI first build.

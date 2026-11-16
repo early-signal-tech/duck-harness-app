@@ -3,7 +3,7 @@
 // EngineTransport (the engine named "dh1"): requests go out with `send`, replies come
 // back through `onMessage`.
 
-import type { EngineTransport } from "@dh/ui-kit";
+import type { EngineTransport, SecretInfo, SecretRequest, SecretType } from "@dh/ui-kit";
 
 export const PROTOCOL_VERSION = 1;
 
@@ -103,6 +103,8 @@ export interface Hello {
   /** Added with the compressor settings; absent from older servers. */
   limits?: { max_tokens: number };
   tools?: string[];
+  /** The DuckDB secret types the agent can save, with their fields; absent from older servers. */
+  secret_types?: SecretType[];
 }
 
 /** Where traces go, and whether the background traces server is up. */
@@ -149,6 +151,7 @@ type Message =
   | { id: string; type: "takes"; takes: TakeSummary[] }
   | { id: string; type: "take"; runs: TakeRun[] }
   | ({ id: string; type: "traces" } & TracesInfo)
+  | { id: string; type: "secrets"; secrets: SecretInfo[] }
   | { id: string; type: "accepted" }
   | ({ id: string; type: "event" } & AgentEvent)
   | { id: string; type: "result"; result: AgentResult }
@@ -251,6 +254,26 @@ export class Harness {
   async tracesReset(): Promise<boolean> {
     const reply = await this.request({ type: "traces_reset" }, nextId("traces"));
     return reply.type === "ok" && !!reply.deleted;
+  }
+
+  /** DuckDB's saved secrets: names, types, scopes (never values). */
+  async secrets(): Promise<SecretInfo[]> {
+    return this.secretsReply(await this.request({ type: "secrets" }, nextId("secrets")));
+  }
+
+  /** Save a secret (or replace one); replies with the list. Its values aren't sent back. */
+  async secretCreate(request: SecretRequest): Promise<SecretInfo[]> {
+    return this.secretsReply(await this.request({ type: "secret_create", ...request }, nextId("secrets")));
+  }
+
+  /** Delete a saved secret; replies with the list. */
+  async secretDrop(name: string): Promise<SecretInfo[]> {
+    return this.secretsReply(await this.request({ type: "secret_drop", name }, nextId("secrets")));
+  }
+
+  private secretsReply(reply: Message): SecretInfo[] {
+    if (reply.type !== "secrets") throw new HarnessError(`unexpected reply ${reply.type}`);
+    return reply.secrets;
   }
 
   /** Start a run. Events arrive through `onEvent`; several runs can go at once (A/B). */

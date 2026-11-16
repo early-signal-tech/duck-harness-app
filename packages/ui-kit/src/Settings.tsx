@@ -1,6 +1,6 @@
 // SETTINGS (the gear in the header bar): the appearance (theme, displays), the Anthropic
-// API key, the traces database, and, when the host's engine can manage them, the traces
-// server and resetting the traces. Host-level and shared: DH-1, EH-1, and the rack use the
+// API key, the traces database, and, when the host's engine can manage them, DuckDB's
+// saved secrets (Manage… opens SecretsSheet), the traces server, and resetting the traces. Host-level and shared: DH-1, EH-1, and the rack use the
 // same key and traces. The host passes its engine's status and restart, and `traces` if
 // its engine is the one that runs the traces server (DH-1's agent does; EH-1's grader
 // only reads).
@@ -14,6 +14,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { Appearance } from "./appearance";
 import { AppearanceControls } from "./HostBar";
 import { Menu } from "./Menu";
+import { secretsSummary, type SecretInfo, type SecretsControls } from "./secrets";
+import { SecretsSheet } from "./SecretsSheet";
 
 /** Where traces go, and whether the background traces server is up (DH-1's agent reports it). */
 export interface TracesInfo {
@@ -36,8 +38,6 @@ export interface TracesControls {
 export interface SettingsEngine {
   status: "connecting" | "ready" | "down";
   restart: () => Promise<void>;
-  /** Each engine's version from its hello, by engine name. */
-  versions?: Record<string, string | undefined>;
 }
 
 interface SettingsView {
@@ -48,26 +48,9 @@ interface SettingsView {
   /** The traces file every engine is given, resolved. */
   tracesPath: string;
   agentDir: string;
-  /** How each of this host's engines was started (crates/dh-host, discovery.rs). */
-  engines: StartedEngine[];
-  enginesFile: string | null;
+  /** A broken engines.json (crates/dh-host, discovery.rs): skipped, and said here. */
   enginesFileProblem: string | null;
 }
-
-interface StartedEngine {
-  engine: string;
-  source: "override" | "file" | "checkout";
-  command: string;
-  version: string | null;
-}
-
-const ENGINE_NAMES: Record<string, string> = { dh1: "DH-1 · agent", eh1: "EH-1 · grader", es1: "ES-1 · flowctl bridge" };
-
-const ENGINE_SOURCE: Record<StartedEngine["source"], string> = {
-  override: "dev override",
-  file: "engines.json",
-  checkout: "checkout",
-};
 
 const KEY_SOURCE: Record<SettingsView["apiKeySource"], string> = {
   keychain: "Saved in the Keychain",
@@ -88,28 +71,18 @@ interface Props {
   engine: SettingsEngine;
   /** Left out when the engine doesn't manage the traces server. */
   traces?: TracesControls;
+  /** Left out when the engine can't manage DuckDB secrets (only DH-1's agent can). */
+  secrets?: SecretsControls;
   appearance: Appearance;
   onAppearance: (appearance: Appearance) => void;
-  /** Only how the engine was started, for a host with no agent behind it and a panel with
-   *  its own fixed colors (ES-1): no appearance, Anthropic key or traces. */
-  engineOnly?: boolean;
 }
 
-export function SettingsMenu({ engine, traces: tracesControls, appearance, onAppearance, engineOnly }: Props) {
+export function SettingsMenu({ engine, traces: tracesControls, secrets: secretsControls, appearance, onAppearance }: Props) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<SettingsView | null>(null);
-  // Which engine's command was just copied (its line says so for a moment).
-  const [copied, setCopied] = useState<string | null>(null);
-  const copyCommand = async (engine: string, command: string) => {
-    try {
-      await navigator.clipboard.writeText(command);
-      setCopied(engine);
-      setTimeout(() => setCopied((c) => (c === engine ? null : c)), 1500);
-    } catch {
-      // No clipboard here: the full command is still in the tooltip.
-    }
-  };
   const [traces, setTraces] = useState<TracesInfo | null>(null);
+  const [secrets, setSecrets] = useState<SecretInfo[] | null>(null);
+  const [sheet, setSheet] = useState(false);
   const [key, setKey] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
   const [working, setWorking] = useState<string | null>(null);
@@ -127,7 +100,12 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
     } else {
       setTraces(null);
     }
-  }, [tracesControls, engine.status]);
+    if (secretsControls && engine.status === "ready") {
+      setSecrets(await secretsControls.list().catch(() => null));
+    } else {
+      setSecrets(null);
+    }
+  }, [tracesControls, secretsControls, engine.status]);
 
   useEffect(() => {
     if (open) void refresh().catch((e) => setNote({ text: message(e), error: true }));
@@ -149,14 +127,13 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
     }
   };
 
-  // The version engines.json gave, else the one the engine said in hello.
-  const versionOf = (e: StartedEngine) => e.version ?? engine.versions?.[e.engine];
   const tracesPath = traces?.db ?? view?.tracesPath ?? view?.tracesDb ?? view?.defaultTracesDb ?? "";
   const server = traces?.server;
   const outdated = server?.running && server.current === false;
   const ready = engine.status === "ready";
 
   return (
+    <>
     <Menu
       open={open}
       onClose={close}
@@ -173,11 +150,11 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
       }
     >
       <div className="settings">
-        {!engineOnly && <section>
+        <section>
           <AppearanceControls appearance={appearance} onChange={onAppearance} />
-        </section>}
+        </section>
 
-        {!engineOnly && <section>
+        <section>
           <label className="settings-label" htmlFor="api-key">ANTHROPIC API KEY</label>
           <p className={`settings-status${view?.apiKeySource === "none" ? " warn" : ""}`}>
             {view ? `${KEY_SOURCE[view.apiKeySource]}${view.apiKeyHint ? ` (${view.apiKeyHint})` : ""}` : "…"}
@@ -219,9 +196,9 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
               </>
             )}
           </p>
-        </section>}
+        </section>
 
-        {!engineOnly && <section>
+        <section>
           <span className="settings-label">TRACES DATABASE</span>
           <p className="settings-path selectable" title={tracesPath}>{tracesPath}</p>
           <p className="settings-hint">
@@ -253,6 +230,17 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
               </button>
             )}
           </div>
+        </section>
+
+        {secretsControls && <section>
+          <span className="settings-label">DUCKDB SECRETS</span>
+          <div className="settings-row spread">
+            <span className="settings-status">
+              {!ready ? "Engine offline" : secrets ? secretsSummary(secrets, secretsControls.types) : "…"}
+            </span>
+            <button className="pane-button" disabled={!ready} onClick={() => { close(); setSheet(true); }}>Manage…</button>
+          </div>
+          <p className="settings-hint">S3, Postgres, DuckLake and more, saved where DuckDB and the agent find them.</p>
         </section>}
 
         {tracesControls && <section>
@@ -278,25 +266,9 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
             : <p className="settings-hint">Lets other programs read the traces while runs write them.</p>}
         </section>}
 
-        {view && view.engines.length > 0 && <section>
-          <span className="settings-label">{view.engines.length > 1 ? "ENGINES" : "ENGINE"}</span>
-          {view.engines.map((e) => (
-            <div key={e.engine} className="settings-engine">
-              <span className="settings-row spread">
-                <span className="settings-engine-name">{ENGINE_NAMES[e.engine] ?? e.engine}</span>
-                <span className="settings-hint">{ENGINE_SOURCE[e.source]}{versionOf(e) ? ` · ${versionOf(e)}` : ""}</span>
-              </span>
-              {/* The command that runs this engine, to run it yourself: copied, not shown (it's on hover). */}
-              <button className={`link-button settings-command${copied === e.engine ? " copied" : ""}`} title={e.command}
-                onClick={() => void copyCommand(e.engine, e.command)}>
-                {copied === e.engine ? "✓ Copied: paste it in a terminal" : "⧉ Copy run command"}
-              </button>
-            </div>
-          ))}
-          {view.enginesFileProblem && <p className="settings-hint warn">{view.enginesFileProblem}</p>}
-        </section>}
+        {view?.enginesFileProblem && <p className="settings-hint warn">{view.enginesFileProblem}</p>}
 
-        {!engineOnly && <section className="settings-actions">
+        <section className="settings-actions">
           <button className="pane-button wide" disabled={working !== null}
             onClick={() => void act("shell", async () => {
               await invoke("traces_shell_open");
@@ -324,15 +296,17 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
               </div>
             </div>
           ))}
-        </section>}
+        </section>
 
         {(working || note) && (
           <p className={`settings-note${note?.error ? " error" : ""}`} aria-live="polite">
             {working ? "Working…" : note?.text}
           </p>
         )}
-        {!engineOnly && <p className="settings-hint">Changing the key or the traces file restarts the engine: runs in progress stop.</p>}
+        <p className="settings-hint">Changing the key or the traces file restarts the engine: runs in progress stop.</p>
       </div>
     </Menu>
+    {sheet && secretsControls && <SecretsSheet controls={secretsControls} onClose={() => setSheet(false)} />}
+    </>
   );
 }

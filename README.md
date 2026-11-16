@@ -124,6 +124,7 @@ Then, from the repo root:
 ```bash
 npm install
 npm run dh1        # DH-1 in development (Tauri + Vite)
+npm run dh1:app    # DH-1 built as a Mac app, then opened (needed for dictation)
 npm run eh1        # EH-1
 npm run es1        # ES-1
 npm run rack       # the Rack: DH-1, EH-1, and ES-1 in one window

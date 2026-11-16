@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "dh1": "npm run tauri -w dh1-app -- dev",
+    "dh1:app": "sh scripts/dh1-app.sh",
     "build": "npm run build -w dh1-app && npm run build -w eh1-app && npm run build -w es1-app && npm run build -w rack-app",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",

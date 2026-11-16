@@ -570,6 +570,12 @@ input:focus { border-color: var(--accent); }
 .sheet-head { flex: none; display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 10px 0 16px; border-bottom: 1px solid var(--rule); }
 .sheet-body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 12px; padding: 14px 16px 16px; }
 .sheet-body p { margin: 0; }
+/* The sheet's own ✕: the panel's ink, not the dark header bar's. */
+.sheet-close {
+  width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; padding: 0;
+  border: 1.5px solid var(--edge); border-radius: 5px; background: transparent; color: var(--ink); cursor: pointer;
+}
+.sheet-close:hover { background: var(--field, var(--rule)); }
 .sheet-note { flex: none; margin: 0; padding: 8px 16px 12px; }
 .sheet-actions { justify-content: flex-end; padding-top: 4px; }
 .pane-button.primary { background: var(--edge); color: var(--panel); }

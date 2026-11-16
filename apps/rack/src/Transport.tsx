@@ -1,11 +1,14 @@
 // The rack's transport, across the top like a DAW's: the prompt, what PLAY makes (a RUN,
-// an A/B, or a SETLIST), PLAY and STOP, then Settings and the engine lights. It drives
+// an A/B, or a SETLIST), PLAY and STOP, then Settings and one engine light. It drives
 // DH-1's model, so it works whichever device is open in the panel. In SETLIST mode the
 // prompt gives way to the setlist that PLAY will start (Edit… opens DH-1's Setlist to
 // change it); while one plays, to its progress.
 
 import { progressOf, type Dh1Model } from "@dh/dh1";
 import type { EngineStatus } from "@dh/ui-kit";
+import { combinedStatus } from "./rackLayout";
+
+const LIGHT_LABEL: Record<EngineStatus, string> = { ready: "ENGINE RUNNING", connecting: "ENGINE STARTING", down: "ENGINE DOWN" };
 import type { ReactNode } from "react";
 import type { Take } from "./rackLayout";
 
@@ -28,7 +31,8 @@ export function Transport({ dh1, playable, take, onTake, onPlay, onEditSetlist, 
   /** PLAY: run, run A+B, or open DH-1's Setlist to set one up and start it. */
   onPlay: () => void;
   settings: ReactNode;
-  lights: { label: string; status: EngineStatus; error?: string | null }[];
+  /** Every engine; `used` when a device in the chain needs it. */
+  lights: { label: string; status: EngineStatus; error?: string | null; used: boolean }[];
 }) {
   const { settings: face, update, setlist, canRun, canRunBoth, problem, anyBusy, stop } = dh1;
   const playing = setlist.busy;
@@ -93,12 +97,23 @@ export function Transport({ dh1, playable, take, onTake, onPlay, onEditSetlist, 
       </button>
       <span className="transport-divider" aria-hidden="true" />
       {settings}
-      {lights.map((l) => (
-        <div key={l.label} className={`engine ${l.status}`} title={l.error ?? `${l.label} engine: ${l.status}`}>
-          <span className="dot" aria-hidden="true" />
-          {l.label}
-        </div>
-      ))}
+      <EngineLight lights={lights} />
     </header>
+  );
+}
+
+/** One light for the rack's engines: its color counts only the engines the chain uses
+ *  (a missing flowctl bridge doesn't matter without ES-1); hover lists every engine. */
+function EngineLight({ lights }: { lights: { label: string; status: EngineStatus; error?: string | null; used: boolean }[] }) {
+  const used = lights.filter((l) => l.used);
+  const status = combinedStatus(used.map((l) => l.status));
+  const title = lights
+    .map((l) => `${l.label}: ${l.status}${l.used ? "" : " (not in the chain)"}${l.error ? ` · ${l.error}` : ""}`)
+    .join("\n");
+  return (
+    <div className={`engine ${status}`} title={title} aria-label={`Engines: ${status}`}>
+      <span className="dot" aria-hidden="true" />
+      {LIGHT_LABEL[status]}
+    </div>
   );
 }

@@ -377,9 +377,9 @@ export default function App() {
         onEditSetlist={() => openDh1(undefined, true)}
         settings={<SettingsMenu engine={settingsEngine} traces={traces} appearance={appearance} onAppearance={setAppearance} />}
         lights={[
-          { label: "DH-1", status: dh1Engine.status, error: dh1Engine.error },
-          { label: "EH-1", status: eh1Engine.status, error: eh1Engine.error },
-          { label: "ES-1", status: es1Engine.status, error: es1Engine.error },
+          { label: "DH-1", status: dh1Engine.status, error: dh1Engine.error, used: chain.some((i) => i.type === "dh1") },
+          { label: "EH-1", status: eh1Engine.status, error: eh1Engine.error, used: chain.some((i) => i.type === "eh1" || i.type === "autograder") },
+          { label: "ES-1", status: es1Engine.status, error: es1Engine.error, used: chain.some((i) => i.type === "es1") },
         ]}
       />
       {engineIssues.map((problem) => (

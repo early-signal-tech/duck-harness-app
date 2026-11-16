@@ -39,7 +39,9 @@ DH-1 needs two checkouts side by side: this repo (`duck-harness-app`) and the ag
 [`duckdb-analytics-agent`](https://github.com/early-signal-tech/duckdb-analytics-agent).
 It needs an Anthropic API key: paste one into **Settings** (the gear in the header),
 or put `ANTHROPIC_API_KEY` in the agent's `.env`. Then run `npm install` once and
-`npm run dh1` to start the app. The app starts the agent as a child process
+`npm run dh1` to start the app in development, or `npm run dh1:app` to build it as a
+Mac app and open it (a built app is what dictation needs; run it again after pulling
+changes). The app starts the agent as a child process
 (`uv run --project ../duckdb-analytics-agent duck-harness-serve`) and talks to it over
 JSON Lines. The **engine light** at the right of the header shows whether it's up.
 
@@ -192,8 +194,8 @@ setlist is going, and its tooltip says why.
 prompt, start dictation (Edit → Start Dictation, or the shortcut in System Settings →
 Keyboard → Dictation), speak, then press Enter. While the words are still underlined,
 the first Enter finishes them and the next one runs. Esc cancels dictation, but it's
-also STOP. It doesn't work in `npm run dh1` (dev mode isn't an app bundle); see
-[LATER.md](LATER.md) for building one to try it.
+also STOP. It doesn't work in `npm run dh1` (dev mode isn't an app bundle): use
+`npm run dh1:app`, which builds DH-1 as an app and opens it.
 
 ## 10. ACTIVITY and the run timeline
 

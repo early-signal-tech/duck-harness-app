@@ -225,9 +225,7 @@ Speak a question into DH-1's prompt instead of typing it.
   Dictation), speak, then Enter.
   - **Not in `npm run dh1`:** dev mode runs a bare binary rather than an app bundle.
     Dictation starts (typing stops) but shows no mic and inserts nothing; Esc gets out.
-    To try it from a checkout, build one:
-    `npm run tauri -w dh1-app -- build --debug --bundles app`, then open
-    `apps/dh1/src-tauri/target/debug/bundle/macos/DH-1.app`.
+    To use it from a checkout, `npm run dh1:app` builds DH-1 as an app and opens it.
   - Enter while the spoken words are still underlined finishes them rather than running
     (#48). Press Enter again to run.
   - Esc cancels dictation but is also DH-1's STOP, so it will stop a run in progress.

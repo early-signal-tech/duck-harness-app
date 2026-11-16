@@ -78,7 +78,11 @@ export function SecretsSheet({ controls, onClose }: { controls: SecretsControls;
             </button>
           )}
           <span className="spacer" />
-          <button className="bar-button" onClick={onClose} aria-label="Close">✕</button>
+          <button className="sheet-close" onClick={onClose} aria-label="Close" title="Close (Esc)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
         </header>
 
         {view.kind === "list" ? (

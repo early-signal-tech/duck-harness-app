@@ -9,12 +9,15 @@
 //   Right-click a card for its menu. Double-click a strip to collapse that card; ▾ RACK
 //   or ⌘B collapses the whole rack.
 //
-// One instrument per chain: DH-1 (with AUTO GRADER after it, which holds its own EH-1) or
-// EH-1 on its own. Each device's model lives here (one per kind, since a chain holds at
-// most one of each), so a device keeps running whatever the panel shows.
+// One instrument per chain: DH-1 (with AUTO GRADER after it, which holds its own EH-1),
+// EH-1 on its own, or ES-1 on its own. Each device's model lives here (one per kind, since
+// a chain holds at most one of each), so a device keeps running whatever the panel shows.
+// ES-1 keeps its state in its panel, so that panel stays mounted (hidden) while ES-1 is in
+// the chain: going back to the output mustn't lose a build in progress.
 
 import { Dh1Card, Dh1Face, Dh1Output, useDh1, useEngine as useDh1Engine, type Dh1Section } from "@dh/dh1";
 import { Eh1Card, Eh1Face, FOLLOW_IDLE, useEh1, useEngine as useEh1Engine, type FollowStatus, type Grade } from "@dh/eh1";
+import { Es1, Es1Card, useEngine as useEs1Engine, type Es1Summary } from "@dh/es1";
 import { describeSource, questionSetToFile } from "@dh/formats";
 import { engineProblems, Menu, MenuDivider, MenuItem, SettingsMenu, tauriTransport, useAppearance, type TracesControls } from "@dh/ui-kit";
 import { ask } from "@tauri-apps/plugin-dialog";
@@ -36,6 +39,7 @@ import "./rack.css";
 // The engines, as the host crate names them.
 const dh1Transport = tauriTransport("dh1");
 const eh1Transport = tauriTransport("eh1");
+const es1Transport = tauriTransport("es1");
 
 // The chain, until rack presets save it as a file (next).
 const CHAIN_KEY = "rack.chain";
@@ -58,16 +62,18 @@ function saveChain(chain: Instance[]): void {
 const TITLES: Record<Exclude<Open, "output">, [string, string]> = {
   dh1: ["DH-1", "ANALYTICS AGENT"],
   eh1: ["EH-1", "EVALUATOR"],
+  es1: ["ES-1", "PIPELINE METER"],
   autograder: ["AUTO GRADER / EH-1", "THE EH-1 INSIDE AUTO GRADER"],
 };
 
 /** Where each kind of device opens in the panel. */
-const OPENS: Record<DeviceType, Open> = { dh1: "dh1", eh1: "eh1", autograder: "autograder" };
+const OPENS: Record<DeviceType, Open> = { dh1: "dh1", eh1: "eh1", es1: "es1", autograder: "autograder" };
 
 export default function App() {
   const [appearance, setAppearance] = useAppearance();
   const dh1Engine = useDh1Engine(dh1Transport);
   const eh1Engine = useEh1Engine(eh1Transport);
+  const es1Engine = useEs1Engine(es1Transport);
 
   const [layout, setLayout] = useState(loadLayout);
   useEffect(() => saveLayout(layout), [layout]);
@@ -84,6 +90,12 @@ export default function App() {
   const autograder = find("autograder");
   const graderWorks = !!autograder && !problems.has(autograder.id);
   const hasEh1 = !!find("eh1") && !problems.has(find("eh1")!.id);
+  const hasEs1 = !!find("es1") && !problems.has(find("es1")!.id);
+  // What ES-1's panel reports, for its card (null until it has, and again once it's gone).
+  const [es1Summary, setEs1Summary] = useState<Es1Summary | null>(null);
+  useEffect(() => {
+    if (!hasEs1) setEs1Summary(null);
+  }, [hasEs1]);
 
   // AUTO GRADER's power starts off every time the rack opens: grading costs money.
   const [graderOn, setGraderOn] = useState(false);
@@ -200,6 +212,7 @@ export default function App() {
   const busyOf = (instance: Instance): boolean => {
     if (instance.type === "dh1") return dh1.anyBusy || dh1.setlist.busy;
     if (instance.type === "eh1") return !!eh1.grading;
+    if (instance.type === "es1") return !!es1Summary?.busy;
     return graderOn && follow.active;
   };
 
@@ -230,7 +243,7 @@ export default function App() {
     }));
     // busyOf reads the models, which change every render; this runs on a click or a key.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dh1, eh1, graderOn, follow.active]);
+  }, [dh1, eh1, es1Summary, graderOn, follow.active]);
 
   // Keys: ⌘B folds the rack; Delete / Backspace removes the selected device; Esc deselects.
   useEffect(() => {
@@ -263,8 +276,8 @@ export default function App() {
     ? { info: () => harness.traces(), stop: () => harness.tracesStop(), reset: () => harness.tracesReset() }
     : undefined, [harness]);
 
-  // Settings are the host's: the key and the traces file apply to both engines, so a
-  // change restarts both.
+  // Settings are the host's: the key and the traces file apply to DH-1's and EH-1's
+  // engines, so a change restarts both. ES-1's flowctl bridge uses neither.
   const { status: dh1Status, restart: restartDh1, hello: dh1Hello } = dh1Engine;
   const { status: eh1Status, restart: restartEh1, hello: eh1Hello } = eh1Engine;
   const settingsEngine = useMemo(() => ({
@@ -272,8 +285,8 @@ export default function App() {
     restart: async () => {
       await Promise.all([restartDh1(), restartEh1()]);
     },
-    versions: { dh1: dh1Hello?.version, eh1: eh1Hello?.version },
-  }), [dh1Status, eh1Status, restartDh1, restartEh1, dh1Hello, eh1Hello]);
+    versions: { dh1: dh1Hello?.version, eh1: eh1Hello?.version, es1: es1Engine.hello?.version },
+  }), [dh1Status, eh1Status, restartDh1, restartEh1, dh1Hello, eh1Hello, es1Engine.hello]);
 
   // The grader reads what the agent writes: both must be built for the same traces.
   const engineIssues = dh1Hello && eh1Hello
@@ -286,6 +299,7 @@ export default function App() {
   // A device the chain no longer holds can't stay open in the panel.
   const shown: Open = layout.open === "dh1" && !hasDh1 ? "output"
     : layout.open === "eh1" && !hasEh1 ? "output"
+    : layout.open === "es1" && !hasEs1 ? "output"
     : layout.open === "autograder" && !autograder ? "output"
     : layout.open;
 
@@ -318,6 +332,8 @@ export default function App() {
         );
       case "eh1":
         return <Eh1Card model={eh1} status={eh1Engine.status} collapsed={collapsed} onToggleCollapse={collapse(instance.id)} onOpen={() => open("eh1")} cardProps={props} />;
+      case "es1":
+        return <Es1Card summary={es1Summary} status={es1Engine.status} collapsed={collapsed} onToggleCollapse={collapse(instance.id)} onOpen={() => open("es1")} cardProps={props} />;
       case "autograder":
         return (
           <AutoGraderCard on={graderOn} onToggle={() => setGraderOn(!graderOn)} status={follow} inner={inner}
@@ -361,8 +377,9 @@ export default function App() {
         onEditSetlist={() => openDh1(undefined, true)}
         settings={<SettingsMenu engine={settingsEngine} traces={traces} appearance={appearance} onAppearance={setAppearance} />}
         lights={[
-          { label: "DH-1", status: dh1Engine.status, error: dh1Engine.error },
-          { label: "EH-1", status: eh1Engine.status, error: eh1Engine.error },
+          { label: "DH-1", status: dh1Engine.status, error: dh1Engine.error, used: chain.some((i) => i.type === "dh1") },
+          { label: "EH-1", status: eh1Engine.status, error: eh1Engine.error, used: chain.some((i) => i.type === "eh1" || i.type === "autograder") },
+          { label: "ES-1", status: es1Engine.status, error: es1Engine.error, used: chain.some((i) => i.type === "es1") },
         ]}
       />
       {engineIssues.map((problem) => (
@@ -399,6 +416,11 @@ export default function App() {
                   <p>This chain is EH-1 on its own: open it to pick a setlist and grade it.</p>
                   <button className="pane-button" onClick={() => open("eh1")}>Open EH-1 ⤢</button>
                 </div>
+              ) : hasEs1 ? (
+                <div className="output-empty">
+                  <p>This chain is ES-1 on its own: open it to build a pipeline or see what's live.</p>
+                  <button className="pane-button" onClick={() => open("es1")}>Open ES-1 ⤢</button>
+                </div>
               ) : (
                 <div className="output-empty"><p>The chain is empty: add an instrument with + below.</p></div>
               )}
@@ -415,15 +437,21 @@ export default function App() {
               <span className="spacer" />
               <button className="bar-button" onClick={() => open("output")} aria-label="Close: back to the output" title="Back to the output">✕</button>
             </header>
-            <div className="panel-body">
+            {shown !== "es1" && <div className="panel-body">
               {shown === "dh1" && (
                 <Dh1Face key={dh1Focus.n} model={dh1} toolbar={toolbar} promptBar={false}
                   initialScreen={dh1Focus.setlist ? "setlist" : "face"} focusSection={dh1Focus.section} />
               )}
               {shown === "eh1" && <Eh1Face model={eh1} toolbar={toolbar} />}
               {shown === "autograder" && <Eh1Face model={inner} toolbar={toolbar} chained />}
-            </div>
+            </div>}
           </>
+        )}
+        {/* ES-1's panel stays mounted while it's in the chain; it shows only when opened. */}
+        {hasEs1 && (
+          <div className="panel-body rack-es1" style={shown === "es1" ? undefined : { display: "none" }}>
+            <Es1 connection={es1Engine} embedded onSummary={setEs1Summary} />
+          </div>
         )}
       </section>
 

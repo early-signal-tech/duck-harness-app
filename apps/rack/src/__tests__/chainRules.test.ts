@@ -4,11 +4,12 @@ import { cannotInsert, chainProblems, choicesAt, DEFAULT_CHAIN, parseChain, type
 const dh1: Instance = { id: "a", type: "dh1" };
 const ag: Instance = { id: "b", type: "autograder" };
 const eh1: Instance = { id: "c", type: "eh1" };
+const es1: Instance = { id: "d", type: "es1" };
 
 describe("chain rules", () => {
   it("offers an instrument first in an empty chain, and nothing that needs runs", () => {
     const fits = choicesAt([], 0).filter((c) => !c.problem).map((c) => c.type);
-    expect(fits).toEqual(["dh1", "eh1"]);
+    expect(fits).toEqual(["dh1", "eh1", "es1"]);
     expect(cannotInsert([], 0, "autograder")).toContain("needs runs coming in");
   });
 
@@ -25,6 +26,14 @@ describe("chain rules", () => {
 
   it("doesn't grade EH-1's output: AUTO GRADER needs runs, EH-1 gives grades", () => {
     expect(cannotInsert([eh1], 1, "autograder")).toContain("needs runs");
+  });
+
+  it("keeps ES-1 an instrument on its own: nothing takes pipelines yet", () => {
+    expect(cannotInsert([], 0, "es1")).toBeNull();
+    expect(cannotInsert([dh1], 1, "es1")).toContain("One instrument per chain");
+    expect(cannotInsert([es1], 1, "dh1")).toContain("One instrument per chain");
+    expect(cannotInsert([es1], 1, "autograder")).toContain("needs runs");
+    expect(parseChain([{ id: "d", type: "es1" }])).toEqual([es1]);
   });
 
   it("finds devices that no longer fit after a delete", () => {

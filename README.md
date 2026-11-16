@@ -31,8 +31,8 @@ apps/
   dh1/      DH-1 as a standalone app: a Tauri window (src-tauri/) around the device
   eh1/      EH-1 as a standalone app (npm run eh1), starting eh1-grader's eh1-serve
   es1/      ES-1 as a standalone app (npm run es1), starting cli-bridge's es1-serve
-  rack/     the Rack (npm run rack): one window running both engines, with DH-1 and
-            EH-1 side by side
+  rack/     the Rack (npm run rack): one window running every engine, with DH-1,
+            EH-1, and ES-1 as devices in a chain
 crates/
   dh-host/  the native side every app shares: the engines, settings, presets,
             question sets; each app's src-tauri only says which engines it runs
@@ -126,7 +126,7 @@ npm install
 npm run dh1        # DH-1 in development (Tauri + Vite)
 npm run eh1        # EH-1
 npm run es1        # ES-1
-npm run rack       # the Rack: DH-1 and EH-1 side by side
+npm run rack       # the Rack: DH-1, EH-1, and ES-1 in one window
 npm test           # unit tests for every package
 npm run typecheck  # type-check every package and app
 ```
@@ -150,17 +150,18 @@ The host finds each engine (crates/dh-host, `discovery.rs`) in this order:
 
 Every engine gets the same traces file as an absolute `--traces-db`: the one chosen in
 Settings, else `agent_traces.duckdb` in the agent checkout (the CLI's default too).
-Settings shows where each engine came from. If `uv` isn't on your PATH, set `DH1_UV` to
+If `uv` isn't on your PATH, set `DH1_UV` to
 its full path. Engine logs show up in the terminal, prefixed `[agent]` or `[grader]`.
 
 ## The Rack
 
-`apps/rack` (`npm run rack`) is one window running both engines (`dh1` and `eh1`), laid
+`apps/rack` (`npm run rack`) is one window running every engine (`dh1`, `eh1`, and `es1`), laid
 out like a DAW (wireframes: the "RACK v3" boards on the design canvas):
 
 - **The transport** across the top plays the chain: the rack preset (‹ name ▾ ›), the
   prompt, what PLAY makes (RUN, A/B, or SETLIST), PLAY and STOP, then Settings and one
-  light per engine. In SETLIST mode it shows the setlist PLAY will start (set ×
+  **ENGINE** light: lit when the engines the chain uses are running, pulsing while they
+  start, red if one is down (hover lists each engine). In SETLIST mode it shows the setlist PLAY will start (set ×
   presets × repeats, and how many runs; Edit… opens DH-1's Setlist to change it), and
   DH-1's SOURCE tile shows the setlist's data instead; while one plays, the transport
   shows its progress. The setlist draft lives in DH-1's model (`useSetlistDraft`), so the
@@ -173,14 +174,16 @@ out like a DAW (wireframes: the "RACK v3" boards on the design canvas):
   with AUTO GRADER's grades when it graded them.
 - **The rack** along the bottom holds the chain as compact cards, with + slots between
   them that offer only what fits there (`chainRules.ts`): one instrument per chain
-  (DH-1, or EH-1 on its own), and devices that take runs after one that gives them.
+  (DH-1, EH-1 on its own, or ES-1 on its own), and devices that take runs after one that
+  gives them. ES-1 gives pipelines, which nothing takes yet.
   Click a card to select it and Delete (⌫) removes it, asking first if it's working;
   right-click a card for its menu (open, collapse, delete). A device that no longer
   fits (AUTO GRADER after DH-1 was deleted) is dashed, says why, and stays off.
   ▾ RACK, or ⌘B, folds the whole rack to a bar of chips. A card has a vertical strip (its engine light, ⤢ to
   open it), a tile per section showing its current value (a tile opens the editor at that
   section), and a few essentials (DH-1: preset, model, EFFORT, cost; EH-1: a heat map of
-  the scorecard, its meters, how much is graded). Double-click a strip to collapse the
+  the scorecard, its meters, how much is graded; ES-1: profile, login, and how many tasks
+  are OK, alerting, failing, or off). Double-click a strip to collapse the
   card to just the strip; it keeps working.
 - **AUTO GRADER** is a utility that wraps its own EH-1, after DH-1. Its power button is
   its switch: on, the EH-1 inside grades each setlist run as it finishes (eh1-grader's
@@ -189,7 +192,9 @@ out like a DAW (wireframes: the "RACK v3" boards on the design canvas):
   each time, and there's one per chain.
 
 Each device is a model plus views (`useDh1` / `useEh1`, drawn by `Dh1Card` / `Eh1Card`,
-`Dh1Face` / `Eh1Face`, and `Dh1Output`). The rack keeps the models, so a device keeps
+`Dh1Face` / `Eh1Face`, and `Dh1Output`). ES-1 keeps its state in its own panel, so the
+rack keeps that panel mounted (hidden) while ES-1 is in the chain, and `Es1Card` shows
+what the panel reports (`onSummary`). The rack keeps the models, so a device keeps
 running whatever the panel shows; an EH-1 keeps its settings under its own prefix
 (`useEh1(…, { storage })`), so AUTO GRADER's EH-1 and a standalone EH-1 don't share
 them. The chain itself is also remembered per window (`rack.chain`), so the rack opens as you

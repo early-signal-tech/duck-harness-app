@@ -1,8 +1,10 @@
 // SOURCE: what the agent queries. Test tone (generated TPC-H), line in (a DuckDB file or
-// ducklake: URI, opened read-only), or the sampler (CSV / Parquet / JSON files loaded
-// into memory; drop them anywhere on the window).
+// ducklake: URI, opened read-only, or an S3 path: a DuckDB file there, or data files read
+// in place), or the sampler (CSV / Parquet / JSON files loaded into memory; drop them
+// anywhere on the window).
 
 import { open } from "@tauri-apps/plugin-dialog";
+import { isRemotePath } from "@dh/formats";
 import { Knob } from "@dh/ui-kit";
 import { fileName, tableNameFor, TPCH_SCALES, type FaceSettings, type SourceKind } from "../settings";
 
@@ -85,16 +87,22 @@ export function SourcePanel({ settings, update, addFiles }: Props) {
 
       {settings.sourceKind === "db" && (
         <div className="field">
-          <label className="caps muted" htmlFor="line-in">LINE IN · DB FILE / DUCKLAKE</label>
+          <label className="caps muted" htmlFor="line-in">LINE IN · DB FILE / DUCKLAKE / S3</label>
           <input
             id="line-in"
             value={settings.dbPath}
-            placeholder="/path/to/data.duckdb"
+            placeholder="data.duckdb, ducklake:…, or s3://bucket/orders/*.parquet"
             spellCheck={false}
             onChange={(e) => update({ dbPath: e.currentTarget.value })}
           />
           <button className="small-button" onClick={chooseDb}>Browse…</button>
-          <span className="small muted">Opened read-only.</span>
+          <span className="small muted">
+            {!isRemotePath(settings.dbPath)
+              ? "Opened read-only."
+              : /\.(duckdb|db|ddb)\/?$/i.test(settings.dbPath.trim())
+                ? "A DuckDB file there, opened read-only. Credentials come from your DuckDB secrets (Settings)."
+                : "Read in place, so each question sees the files as they are now. A folder means its Parquet files. Credentials come from your DuckDB secrets (Settings)."}
+          </span>
         </div>
       )}
 

@@ -20,7 +20,7 @@ describe("settings to request", () => {
   });
 
   it("says what's missing before a run", () => {
-    expect(sourceProblem({ ...DEFAULT_SETTINGS, sourceKind: "db", dbPath: "" })).toBe("Choose a database file");
+    expect(sourceProblem({ ...DEFAULT_SETTINGS, sourceKind: "db", dbPath: "" })).toBe("Choose a database file or paste a path");
     expect(sourceProblem(DEFAULT_SETTINGS)).toBeNull();
   });
 });

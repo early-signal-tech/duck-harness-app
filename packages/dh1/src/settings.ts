@@ -149,7 +149,7 @@ export function saveSettings(settings: FaceSettings): void {
 
 /** Why the current settings can't run yet, or null if they can. */
 export function sourceProblem(settings: FaceSettings): string | null {
-  if (settings.sourceKind === "db" && !settings.dbPath.trim()) return "Choose a database file";
+  if (settings.sourceKind === "db" && !settings.dbPath.trim()) return "Choose a database file or paste a path";
   if (settings.sourceKind === "files" && settings.files.length === 0) return "Add data files";
   return null;
 }

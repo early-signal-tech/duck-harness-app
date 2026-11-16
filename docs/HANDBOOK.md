@@ -101,36 +101,33 @@ inputs:
 - **TEST TONE:** generated TPC-H data (orders, customers, line items, parts,
   suppliers), built in memory. The SCALE knob sets the size: 0.01, 0.1 (about 100 MB),
   or 1. TPC-H has known correct answers, which makes it the place to compare settings.
-- **LINE IN:** your own DuckDB file, or a `ducklake:` URI. It opens read-only. For a
-  DuckLake that needs credentials, save its connection as a persistent DuckDB secret
-  once, then type `ducklake:<secret name>` here (see below).
+- **LINE IN:** your own data, opened read-only: a DuckDB file, a `ducklake:` URI, or an
+  S3 path (see below). Anything that needs credentials (S3, a DuckLake's Postgres
+  catalog) uses the DuckDB secrets saved in [Settings](#16-settings).
 - **SAMPLER:** CSV, TSV, Parquet, or JSON files (gzipped files too), each loaded as a
   table named after the file (`Sales 2026.csv` becomes `sales_2026`).
 
 You can drop data files anywhere on the window to add them to the sampler.
 
-**Connecting a DuckLake.** The engine runs a plain `ATTACH '<what you typed>' AS source
-(READ_ONLY)`, so a DuckLake whose catalog and storage need credentials (Postgres,
-S3, ...) should be saved as persistent secrets, which every DuckDB process on your Mac
-can use:
+**S3 paths.** LINE IN takes two kinds, told apart by the path:
+- **A DuckDB file there** (`s3://bucket/sales.duckdb`) is attached read-only, like a
+  local file.
+- **Data files** (`s3://bucket/orders/*.parquet`, one CSV, Parquet, or JSON file, or a
+  folder of Parquet ending in `/`) become one view, named after the folder (`orders`;
+  Hive folders like `year=2026` are skipped). The files are read in place: nothing is
+  copied, so each question sees them as they are right then, which suits data a
+  pipeline (ES-1) keeps writing.
 
-```sql
--- once, in the duckdb CLI; stored under ~/.duckdb/stored_secrets/
-CREATE PERSISTENT SECRET my_s3 (TYPE s3, KEY_ID '…', SECRET '…', REGION '…');
-CREATE PERSISTENT SECRET my_lake (
-    TYPE ducklake,
-    METADATA_PATH 'postgres:dbname=… host=… user=… password=…',
-    DATA_PATH 's3://bucket/path/'
-);
-```
+The hint under LINE IN says which will happen, and menus name the source "orders · S3".
+GCS, R2, and HTTPS paths work the same way. A wrong path or missing credentials fails
+at the start of the run with DuckDB's message.
 
-Then put `ducklake:my_lake` in LINE IN. To see the secrets you already have, run
-`FROM duckdb_secrets();` in the duckdb CLI: an existing DuckLake secret works right
-away, with no setup.
+**Connecting a DuckLake.** Save it as a DuckLake secret in **Settings → DuckDB secrets**
+(its catalog's Postgres secret is picked from a list), then type `ducklake:<secret name>`
+in LINE IN. An existing DuckLake secret works right away.
 
-The lake is attached read-only, so the agent can't change anything, whatever SQL it
-writes. On big tables, keep TIMEOUT and RESULT SIZE modest: every query scans real
-data.
+Whatever LINE IN opens, the agent can't change it, and it can't read any other file or
+URL. On big tables, keep TIMEOUT and RESULT SIZE modest: every query scans real data.
 
 ## 6. AGENT: model and knobs
 
@@ -174,8 +171,10 @@ much the last clear removed.
 METERS is the run's live readout:
 - Three vertical meters: **IN** (prompt tokens), **OUT** (output tokens), and **CACHE**
   (the share of the prompt read from cache).
-- The **COST** display: the estimated dollars so far. It only works for models with
-  known prices.
+- The **COST** display: the estimated dollars so far, for Haiku, Sonnet, and Opus
+  (5.5), from each model's prices, cache reads and writes included. Prices differ a
+  lot: per token, Sonnet costs 20× Haiku and Opus 40×, so a Sonnet run with fewer
+  tokens can still cost far more.
 - The **ITERATION** LEDs: one per allowed iteration, lit as each API call returns. An
   error lights its LED differently.
 - The **status line:** READY, RUNNING with a clock, then how the run ended (COMPLETED,
@@ -188,6 +187,13 @@ cancels the run. A stopped run still records what it did. **RUN A+B** runs both 
 slots at the same time (see [A/B](#13-ab-and-compare)). RUN stays disabled until a
 question is typed and the source is ready. It's also disabled while a run or a
 setlist is going, and its tooltip says why.
+
+**Dictation.** macOS dictation works in the prompt in a built DH-1.app: click into the
+prompt, start dictation (Edit → Start Dictation, or the shortcut in System Settings →
+Keyboard → Dictation), speak, then press Enter. While the words are still underlined,
+the first Enter finishes them and the next one runs. Esc cancels dictation, but it's
+also STOP. It doesn't work in `npm run dh1` (dev mode isn't an app bundle); see
+[LATER.md](LATER.md) for building one to try it.
 
 ## 10. ACTIVITY and the run timeline
 
@@ -312,6 +318,13 @@ and resetting them are all in [Settings](#16-settings).
   the whole key.
 - **Traces database.** This is the file runs are recorded in: the agent's
   `agent_traces.duckdb` by default, or any file you choose.
+- **DuckDB secrets.** The credentials DuckDB uses for S3, R2, GCS, Postgres, MySQL,
+  DuckLake, and HTTP, with a summary ("7 saved · 5 Postgres, 1 DuckLake, 1 S3").
+  **Manage…** opens a sheet listing them by name, type, and scope (never their values),
+  where **+ Add** makes one from a form for its type, **Replace** types its values again
+  (saved values can't be read back), and **Delete** removes one after you confirm.
+  They're kept in DuckDB's own store, `~/.duckdb/stored_secrets`: unencrypted, readable
+  only by your Mac user, and shared with the `duckdb` command line.
 - **Traces server.** The background Quack server that lets other programs read the
   traces while runs write them. The panel shows whether it's running, and **Stop**
   stops it. The next run starts it again.
@@ -321,8 +334,8 @@ and resetting them are all in [Settings](#16-settings).
   while runs are going.
 
 Changing the key or the traces file restarts the engine, which stops any runs in
-progress. These settings belong to the host, not DH-1, so EH-1 and the rack will
-share them.
+progress. These settings belong to the host, not DH-1, so EH-1 and the rack share
+them (DuckDB secrets show wherever DH-1's agent runs: DH-1 and the rack).
 
 ## 17. Keyboard shortcuts
 
@@ -344,6 +357,7 @@ share them.
 | Setlist results, the current run's activity | memory | no; everything is in the traces |
 | Your presets | `~/Library/Application Support/Duck Harness/Presets/dh1/*.json` | yes |
 | API key | macOS Keychain, service "Duck Harness" | yes |
+| DuckDB secrets | `~/.duckdb/stored_secrets/` (DuckDB's own store) | yes |
 | Traces database choice (see [Settings](#16-settings)) | `~/Library/Application Support/Duck Harness/settings.json` | yes |
 | Theme, displays | app storage | yes |
 | Runs | `agent_traces.duckdb` in the agent checkout | yes |
@@ -351,7 +365,8 @@ share them.
 ## 19. Code map (for contributors and agents)
 
 ```
-packages/ui-kit/      shared look and controls (Knob, Toggle, Menu, Splitter, HostBar, Markdown, themes)
+packages/ui-kit/      shared look and controls (Knob, Toggle, Menu, Splitter, HostBar, Markdown, themes),
+                      Settings (the gear) and its DuckDB secrets sheet (SecretsSheet.tsx, secrets.ts)
 packages/formats/     file formats the plugins share: sources, question sets, the TPC-H set
 packages/dh1/src/
   useDh1.ts           the device's model: settings, presets, A/B runs, the setlist, start / stop
@@ -364,9 +379,10 @@ packages/dh1/src/
   runState.ts         reducer: server events → meters, LEDs, activity, timeline
   setlist.ts          Setlist model; useSetlist.ts runs it
   layout.ts           pane split, text size, timeline state
-  components/         one file per panel or view (AgentPanel, CompressorPanel, SetlistView, ...)
-apps/dh1/             the standalone Tauri app: Settings.tsx (the gear), and src-tauri/,
-                      which starts the engine and keeps presets, the Keychain key, and settings.json
+  components/         one file per panel or view (SourcePanel, AgentPanel, CompressorPanel, SetlistView, ...)
+apps/dh1/             the standalone Tauri app; its src-tauri/ names the engine it runs
+crates/dh-host/       the native side every app shares: starts engines, keeps presets, the
+                      Keychain key, and settings.json
 scripts/              tpch-question-set.mjs builds the TPC-H set from the agent repo
 ```
 

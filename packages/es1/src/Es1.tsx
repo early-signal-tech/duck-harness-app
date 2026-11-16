@@ -6,9 +6,12 @@
 //
 // The panel is one fixed size, scaled to fit the window, like a piece of hardware. The rows
 // of MAP scroll together, so a cable stays attached to what it joins.
+//
+// In the rack, `embedded` scales it to the rack's panel instead of the window, and
+// `onSummary` tells the rack what ES-1's card shows (Es1Card).
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { count, layoutMap, parseCatalog, prefixes, sharedPrefix, withPrefix, type CatalogRow, type Health, type Spec } from "./catalog";
+import { count, layoutMap, parseCatalog, prefixes, sharedPrefix, withPrefix, type CatalogRow, type Counts, type Health, type Spec } from "./catalog";
 import { BuildPanel, BuildStrip } from "./Build";
 import { DATA_PLANES, dataPlaneName } from "./buildSpec";
 import { ConfigDrawer, FailureDrawer, PublishDrawer } from "./ConfigDrawer";
@@ -140,7 +143,26 @@ interface Reading {
   badLines: number;
 }
 
-export function Es1({ connection, settings }: { connection: EngineConnection; settings?: ReactNode }) {
+/** What ES-1's rack card shows, from the device's own state. */
+export interface Es1Summary {
+  profile: string;
+  /** Null until the catalog has been read (or tried). */
+  loggedIn: boolean | null;
+  /** Every task and collection this login can see, whatever PREFIX is set to. */
+  counts: Counts | null;
+  /** What the panel's strip would say is wrong, or null. */
+  problem: string | null;
+  /** What BUILD is doing (discover, draft, test, ...), or null. */
+  busy: string | null;
+}
+
+export function Es1({ connection, settings, embedded = false, onSummary }: {
+  connection: EngineConnection;
+  settings?: ReactNode;
+  /** Fit the panel to its container (the rack's panel), not the window. */
+  embedded?: boolean;
+  onSummary?: (summary: Es1Summary) => void;
+}) {
   const { engine, status, hello, error: engineError } = connection;
   const [profile, setProfile] = useState(loadProfile);
   const [profileDraft, setProfileDraft] = useState(profile);
@@ -226,8 +248,15 @@ export function Es1({ connection, settings }: { connection: EngineConnection; se
       ? `Not logged in as "${profile}". Press LOGIN to log in.`
       : problem?.text ?? (reading?.truncated ? "Too many specs to read them all: this shows the first part." : null);
 
+  const loggedIn = reading ? !loggedOut : problem ? !loggedOut : null;
+  const allCounts = useMemo(() => (reading ? count(allSpecs) : null), [reading, allSpecs]);
+  const busy = session.busy;
+  useEffect(() => {
+    onSummary?.({ profile, loggedIn, counts: allCounts, problem: stripProblem, busy });
+  }, [onSummary, profile, loggedIn, allCounts, stripProblem, busy]);
+
   return (
-    <div className="es1-stage" ref={stage}>
+    <div className={`es1-stage${embedded ? " embedded" : ""}`} ref={stage} data-device="es1">
       <div className="es1" style={{ width: PANEL_WIDTH, height: PANEL_HEIGHT, transform: `scale(${scale})` }}>
         <section className="es1-module yellow es1-session">
           <h2>SESSION</h2>

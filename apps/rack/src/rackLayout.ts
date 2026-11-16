@@ -6,7 +6,7 @@
 import type { EngineStatus } from "@dh/ui-kit";
 
 /** What the panel shows: the output, or a device's editor ("autograder": the EH-1 inside). */
-export type Open = "output" | "dh1" | "eh1" | "autograder";
+export type Open = "output" | "dh1" | "eh1" | "es1" | "autograder";
 export type Take = "run" | "ab" | "setlist";
 
 export interface RackLayout {
@@ -21,7 +21,7 @@ export interface RackLayout {
 const KEY = "rack.layout.v3";
 export const DEFAULT_LAYOUT: RackLayout = { collapsed: [], open: "output", take: "run", rackCollapsed: false };
 
-const OPENS: Open[] = ["output", "dh1", "eh1", "autograder"];
+const OPENS: Open[] = ["output", "dh1", "eh1", "es1", "autograder"];
 const TAKES: Take[] = ["run", "ab", "setlist"];
 
 /** A saved layout, cleaned: anything unknown falls back to the default. */

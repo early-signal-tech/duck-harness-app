@@ -2,15 +2,15 @@
 // takes in, and what it gives out; a chain is valid when each device's input is what the
 // devices before it give. Signals flow left to right:
 //
-//   settings ─▶ instrument ─▶ runs (or grades) ─▶ utilities that take runs ─▶ …
+//   settings ─▶ instrument ─▶ runs (or grades, or pipelines) ─▶ utilities that take runs ─▶ …
 //
 // Rules: one instrument per chain (instruments share data only through the traces, never
 // through the chain); a device that takes runs comes after an instrument that gives runs;
 // a one-per-chain device (AUTO GRADER) appears once. The + slots offer only what fits, and
 // a device that no longer fits (its instrument was deleted) says why and stays off.
 
-export type DeviceType = "dh1" | "eh1" | "autograder";
-type Signal = "settings" | "runs" | "grades";
+export type DeviceType = "dh1" | "eh1" | "es1" | "autograder";
+type Signal = "settings" | "runs" | "grades" | "pipelines";
 
 export interface DeviceInfo {
   name: string;
@@ -28,6 +28,9 @@ export const DEVICES: Record<DeviceType, DeviceInfo> = {
     about: "The analytics agent: runs a prompt, an A/B, or a setlist" },
   eh1: { name: "EH-1", tagline: "EVALUATOR", kind: "instrument", takes: "settings", gives: "grades",
     about: "The evaluator: grade a setlist or a run you pick" },
+  // Nothing takes pipelines yet: ES-1 stands alone until DH-1 can read what it writes.
+  es1: { name: "ES-1", tagline: "PIPELINE METER", kind: "instrument", takes: "settings", gives: "pipelines",
+    about: "Estuary pipelines: build them and watch what's live" },
   autograder: { name: "AUTO GRADER", tagline: "EH-1 INSIDE", kind: "utility", takes: "runs", gives: "runs", onePerChain: true,
     about: "Grades each setlist run as it finishes, with its own EH-1" },
 };

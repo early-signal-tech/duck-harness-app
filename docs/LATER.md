@@ -243,3 +243,17 @@ Speak a question into DH-1's prompt instead of typing it.
 - **Not the web speech API:** in an embedded WebKit view it's unreliable and needs extra
   microphone and speech permissions.
 - Waiting for: a few days of system dictation in a built app, and the MIDI first build.
+
+## Run commands for each instrument
+Settings used to list each engine, how it was started (checkout, dev override, or
+engines.json), its version, and a button to copy the command that runs it, so you could
+run an engine yourself in a terminal. It was taken out (2026-11-15): with more
+instruments coming, a list of engines in Settings gets long and isn't something you look
+at often.
+
+- Somewhere per instrument instead: the device's own menu (right-click its rack card),
+  or an About panel.
+- The host still knows all of it (`settings_get` in crates/dh-host returns the engines);
+  only the UI is gone. A broken engines.json still shows a warning in Settings.
+- Waiting for: a real need to run an engine by hand, or the CLI-first distribution
+  (DISTRIBUTION.md), where the commands matter more.

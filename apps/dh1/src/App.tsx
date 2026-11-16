@@ -10,8 +10,6 @@ const transport = tauriTransport("dh1");
 export default function App() {
   const [appearance, setAppearance] = useAppearance();
   const engine = useEngine(transport);
-  // Settings shows the engine's version from its hello.
-  const settingsEngine = useMemo(() => ({ ...engine, versions: { dh1: engine.hello?.version } }), [engine]);
   // A slot in the header bar for the device's own controls (DH-1's preset bar).
   const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
   // DH-1's agent runs the traces server, so its Settings can show and manage it.
@@ -30,7 +28,7 @@ export default function App() {
         name="DH-1"
         tagline="SQL ANALYTICS AGENT"
         engine={{ status: engine.status, error: engine.error }}
-        settings={<SettingsMenu engine={settingsEngine} traces={traces} secrets={secrets} appearance={appearance} onAppearance={setAppearance} />}
+        settings={<SettingsMenu engine={engine} traces={traces} secrets={secrets} appearance={appearance} onAppearance={setAppearance} />}
       >
         <div className="host-slot" ref={setToolbar} />
       </HostBar>

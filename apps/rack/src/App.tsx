@@ -285,8 +285,7 @@ export default function App() {
     restart: async () => {
       await Promise.all([restartDh1(), restartEh1()]);
     },
-    versions: { dh1: dh1Hello?.version, eh1: eh1Hello?.version },
-  }), [dh1Status, eh1Status, restartDh1, restartEh1, dh1Hello, eh1Hello]);
+  }), [dh1Status, eh1Status, restartDh1, restartEh1]);
 
   // The grader reads what the agent writes: both must be built for the same traces.
   const engineIssues = dh1Hello && eh1Hello

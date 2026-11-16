@@ -101,8 +101,8 @@ export function Transport({ dh1, playable, take, onTake, onPlay, onEditSetlist, 
   );
 }
 
-/** One ENGINE light for the rack: on (green) when the engines the chain uses are running,
- *  amber while they start, red if one is down (a missing flowctl bridge doesn't count
+/** One ENGINE light for the rack: lit when the engines the chain uses are running,
+ *  pulsing while they start, red if one is down (a missing flowctl bridge doesn't count
  *  without ES-1). Hover lists every engine. */
 function EngineLight({ lights }: { lights: { label: string; status: EngineStatus; error?: string | null; used: boolean }[] }) {
   const used = lights.filter((l) => l.used);

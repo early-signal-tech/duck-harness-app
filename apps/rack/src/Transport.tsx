@@ -8,7 +8,6 @@ import { progressOf, type Dh1Model } from "@dh/dh1";
 import type { EngineStatus } from "@dh/ui-kit";
 import { combinedStatus } from "./rackLayout";
 
-const LIGHT_LABEL: Record<EngineStatus, string> = { ready: "ENGINE RUNNING", connecting: "ENGINE STARTING", down: "ENGINE DOWN" };
 import type { ReactNode } from "react";
 import type { Take } from "./rackLayout";
 
@@ -102,8 +101,9 @@ export function Transport({ dh1, playable, take, onTake, onPlay, onEditSetlist, 
   );
 }
 
-/** One light for the rack's engines: its color counts only the engines the chain uses
- *  (a missing flowctl bridge doesn't matter without ES-1); hover lists every engine. */
+/** One ENGINE light for the rack: on (green) when the engines the chain uses are running,
+ *  amber while they start, red if one is down (a missing flowctl bridge doesn't count
+ *  without ES-1). Hover lists every engine. */
 function EngineLight({ lights }: { lights: { label: string; status: EngineStatus; error?: string | null; used: boolean }[] }) {
   const used = lights.filter((l) => l.used);
   const status = combinedStatus(used.map((l) => l.status));
@@ -113,7 +113,7 @@ function EngineLight({ lights }: { lights: { label: string; status: EngineStatus
   return (
     <div className={`engine ${status}`} title={title} aria-label={`Engines: ${status}`}>
       <span className="dot" aria-hidden="true" />
-      {LIGHT_LABEL[status]}
+      ENGINE
     </div>
   );
 }

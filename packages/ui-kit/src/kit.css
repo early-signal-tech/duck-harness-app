@@ -563,3 +563,34 @@ input:focus { border-color: var(--accent); }
 .card-meter-bar > span:first-child i { width: 100%; background: var(--edge); }
 .card-graded { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .card-graded b { font: 700 15px/1 var(--mono); }
+
+/* --- a sheet: a modal panel over the window (DuckDB secrets) --- */
+.sheet-scrim { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.45); }
+.sheet {
+  width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 64px); display: flex; flex-direction: column;
+  background: var(--panel); color: var(--ink); border: 1.5px solid var(--edge); border-radius: 10px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35); overflow: hidden;
+}
+.sheet-head { flex: none; display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 10px 0 16px; border-bottom: 1px solid var(--rule); }
+.sheet-body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 12px; padding: 14px 16px 16px; }
+.sheet-body p { margin: 0; }
+.sheet-note { flex: none; margin: 0; padding: 8px 16px 12px; }
+.sheet-actions { justify-content: flex-end; padding-top: 4px; }
+.pane-button.primary { background: var(--edge); color: var(--panel); }
+.pane-button.primary:disabled { opacity: 0.45; }
+.secrets-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.secret-row {
+  display: grid; grid-template-columns: minmax(0, 1.4fr) 92px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  min-height: 40px; border-top: 1px solid var(--rule);
+}
+.secret-name { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.secret-type { font: 700 10px/1 var(--mono); letter-spacing: 0.08em; color: var(--muted); }
+.secret-scope { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.secret-actions { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.secret-types { display: flex; flex-wrap: wrap; gap: 6px; }
+.secret-field { display: flex; flex-direction: column; gap: 5px; }
+.secret-field input, .secret-field select {
+  height: 32px; box-sizing: border-box; padding: 0 8px; border: 1px solid var(--field-edge); border-radius: 4px;
+  background: var(--field, var(--panel)); color: var(--ink); font: 400 13px/1 var(--mono);
+}
+.secret-field input:disabled { opacity: 0.6; }

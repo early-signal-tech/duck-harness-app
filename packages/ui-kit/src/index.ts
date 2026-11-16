@@ -18,3 +18,6 @@ export { keyForOtherDevice } from "./deviceKeys";
 export { engineProblems } from "./engineCheck";
 export type { EngineVersion } from "./engineCheck";
 export { DeviceStrip, RackCard, Tile } from "./DeviceStrip";
+export { SecretsSheet } from "./SecretsSheet";
+export { secretsSummary } from "./secrets";
+export type { SecretField, SecretInfo, SecretRequest, SecretsControls, SecretType } from "./secrets";

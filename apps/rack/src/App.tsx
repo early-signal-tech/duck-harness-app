@@ -16,7 +16,9 @@
 import { Dh1Card, Dh1Face, Dh1Output, useDh1, useEngine as useDh1Engine, type Dh1Section } from "@dh/dh1";
 import { Eh1Card, Eh1Face, FOLLOW_IDLE, useEh1, useEngine as useEh1Engine, type FollowStatus, type Grade } from "@dh/eh1";
 import { describeSource, questionSetToFile } from "@dh/formats";
-import { engineProblems, Menu, MenuDivider, MenuItem, SettingsMenu, tauriTransport, useAppearance, type TracesControls } from "@dh/ui-kit";
+import {
+  engineProblems, Menu, MenuDivider, MenuItem, SettingsMenu, tauriTransport, useAppearance, type SecretsControls, type TracesControls,
+} from "@dh/ui-kit";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AutoGraderCard } from "./AutoGraderCard";
@@ -257,6 +259,17 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [selected, chain, remove, toggleRack]);
 
+  // DH-1's agent saves DuckDB's secrets, so Settings manages them through it too.
+  const secretTypes = dh1Engine.hello?.secret_types;
+  const secrets = useMemo<SecretsControls | undefined>(() => dh1Engine.harness && secretTypes
+    ? {
+      types: secretTypes,
+      list: () => dh1Engine.harness!.secrets(),
+      create: (r) => dh1Engine.harness!.secretCreate(r),
+      drop: (n) => dh1Engine.harness!.secretDrop(n),
+    }
+    : undefined, [dh1Engine.harness, secretTypes]);
+
   // DH-1's agent runs the traces server, so Settings manages it through DH-1's engine.
   const harness = dh1Engine.harness;
   const traces = useMemo<TracesControls | undefined>(() => harness
@@ -359,7 +372,7 @@ export default function App() {
         onTake={(take) => setLayout((l) => ({ ...l, take }))}
         onPlay={play}
         onEditSetlist={() => openDh1(undefined, true)}
-        settings={<SettingsMenu engine={settingsEngine} traces={traces} appearance={appearance} onAppearance={setAppearance} />}
+        settings={<SettingsMenu engine={settingsEngine} traces={traces} secrets={secrets} appearance={appearance} onAppearance={setAppearance} />}
         lights={[
           { label: "DH-1", status: dh1Engine.status, error: dh1Engine.error },
           { label: "EH-1", status: eh1Engine.status, error: eh1Engine.error },

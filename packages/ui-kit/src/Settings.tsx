@@ -1,6 +1,6 @@
 // SETTINGS (the gear in the header bar): the appearance (theme, displays), the Anthropic
-// API key, the traces database, and, when the host's engine can manage them, the traces
-// server and resetting the traces. Host-level and shared: DH-1, EH-1, and the rack use the
+// API key, the traces database, and, when the host's engine can manage them, DuckDB's
+// saved secrets (Manage… opens SecretsSheet), the traces server, and resetting the traces. Host-level and shared: DH-1, EH-1, and the rack use the
 // same key and traces. The host passes its engine's status and restart, and `traces` if
 // its engine is the one that runs the traces server (DH-1's agent does; EH-1's grader
 // only reads).
@@ -14,6 +14,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { Appearance } from "./appearance";
 import { AppearanceControls } from "./HostBar";
 import { Menu } from "./Menu";
+import { secretsSummary, type SecretInfo, type SecretsControls } from "./secrets";
+import { SecretsSheet } from "./SecretsSheet";
 
 /** Where traces go, and whether the background traces server is up (DH-1's agent reports it). */
 export interface TracesInfo {
@@ -88,6 +90,8 @@ interface Props {
   engine: SettingsEngine;
   /** Left out when the engine doesn't manage the traces server. */
   traces?: TracesControls;
+  /** Left out when the engine can't manage DuckDB secrets (only DH-1's agent can). */
+  secrets?: SecretsControls;
   appearance: Appearance;
   onAppearance: (appearance: Appearance) => void;
   /** Only how the engine was started, for a host with no agent behind it and a panel with
@@ -95,7 +99,7 @@ interface Props {
   engineOnly?: boolean;
 }
 
-export function SettingsMenu({ engine, traces: tracesControls, appearance, onAppearance, engineOnly }: Props) {
+export function SettingsMenu({ engine, traces: tracesControls, secrets: secretsControls, appearance, onAppearance, engineOnly }: Props) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<SettingsView | null>(null);
   // Which engine's command was just copied (its line says so for a moment).
@@ -110,6 +114,8 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
     }
   };
   const [traces, setTraces] = useState<TracesInfo | null>(null);
+  const [secrets, setSecrets] = useState<SecretInfo[] | null>(null);
+  const [sheet, setSheet] = useState(false);
   const [key, setKey] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
   const [working, setWorking] = useState<string | null>(null);
@@ -127,7 +133,12 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
     } else {
       setTraces(null);
     }
-  }, [tracesControls, engine.status]);
+    if (secretsControls && engine.status === "ready") {
+      setSecrets(await secretsControls.list().catch(() => null));
+    } else {
+      setSecrets(null);
+    }
+  }, [tracesControls, secretsControls, engine.status]);
 
   useEffect(() => {
     if (open) void refresh().catch((e) => setNote({ text: message(e), error: true }));
@@ -157,6 +168,7 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
   const ready = engine.status === "ready";
 
   return (
+    <>
     <Menu
       open={open}
       onClose={close}
@@ -255,6 +267,17 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
           </div>
         </section>}
 
+        {secretsControls && <section>
+          <span className="settings-label">DUCKDB SECRETS</span>
+          <div className="settings-row spread">
+            <span className="settings-status">
+              {!ready ? "Engine offline" : secrets ? secretsSummary(secrets, secretsControls.types) : "…"}
+            </span>
+            <button className="pane-button" disabled={!ready} onClick={() => { close(); setSheet(true); }}>Manage…</button>
+          </div>
+          <p className="settings-hint">S3, Postgres, DuckLake and more, saved where DuckDB and the agent find them.</p>
+        </section>}
+
         {tracesControls && <section>
           <span className="settings-label">TRACES SERVER</span>
           <div className="settings-row spread">
@@ -334,5 +357,7 @@ export function SettingsMenu({ engine, traces: tracesControls, appearance, onApp
         {!engineOnly && <p className="settings-hint">Changing the key or the traces file restarts the engine: runs in progress stop.</p>}
       </div>
     </Menu>
+    {sheet && secretsControls && <SecretsSheet controls={secretsControls} onClose={() => setSheet(false)} />}
+    </>
   );
 }

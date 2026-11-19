@@ -110,14 +110,27 @@ UI requests and their triage are tracked in [docs/UI_REQUESTS.md](docs/UI_REQUES
 
 ## Development
 
-You need Rust, Node 22+, and [uv](https://docs.astral.sh/uv/). Clone the agent repo next
-to this one:
+You need a Mac, Rust, Node 22+, and [uv](https://docs.astral.sh/uv/). Clone each engine
+next to this repo. DH-1 needs only the agent; EH-1, ES-1 and the full Rack need theirs too:
 
 ```
 Github/
-  duckdb-analytics-agent/   # with ANTHROPIC_API_KEY in its .env
-  duck-harness-app/
+  duck-harness-app/         # this repo
+  duckdb-analytics-agent/   # DH-1's agent, with ANTHROPIC_API_KEY in its .env
+  eh1-grader/               # EH-1's grader, with ANTHROPIC_API_KEY in its .env
+  cli-bridge/               # ES-1's bridge to Estuary's flowctl
 ```
+
+```bash
+git clone https://github.com/early-signal-tech/duck-harness-app
+git clone https://github.com/early-signal-tech/duckdb-analytics-agent
+git clone https://github.com/early-signal-tech/eh1-grader
+git clone https://github.com/early-signal-tech/cli-bridge
+```
+
+ES-1 also needs [flowctl](https://docs.estuary.dev/guides/get-started-with-flowctl/) on
+your PATH, signed in to your own Estuary account. Instead of a .env, the API key can be saved in
+Settings (the Keychain).
 
 Then, from the repo root:
 
@@ -227,3 +240,7 @@ were built for different traces schemas, a banner says which is which (`enginePr
 - [x] The rack: chaining DH-1 into EH-1, with AUTO-GRADE for setlists
 - [ ] The rack: the chain lane, Open in DH-1, rack presets
 - [ ] Packaging: bundle Python with the app, signing and notarization
+
+## License
+
+MIT. See [LICENSE](LICENSE).

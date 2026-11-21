@@ -255,3 +255,12 @@ at often.
   only the UI is gone. A broken engines.json still shows a warning in Settings.
 - Waiting for: a real need to run an engine by hand, or the CLI-first distribution
   (DISTRIBUTION.md), where the commands matter more.
+
+## PB-1: STREAM forever
+MASTER LENGTH's ∞ runs forever in BATCH (`--num-batches 0`), but Parkbench's ticker has no
+forever: `--duration` must be a number of seconds. So PB-1 asks for a year
+(`FOREVER_SECONDS` in packages/pb1/src/settings.ts), which in practice means until STOP.
+
+- Better: `--duration 0` = run until interrupted, in Parkbench, then send that.
+- Waiting for: someone running a stream for longer than a year, or the next Parkbench PR
+  that touches the ticker.

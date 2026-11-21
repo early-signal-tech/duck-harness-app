@@ -27,10 +27,13 @@ packages/
             grader's protocol (eh1-grader)
   es1/      the ES-1 device: a synth-style panel over Estuary's flowctl (BUILD, connected
             up to TEST, and MAP), and the client for the bridge's protocol (cli-bridge)
+  pb1/      the PB-1 device: a drum-machine-style panel over Parkbench, the DuckLake
+            benchmark tool; for now it plays on a fake engine (see "PB-1" below)
 apps/
   dh1/      DH-1 as a standalone app: a Tauri window (src-tauri/) around the device
   eh1/      EH-1 as a standalone app (npm run eh1), starting eh1-grader's eh1-serve
   es1/      ES-1 as a standalone app (npm run es1), starting cli-bridge's es1-serve
+  pb1/      PB-1 as a standalone app (npm run pb1), on the fake engine for now
   rack/     the Rack (npm run rack): one window running every engine, with DH-1,
             EH-1, and ES-1 as devices in a chain
 crates/
@@ -140,6 +143,7 @@ npm run dh1        # DH-1 in development (Tauri + Vite)
 npm run dh1:app    # DH-1 built as a Mac app, then opened (needed for dictation)
 npm run eh1        # EH-1
 npm run es1        # ES-1
+npm run pb1        # PB-1 (on its fake engine; needs nothing else)
 npm run rack       # the Rack: DH-1, EH-1, and ES-1 in one window
 npm test           # unit tests for every package
 npm run typecheck  # type-check every package and app
@@ -166,6 +170,29 @@ Every engine gets the same traces file as an absolute `--traces-db`: the one cho
 Settings, else `agent_traces.duckdb` in the agent checkout (the CLI's default too).
 If `uv` isn't on your PATH, set `DH1_UV` to
 its full path. Engine logs show up in the terminal, prefixed `[agent]` or `[grader]`.
+
+## PB-1
+
+`packages/pb1` is a panel for [Parkbench](https://github.com/early-signal-tech/parkbench),
+the DuckLake insert benchmark, laid out like a drum machine. The knobs and switches set
+Parkbench's flags, START plays the run, and the 16 pads step through it: one step per
+inserted batch (BATCH) or tick (STREAM), as many steps as the run has. The pads wrap from 16
+back to 1 and the step count keeps going, shown as BAR and STEP. A pad's mark says what
+happened in its step: inserted, schema drift (red), duplicate (dashed), or flushed to
+Parquet (white outline). PRE-SCALE sets how many batches or ticks one step covers.
+
+- **`settings.ts`** holds every control's stops, which controls apply in each MODE (the
+  rest are dimmed), and the Parkbench flags they add up to. Only the flags of controls
+  that apply are sent, so Parkbench never gets a combination it rejects.
+- **`sequencer.ts`** turns Parkbench's events (`run --output jsonl`; the types are in
+  `events.ts`) into the pads and the display.
+- **`engine.ts`** is what the panel needs from an engine: `setup`, `reset`, `run` (events,
+  and a `stop` that interrupts like Ctrl-C) and DuckDB's secrets. A DuckLake secret can be
+  the CATALOG, and "+ new secret" opens the kit's secrets sheet.
+- **`fakeEngine.ts`** acts like Parkbench from the same flags, without a database, so the
+  panel can be played now. The app confirms a reset in a native dialog, as the host will for
+  the real engine. Wiring PB-1 to Parkbench (a cli-bridge table and `Engine::Pb1` in
+  dh-host) comes next; until then `apps/pb1` starts no engines.
 
 ## The Rack
 

@@ -1,0 +1,126 @@
+/* The PB-1 panel, from the wireframe. Its own fixed look, like ES-1's: sizes are in panel
+   pixels, and the whole panel scales to fit the window. */
+
+.pb1-stage { position: fixed; inset: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #0d0d0d; }
+.pb1-stage.embedded { position: absolute; }
+.pb1 {
+  --pb1-line: #8d8b84; --pb1-ink: #e9e6dc; --pb1-dim: #a9a69c; --pb1-orange: #f2622e; --pb1-cream: #f1ecc8;
+  --pb1-strip: #9b978d; --pb1-strip-ink: #1a1a19; --pb1-led-off: #4a1410; --pb1-led-on: #ff3b1f;
+  --pb1-mono: var(--mono, "JetBrains Mono", ui-monospace, monospace); --pb1-sans: var(--sans, Inter, system-ui, sans-serif);
+  position: relative; flex: none; transform-origin: center; background: #1d1d1c; border-radius: 10px;
+  box-shadow: inset 0 0 0 10px #121211, 0 20px 60px rgba(0, 0, 0, 0.6); color: var(--pb1-ink); user-select: none;
+  font-family: var(--pb1-sans); transition: filter 0.2s;
+}
+.pb1 *, .pb1 *::before, .pb1 *::after { box-sizing: border-box; }
+.pb1.unpowered { filter: brightness(0.55); }
+.pb1 button { font: inherit; }
+.pb1 button:focus-visible, .pb1-knob:focus-visible { outline: 2px solid var(--pb1-orange); outline-offset: 2px; }
+.pb1-face { position: absolute; inset: 22px; background: #2a2a28; border-radius: 4px; }
+
+/* Header */
+.pb1-power { position: absolute; left: 28px; top: 16px; display: flex; align-items: center; gap: 10px; font: 700 10px var(--pb1-mono); letter-spacing: 0.12em; color: var(--pb1-dim); }
+.pb1-power button { width: 46px; height: 30px; border: 0; border-radius: 3px; background: #0f0f0e; box-shadow: inset 0 -6px 0 #000, 0 0 0 2px #444; cursor: pointer; }
+.pb1-brand { position: absolute; right: 34px; top: 12px; font: 700 34px/1 var(--pb1-sans); color: var(--pb1-orange); letter-spacing: 0.02em; }
+.pb1-brand span { display: inline-block; padding: 0 8px; margin-right: 8px; border: 3px solid var(--pb1-orange); border-radius: 6px; font-size: 26px; vertical-align: 3px; }
+.pb1-rule { position: absolute; left: 22px; right: 22px; top: 62px; border-top: 1.5px solid var(--pb1-line); }
+
+/* Areas and boxes */
+.pb1-left { position: absolute; left: 22px; top: 74px; width: 330px; height: 520px; border-right: 1.5px solid var(--pb1-line); }
+.pb1-channels { position: absolute; left: 352px; top: 74px; right: 22px; height: 520px; }
+.pb1-ch { position: absolute; top: 0; width: 112px; height: 430px; border-right: 1.5px solid var(--pb1-line); }
+.pb1-ch.last { width: 190px; border-right: 0; }
+.pb1-box { position: absolute; border: 1.5px solid var(--pb1-line); border-radius: 3px; pointer-events: none; }
+.pb1-box-title { position: absolute; top: -8px; left: 10px; padding: 0 6px; background: #2a2a28; font: 700 9.5px var(--pb1-mono); letter-spacing: 0.1em; color: var(--pb1-ink); }
+.pb1-box-title.hot { color: var(--pb1-orange); }
+.pb1-lab { font: 700 10px/12px var(--pb1-mono); letter-spacing: 0.1em; color: var(--pb1-ink); white-space: nowrap; }
+.pb1-lab.hot { color: var(--pb1-orange); }
+.pb1-lab.dim { color: var(--pb1-dim); font-weight: 500; }
+
+/* Knobs */
+.pb1-knob { position: absolute; display: flex; flex-direction: column; align-items: center; border-radius: 4px; }
+.pb1-knob svg { overflow: visible; cursor: ns-resize; touch-action: none; }
+.pb1-turn { transition: transform 0.08s; }
+.pb1-stop { fill: var(--pb1-dim); font: 500 8.5px var(--pb1-mono); cursor: pointer; }
+.pb1-stop.on { fill: var(--pb1-orange); font-weight: 700; }
+.pb1-val { margin-top: 2px; min-width: 70px; max-width: 104px; padding: 1px 5px; border-radius: 2px; background: #121211; color: var(--pb1-orange); font: 700 9.5px/13px var(--pb1-mono); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pb1-knob.off { opacity: 0.35; }
+.pb1-knob.off svg, .pb1-knob.off .pb1-stop { cursor: default; }
+
+/* Plates */
+.pb1-plate { position: absolute; width: 98px; height: 36px; border-radius: 3px; background: var(--pb1-cream); color: #1d1c19; display: flex; flex-direction: column; align-items: center; justify-content: center; font: 700 12px/13px var(--pb1-sans); }
+.pb1-plate small { font: 600 8px/10px var(--pb1-mono); letter-spacing: 0.06em; color: #5a574d; }
+.pb1-plate.bottom { top: 380px; }
+
+/* Slide switches */
+.pb1-slide { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.pb1-slot { position: relative; width: 18px; height: 40px; padding: 0; border: 0; border-radius: 3px; background: #0e0e0d; box-shadow: inset 0 0 0 1.5px #555; cursor: pointer; }
+.pb1-thumb { position: absolute; left: 3px; width: 12px; height: 16px; border-radius: 2px; background: #3a3a37; box-shadow: inset 0 -3px 0 #1a1a19, 0 0 0 1px #777; transition: top 0.12s, left 0.12s; }
+.pb1-slide.h .pb1-slot { width: 56px; height: 20px; }
+.pb1-slide.h .pb1-thumb { top: 3px; width: 18px; height: 14px; }
+.pb1-opts { display: flex; gap: 6px; }
+.pb1-opts button { padding: 0; border: 0; background: none; color: var(--pb1-dim); font: 500 8.5px var(--pb1-mono); cursor: pointer; }
+.pb1-opts button.on { color: var(--pb1-orange); font-weight: 700; }
+.pb1-slide.off { opacity: 0.35; }
+.pb1-slide.off button { cursor: default; }
+
+/* Display */
+.pb1-display { position: absolute; left: 1160px; top: 86px; width: 226px; height: 176px; border-radius: 4px; background: #0b0b0a; box-shadow: inset 0 0 0 2px #444; padding: 8px 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+.pb1-display > div { display: flex; flex-direction: column; min-width: 0; }
+.pb1-display label { font: 600 8px var(--pb1-mono); letter-spacing: 0.1em; color: #7e7a6f; }
+.pb1-display b { font: 700 19px/24px var(--pb1-mono); color: var(--pb1-led-on); text-shadow: 0 0 8px rgba(255, 59, 31, 0.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pb1-display b.small { font-size: 12px; }
+.pb1-display .pb1-msg { grid-column: 1 / -1; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; font: 500 9.5px/13px var(--pb1-mono); color: #c9c3b0; overflow: hidden; height: 40px; overflow-wrap: anywhere; }
+
+.pb1-title { position: absolute; left: 380px; top: 594px; width: 820px; pointer-events: none; }
+.pb1-title .t { font: 600 34px/1 var(--pb1-sans); color: var(--pb1-orange); letter-spacing: 0.01em; }
+.pb1-title .t em { font-style: normal; margin-left: 24px; font-size: 30px; }
+.pb1-title .u { margin-top: 6px; border-top: 1.5px solid var(--pb1-orange); width: 760px; }
+.pb1-title .s { margin-top: 4px; margin-left: 430px; font: 500 16px var(--pb1-sans); color: var(--pb1-dim); }
+
+/* The bottom strip */
+.pb1-strip { position: absolute; left: 22px; right: 22px; bottom: 22px; height: 226px; background: var(--pb1-strip); border-radius: 4px; color: var(--pb1-strip-ink); }
+.pb1-strip .pb1-box { border-color: #5e5b53; }
+.pb1-strip .pb1-box-title { background: var(--pb1-strip); color: var(--pb1-strip-ink); }
+.pb1-strip .pb1-lab { color: var(--pb1-strip-ink); font-size: 9.5px; }
+.pb1-strip .pb1-opts button { color: #3b3933; }
+.pb1-strip .pb1-opts button.on { color: #b8320f; }
+.pb1-big { position: absolute; width: 150px; height: 72px; border: 0; border-radius: 4px; background: linear-gradient(#f4eedb, #d9cfae); box-shadow: inset 0 -6px 0 #b9ad88, 0 0 0 4px #c4b688, 0 3px 0 4px #6d6550; color: #2c2a24; font: 700 13px/18px var(--pb1-sans) !important; letter-spacing: 0.08em; cursor: pointer; }
+.pb1-big:active:not(:disabled), .pb1-big.on { box-shadow: inset 0 -2px 0 #b9ad88, 0 0 0 4px #c4b688, 0 1px 0 4px #6d6550; transform: translateY(2px); }
+.pb1-big:disabled { cursor: default; opacity: 0.55; }
+.pb1-big.small { width: 84px; height: 64px; }
+.pb1-tap-lab { position: absolute; right: 42px; top: 46px; width: 84px; text-align: center; line-height: 13px; }
+
+.pb1-led { display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: var(--pb1-led-off); box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.5); }
+.pb1-led.on { background: var(--pb1-led-on); box-shadow: 0 0 10px 3px rgba(255, 59, 31, 0.75), inset 0 0 0 1px #ffb19f; }
+.pb1-led.green { background: #1b3a22; }
+.pb1-led.green.on { background: #4be06f; box-shadow: 0 0 10px 3px rgba(75, 224, 111, 0.6); }
+
+/* Pads */
+.pb1-pad { position: absolute; top: 72px; width: 42px; height: 82px; padding: 0; border: 0; border-radius: 3px; cursor: pointer; box-shadow: inset 0 -8px 0 rgba(0, 0, 0, 0.18), 0 3px 0 #403d36; }
+.pb1-pad.red { background: #e8452c; }
+.pb1-pad.orange { background: #f08a2c; }
+.pb1-pad.yellow { background: #f2d03a; }
+.pb1-pad.white { background: #efeee8; }
+.pb1-pad .pb1-led { position: absolute; left: 15px; top: 10px; }
+.pb1-pad .mark { position: absolute; left: 6px; right: 6px; bottom: 14px; height: 6px; border-radius: 2px; }
+.pb1-pad.ok .mark { background: rgba(0, 0, 0, 0.28); }
+.pb1-pad.drift .mark { background: #8a0f05; box-shadow: 0 0 6px #ff3b1f; }
+.pb1-pad.dup .mark { background: repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.55) 0 4px, transparent 4px 7px); }
+.pb1-pad.flush { outline: 3px solid #fff; outline-offset: 2px; }
+.pb1-pad .n { position: absolute; top: -18px; left: 0; right: 0; text-align: center; font: 700 12px var(--pb1-sans); color: var(--pb1-strip-ink); }
+.pb1-scale { position: absolute; top: 18px; height: 11px; border-radius: 2px; background: #6f6b62; }
+.pb1-stepno { position: absolute; left: 282px; top: 160px; padding: 2px 8px; background: #1e1d1b; color: var(--pb1-strip); font: 700 10px var(--pb1-mono); letter-spacing: 0.1em; }
+.pb1-bar { position: absolute; left: 360px; top: 186px; display: flex; gap: 8px; align-items: center; font: 700 10px var(--pb1-mono); letter-spacing: 0.1em; }
+.pb1-bar .tag { padding: 2px 8px; background: #1e1d1b; color: var(--pb1-strip); }
+.pb1-bar b { font: 700 16px var(--pb1-mono); }
+.pb1-legend { position: absolute; left: 660px; top: 188px; display: flex; gap: 14px; font: 600 9px var(--pb1-mono); color: #2c2a24; }
+.pb1-legend i { display: inline-block; width: 16px; height: 6px; margin-right: 5px; vertical-align: 1px; border-radius: 2px; }
+.pb1-legend i.ok { background: rgba(0, 0, 0, 0.35); }
+.pb1-legend i.drift { background: #8a0f05; box-shadow: 0 0 5px #ff3b1f; }
+.pb1-legend i.dup { background: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 7px); }
+.pb1-legend i.flush { outline: 2px solid #fff; }
+
+/* CLEAR */
+.pb1-clear { position: absolute; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: #d4261b; box-shadow: inset 0 -4px 0 #8c160f, 0 0 0 2px #111; cursor: pointer; }
+.pb1-clear:disabled { cursor: default; opacity: 0.55; }
+.pb1-clear-lab { position: absolute; display: flex; flex-direction: column; gap: 2px; }

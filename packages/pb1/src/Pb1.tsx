@@ -67,7 +67,7 @@ export function Pb1({ connection, embedded = false }: {
   // DuckLake secrets are catalogs. A catalog whose secret is gone falls back to local DuckDB.
   const lakeSecrets = secrets.filter((x) => x.type === "ducklake").map((x) => x.name);
   const loadSecrets = useCallback(async () => {
-    if (!engine) return [];
+    if (!engine || status !== "ready") return [];
     try {
       const list = await engine.secrets.list();
       setSecrets(list);
@@ -76,7 +76,7 @@ export function Pb1({ connection, embedded = false }: {
       setNote(`ERROR — couldn't list secrets: ${message(e)}`);
       return [];
     }
-  }, [engine]);
+  }, [engine, status]);
   useEffect(() => { void loadSecrets(); }, [loadSecrets]);
   useEffect(() => {
     if (!isLocal(s.catalog) && secrets.length > 0 && !lakeSecrets.includes(s.catalog)) setS((prev) => ({ ...prev, catalog: LOCAL_DUCKDB }));
@@ -143,7 +143,8 @@ export function Pb1({ connection, embedded = false }: {
     if (!engine || !ready || phase.kind !== "idle") return;
     setPhase({ kind: "busy", what: "reset" });
     try {
-      setNote(await engine.reset(connectionFlags(s)));
+      // A reset takes only the catalog, whatever MODE is set to.
+      setNote(await engine.reset(connectionFlags({ ...s, mode: "RESET" })));
     } catch (e) {
       setNote(e instanceof Pb1Error && e.code === "cancelled" ? "Reset cancelled" : `ERROR — ${message(e)}`);
     } finally {
@@ -211,7 +212,7 @@ export function Pb1({ connection, embedded = false }: {
           <div className="pb1-power">
             <span>POWER</span>
             <button onClick={power} aria-label={powered ? "Power off" : "Power on"} aria-pressed={powered} />
-            <span className={`pb1-led green${powered && status === "ready" ? " on" : ""}`} aria-hidden="true" />
+            <span className={`pb1-led green${powered && status === "ready" ? " on" : ""}`} aria-hidden="true" title={connection.warning ?? undefined} />
             <span>{!powered ? "OFF" : status === "ready" ? "ON" : status === "connecting" ? "…" : "DOWN"}</span>
           </div>
           <div className="pb1-brand"><span>PB</span>Parkbench</div>

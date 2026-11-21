@@ -43,6 +43,8 @@ pub enum Engine {
     Eh1,
     /// ES-1's engine: the flowctl bridge (es1-serve, in cli-bridge).
     Es1,
+    /// PB-1's engine: the Parkbench bridge (pb1-serve, in cli-bridge).
+    Pb1,
 }
 
 impl Engine {
@@ -52,6 +54,7 @@ impl Engine {
             Engine::Dh1 => "dh1",
             Engine::Eh1 => "eh1",
             Engine::Es1 => "es1",
+            Engine::Pb1 => "pb1",
         }
     }
 
@@ -61,6 +64,7 @@ impl Engine {
             Engine::Dh1 => "agent server",
             Engine::Eh1 => "grader",
             Engine::Es1 => "flowctl bridge",
+            Engine::Pb1 => "Parkbench bridge",
         }
     }
 
@@ -69,7 +73,7 @@ impl Engine {
         match self {
             Engine::Dh1 => "duckdb-analytics-agent",
             Engine::Eh1 => "eh1-grader",
-            Engine::Es1 => "cli-bridge",
+            Engine::Es1 | Engine::Pb1 => "cli-bridge",
         }
     }
 
@@ -79,6 +83,7 @@ impl Engine {
             Engine::Dh1 => "duck-harness-serve",
             Engine::Eh1 => "eh1-serve",
             Engine::Es1 => "es1-serve",
+            Engine::Pb1 => "pb1-serve",
         }
     }
 
@@ -88,6 +93,7 @@ impl Engine {
             Engine::Dh1 => "DH1_AGENT_DIR",
             Engine::Eh1 => "EH1_GRADER_DIR",
             Engine::Es1 => "ES1_BRIDGE_DIR",
+            Engine::Pb1 => "PB1_BRIDGE_DIR",
         }
     }
 
@@ -95,6 +101,8 @@ impl Engine {
     pub(crate) fn writes(self) -> &'static [&'static str] {
         match self {
             Engine::Es1 => &["draft_publish"],
+            // Reset drops (or deletes) a catalog; the secrets live in DuckDB's store on this Mac.
+            Engine::Pb1 => &["reset", "secrets_create", "secrets_drop"],
             Engine::Dh1 | Engine::Eh1 => &[],
         }
     }
@@ -104,6 +112,7 @@ impl Engine {
             Engine::Dh1 => "[agent]",
             Engine::Eh1 => "[grader]",
             Engine::Es1 => "[es1]",
+            Engine::Pb1 => "[pb1]",
         }
     }
 
@@ -128,10 +137,11 @@ impl Engine {
         command
     }
 
-    /// Whether it's given the traces file and the Anthropic key. ES-1's bridge isn't: it
-    /// has no use for either, and flowctl shouldn't inherit a key it doesn't need.
+    /// Whether it's given the traces file and the Anthropic key. The bridges (ES-1's and
+    /// PB-1's) aren't: they have no use for either, and a tool shouldn't inherit a key it
+    /// doesn't need.
     fn uses_agent_settings(self) -> bool {
-        !matches!(self, Engine::Es1)
+        !matches!(self, Engine::Es1 | Engine::Pb1)
     }
 }
 
@@ -318,6 +328,49 @@ pub(crate) fn confirmation(engine: Engine, line: &str) -> Option<Confirmation> {
     if !writes.contains(&kind) {
         return None;
     }
+    Some(match engine {
+        Engine::Pb1 => pb1_confirmation(kind, &request),
+        _ => publish_confirmation(&request),
+    })
+}
+
+/// PB-1's reset and secrets, each said from its own arguments. A secret's values are never in
+/// the message.
+fn pb1_confirmation(kind: &str, request: &serde_json::Value) -> Confirmation {
+    let arg = |name: &str| request.pointer(&format!("/args/{name}")).and_then(|v| v.as_str());
+    let name = arg("name").unwrap_or("?");
+    match kind {
+        "reset" => Confirmation {
+            title: "Reset this catalog?".into(),
+            message: match arg("ducklake_secret") {
+                Some(secret) => format!(
+                    "Drops events, events_rich and events_rejected in {secret}, then runs setup again. Parquet files already written stay."
+                ),
+                None => format!(
+                    "Deletes the local {} catalog and its data folder, then runs setup again.",
+                    if arg("metadata_store") == Some("duckdb") { "DuckDB" } else { "Postgres" }
+                ),
+            },
+            button: "Reset".into(),
+        },
+        "secrets_create" => Confirmation {
+            title: format!("Save the secret {name}?"),
+            message: format!(
+                "Saves a {} secret named {name} in DuckDB's secret store on this Mac, replacing one with the same name. Any DuckDB on this Mac can use it.",
+                arg("type").unwrap_or("DuckDB")
+            ),
+            button: "Save".into(),
+        },
+        _ => Confirmation {
+            title: format!("Delete the secret {name}?"),
+            message: format!("Deletes {name} from DuckDB's secret store on this Mac. A catalog that uses it can't be reached until it's saved again."),
+            button: "Delete".into(),
+        },
+    }
+}
+
+/// ES-1's publish: the specs it makes live.
+fn publish_confirmation(request: &serde_json::Value) -> Confirmation {
     let names: Vec<&str> = request
         .pointer("/input/expect")
         .and_then(|e| e.as_array())
@@ -327,14 +380,14 @@ pub(crate) fn confirmation(engine: Engine, line: &str) -> Option<Confirmation> {
     let plane = request.pointer("/args/data_plane").and_then(|p| p.as_str());
     let listed = names.iter().map(|n| format!("• {n}")).collect::<Vec<_>>().join("\n");
     let count = names.len();
-    Some(Confirmation {
+    Confirmation {
         title: format!("Publish {count} spec{} to Estuary?", if count == 1 { "" } else { "s" }),
         message: format!(
             "This makes them live for profile {profile}{}:\n\n{listed}\n\nCapturing and writing data start as soon as it publishes. They can't be unpublished from ES-1.",
             plane.map(|p| format!(", on {p}")).unwrap_or_default(),
         ),
         button: "Publish".into(),
-    })
+    }
 }
 
 /// Send one request to an engine. `line` is a JSON object; the newline is added here. A request
@@ -416,10 +469,33 @@ mod tests {
     }
 
     #[test]
-    fn only_the_bridge_goes_without_the_agent_settings() {
+    fn only_the_bridges_go_without_the_agent_settings() {
         assert!(Engine::Dh1.uses_agent_settings());
         assert!(Engine::Eh1.uses_agent_settings());
         assert!(!Engine::Es1.uses_agent_settings());
+        assert!(!Engine::Pb1.uses_agent_settings());
+    }
+
+    #[test]
+    fn pb1s_reset_and_secrets_are_confirmed_and_its_runs_are_not() {
+        let local = confirmation(Engine::Pb1, r#"{"id":"r","type":"reset","args":{"metadata_store":"duckdb"}}"#).unwrap();
+        assert_eq!(local.title, "Reset this catalog?");
+        assert!(local.message.starts_with("Deletes the local DuckDB catalog"));
+        let shared = confirmation(Engine::Pb1, r#"{"id":"r","type":"reset","args":{"ducklake_secret":"ducklake_prod"}}"#).unwrap();
+        assert!(shared.message.contains("in ducklake_prod") && shared.message.contains("Parquet files already written stay"));
+
+        let save = r#"{"id":"c","type":"secrets_create","args":{"type":"postgres","name":"supabase_pg"},"input":{"values":{"password":"pw-not-shown"}}}"#;
+        let ask = confirmation(Engine::Pb1, save).unwrap();
+        assert_eq!((ask.title.as_str(), ask.button.as_str()), ("Save the secret supabase_pg?", "Save"));
+        assert!(ask.message.contains("postgres secret") && !ask.message.contains("pw-not-shown"));
+        let drop = confirmation(Engine::Pb1, r#"{"id":"d","type":"secrets_drop","args":{"name":"old"}}"#).unwrap();
+        assert_eq!((drop.title.as_str(), drop.button.as_str()), ("Delete the secret old?", "Delete"));
+
+        for line in [r#"{"id":"r","type":"run","args":{"run_mode":"batch"}}"#, r#"{"id":"s","type":"setup"}"#, r#"{"id":"l","type":"secrets_list"}"#] {
+            assert_eq!(confirmation(Engine::Pb1, line), None, "{line}");
+        }
+        assert_eq!(confirmation(Engine::Es1, save), None);
+        assert!(confirmation(Engine::Pb1, "not json").is_some());
     }
 
     #[test]

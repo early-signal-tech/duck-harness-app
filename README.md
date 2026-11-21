@@ -28,12 +28,12 @@ packages/
   es1/      the ES-1 device: a synth-style panel over Estuary's flowctl (BUILD, connected
             up to TEST, and MAP), and the client for the bridge's protocol (cli-bridge)
   pb1/      the PB-1 device: a drum-machine-style panel over Parkbench, the DuckLake
-            benchmark tool; for now it plays on a fake engine (see "PB-1" below)
+            benchmark tool, and the client for the bridge's protocol (cli-bridge)
 apps/
   dh1/      DH-1 as a standalone app: a Tauri window (src-tauri/) around the device
   eh1/      EH-1 as a standalone app (npm run eh1), starting eh1-grader's eh1-serve
   es1/      ES-1 as a standalone app (npm run es1), starting cli-bridge's es1-serve
-  pb1/      PB-1 as a standalone app (npm run pb1), on the fake engine for now
+  pb1/      PB-1 as a standalone app (npm run pb1), starting cli-bridge's pb1-serve
   rack/     the Rack (npm run rack): one window running every engine, with DH-1,
             EH-1, and ES-1 as devices in a chain
 crates/
@@ -131,6 +131,11 @@ git clone https://github.com/early-signal-tech/eh1-grader
 git clone https://github.com/early-signal-tech/cli-bridge
 ```
 
+PB-1 runs [Parkbench](https://github.com/early-signal-tech/parkbench) through the same
+cli-bridge checkout, so it needs `parkbench` on your PATH (or in /usr/local/bin, or
+`PB1_PARKBENCH` set to it). Its local catalogs live in
+`~/Library/Application Support/Duck Harness/Data/pb1`.
+
 ES-1 also needs [flowctl](https://docs.estuary.dev/guides/get-started-with-flowctl/) on
 your PATH, signed in to your own Estuary account. Instead of a .env, the API key can be saved in
 Settings (the Keychain).
@@ -143,7 +148,7 @@ npm run dh1        # DH-1 in development (Tauri + Vite)
 npm run dh1:app    # DH-1 built as a Mac app, then opened (needed for dictation)
 npm run eh1        # EH-1
 npm run es1        # ES-1
-npm run pb1        # PB-1 (on its fake engine; needs nothing else)
+npm run pb1        # PB-1
 npm run rack       # the Rack: DH-1, EH-1, and ES-1 in one window
 npm test           # unit tests for every package
 npm run typecheck  # type-check every package and app
@@ -151,7 +156,7 @@ npm run typecheck  # type-check every package and app
 
 The host finds each engine (crates/dh-host, `discovery.rs`) in this order:
 
-1. **A dev override:** `DH1_AGENT_DIR` (the agent), `EH1_GRADER_DIR` (the grader) or `ES1_BRIDGE_DIR` (the bridge)
+1. **A dev override:** `DH1_AGENT_DIR` (the agent), `EH1_GRADER_DIR` (the grader), or `ES1_BRIDGE_DIR` / `PB1_BRIDGE_DIR` (the bridge)
    names a checkout to run with `uv run --project`.
 2. **The discovery file**, `~/Library/Application Support/Duck Harness/engines.json`,
    where an installed CLI will record its engines. You can write it by hand:
@@ -189,10 +194,14 @@ Parquet (white outline). PRE-SCALE sets how many batches or ticks one step cover
 - **`engine.ts`** is what the panel needs from an engine: `setup`, `reset`, `run` (events,
   and a `stop` that interrupts like Ctrl-C) and DuckDB's secrets. A DuckLake secret can be
   the CATALOG, and "+ new secret" opens the kit's secrets sheet.
-- **`fakeEngine.ts`** acts like Parkbench from the same flags, without a database, so the
-  panel can be played now. The app confirms a reset in a native dialog, as the host will for
-  the real engine. Wiring PB-1 to Parkbench (a cli-bridge table and `Engine::Pb1` in
-  dh-host) comes next; until then `apps/pb1` starts no engines.
+- **`bridge.ts`** is that engine over cli-bridge's `pb1-serve` (its Parkbench table). It
+  turns the flags into the table's arguments and refuses one the table doesn't take, so a
+  test can check every setting the panel reaches. A secret's values go to the engine once,
+  as `input`, and from there to Parkbench on stdin.
+- **The host confirms** a reset and saving or deleting a secret in a native dialog before
+  the request reaches the engine (`writes` in crates/dh-host); a run or setup isn't asked.
+- **`fakeEngine.ts`** acts like Parkbench from the same flags, without a database. The app
+  uses it when it's opened in a plain browser (the headless checks), where there's no host.
 
 ## The Rack
 

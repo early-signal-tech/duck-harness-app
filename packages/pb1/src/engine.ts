@@ -1,5 +1,5 @@
-// What PB-1 needs from its engine. For now the only one is the fake (fakeEngine.ts); the real
-// one, over cli-bridge's Parkbench table, comes next and implements this same interface.
+// What PB-1 needs from its engine: the real one is cli-bridge's pb1-serve (bridge.ts), and
+// the fake (fakeEngine.ts) stands in for it where there's no host, such as a browser.
 // The panel hands over Parkbench's flags (settings.ts) and gets Parkbench's events back.
 
 import type { SecretsControls } from "@dh/ui-kit";
@@ -30,6 +30,8 @@ export interface Pb1Connection {
   engine: Pb1Engine | null;
   status: "connecting" | "ready" | "down";
   error: string | null;
+  /** Something to know that doesn't stop it, such as an untested Parkbench. */
+  warning?: string | null;
 }
 
 export class Pb1Error extends Error {

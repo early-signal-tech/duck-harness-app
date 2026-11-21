@@ -196,6 +196,12 @@ mod tests {
     }
 
     #[test]
+    fn pb1_is_the_same_bridge_checkout_with_its_own_script() {
+        let found = resolve(Engine::Pb1, None, None, Path::new("/gh"), "uv");
+        assert_eq!(found.describe(), "uv run --project /gh/cli-bridge pb1-serve");
+    }
+
+    #[test]
     fn no_file_is_the_sibling_checkout() {
         let found = resolve(Engine::Dh1, None, None, Path::new("/gh"), "uv");
         assert_eq!(found.source, Source::Checkout);

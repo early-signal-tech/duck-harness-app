@@ -3,36 +3,12 @@
 // (settings.ts) and writes the same events (events.ts), paced so a run looks alive: real
 // tick intervals in STREAM, and a few batches a second in BATCH. Nothing touches a database.
 
-import type { SecretInfo, SecretRequest, SecretType } from "@dh/ui-kit";
+import type { SecretInfo, SecretRequest } from "@dh/ui-kit";
 import { Pb1Error, type Pb1Engine, type Running } from "./engine";
 import type { DoneEvent, DoneReason, RunEvent } from "./events";
+import { SECRET_TYPES } from "./secretTypes";
 import type { Flags } from "./settings";
 
-export const FAKE_SECRET_TYPES: SecretType[] = [
-  {
-    type: "ducklake", label: "DuckLake", scope: false, fields: [
-      { key: "data_path", label: "DATA PATH", kind: "text", required: true, placeholder: "s3://my-bucket/prefix" },
-      { key: "metadata_secret", label: "METADATA SECRET", kind: "secret", secret_type: "postgres", required: true },
-      { key: "metadata_schema", label: "METADATA SCHEMA", kind: "text", placeholder: "ducklake_meta" },
-    ],
-  },
-  {
-    type: "postgres", label: "Postgres", scope: false, fields: [
-      { key: "host", label: "HOST", kind: "text", required: true, placeholder: "db.xxxx.supabase.co" },
-      { key: "port", label: "PORT", kind: "int", placeholder: "5432" },
-      { key: "database", label: "DATABASE", kind: "text", required: true, placeholder: "postgres" },
-      { key: "user", label: "USER", kind: "text", required: true, placeholder: "postgres" },
-      { key: "password", label: "PASSWORD", kind: "password", required: true },
-    ],
-  },
-  {
-    type: "s3", label: "S3", scope: true, scope_hint: "s3://my-bucket", fields: [
-      { key: "key_id", label: "KEY ID", kind: "text", required: true },
-      { key: "secret", label: "SECRET KEY", kind: "password", required: true },
-      { key: "region", label: "REGION", kind: "text", placeholder: "us-east-1" },
-    ],
-  },
-];
 
 const STARTING_SECRETS: SecretInfo[] = [
   { name: "supabase_pg", type: "postgres", provider: "config", scope: [] },
@@ -170,7 +146,7 @@ export function fakeEngine(options: FakeOptions): Pb1Engine {
     },
 
     secrets: {
-      types: FAKE_SECRET_TYPES,
+      types: SECRET_TYPES,
       list: async () => secrets.slice(),
       create: async (request: SecretRequest) => {
         // The values stop here: the fake keeps the name and type, as DuckDB's list would show.

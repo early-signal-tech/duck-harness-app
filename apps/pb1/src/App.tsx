@@ -1,19 +1,25 @@
-// The PB-1 standalone app: a host window around the PB-1 device. Until it's wired to
-// Parkbench, the device runs on the fake engine, which acts like Parkbench without touching
-// a database. A reset is confirmed in a native dialog, as the host will do for the real one.
+// The PB-1 standalone app: a host window around the PB-1 device, with one engine, the
+// Parkbench bridge (cli-bridge's pb1-serve). PB-1 has no agent behind it, so it has no
+// Settings. Opened in a plain browser instead of the Tauri window (the headless checks),
+// there's no host to start an engine, so the panel plays on the fake engine.
 
-import { fakeEngine, Pb1, type Pb1Connection } from "@dh/pb1";
-import { ask } from "@tauri-apps/plugin-dialog";
+import { fakeEngine, Pb1, useBridge, type Pb1Connection } from "@dh/pb1";
+import { tauriTransport } from "@dh/ui-kit";
 
-/** Opened in a browser instead of the Tauri window (the headless checks), there's no native
- *  dialog to ask with. */
 const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
-const confirm = async (title: string, message: string) =>
-  inTauri ? ask(message, { title, kind: "warning", okLabel: "Reset", cancelLabel: "Cancel" }) : window.confirm(`${title}\n\n${message}`);
+// PB-1's engine, as the host crate names it.
+const transport = tauriTransport("pb1");
 
-const connection: Pb1Connection = { engine: fakeEngine({ confirm }), status: "ready", error: null };
+const fake: Pb1Connection = {
+  engine: fakeEngine({ confirm: async (title, message) => window.confirm(`${title}\n\n${message}`) }),
+  status: "ready",
+  error: null,
+  warning: "Not in the app: this is the fake engine, and nothing touches a database.",
+};
+
+const useConnection = inTauri ? () => useBridge(transport) : () => fake;
 
 export default function App() {
-  return <Pb1 connection={connection} />;
+  return <Pb1 connection={useConnection()} />;
 }

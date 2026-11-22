@@ -10,18 +10,20 @@
 //   or ⌘B collapses the whole rack.
 //
 // One instrument per chain: DH-1 (with AUTO GRADER after it, which holds its own EH-1),
-// EH-1 on its own, or ES-1 on its own. Each device's model lives here (one per kind, since
+// EH-1 on its own, ES-1 on its own, or PB-1 on its own. Each device's model lives here (one per kind, since
 // a chain holds at most one of each), so a device keeps running whatever the panel shows.
-// ES-1 keeps its state in its panel, so that panel stays mounted (hidden) while ES-1 is in
-// the chain: going back to the output mustn't lose a build in progress.
+// ES-1 and PB-1 keep their state in their panels, so each panel stays mounted (hidden) while
+// its device is in the chain: going back to the output mustn't lose a build or stop a run.
 
 import { Dh1Card, Dh1Face, Dh1Output, useDh1, useEngine as useDh1Engine, type Dh1Section } from "@dh/dh1";
 import { Eh1Card, Eh1Face, FOLLOW_IDLE, useEh1, useEngine as useEh1Engine, type FollowStatus, type Grade } from "@dh/eh1";
 import { Es1, Es1Card, useEngine as useEs1Engine, type Es1Summary } from "@dh/es1";
+import { Pb1, Pb1Card, useBridge as usePb1Engine, type Pb1Summary, type QueryCatalog } from "@dh/pb1";
 import { describeSource, questionSetToFile } from "@dh/formats";
 import {
   engineProblems, Menu, MenuDivider, MenuItem, SettingsMenu, tauriTransport, useAppearance, type SecretsControls, type TracesControls,
 } from "@dh/ui-kit";
+import { invoke } from "@tauri-apps/api/core";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AutoGraderCard } from "./AutoGraderCard";
@@ -42,6 +44,10 @@ import "./rack.css";
 const dh1Transport = tauriTransport("dh1");
 const eh1Transport = tauriTransport("eh1");
 const es1Transport = tauriTransport("es1");
+const pb1Transport = tauriTransport("pb1");
+
+/** PB-1's QUERY: the host opens Terminal on the catalog (crates/dh-host, pb1.rs). */
+const openPb1Query = (catalog: QueryCatalog, secret?: string) => invoke<void>("pb1_query_open", { catalog, secret: secret ?? null });
 
 // The chain, until rack presets save it as a file (next).
 const CHAIN_KEY = "rack.chain";
@@ -65,17 +71,19 @@ const TITLES: Record<Exclude<Open, "output">, [string, string]> = {
   dh1: ["DH-1", "ANALYTICS AGENT"],
   eh1: ["EH-1", "EVALUATOR"],
   es1: ["ES-1", "PIPELINE METER"],
+  pb1: ["PB-1", "INGEST BENCH"],
   autograder: ["AUTO GRADER / EH-1", "THE EH-1 INSIDE AUTO GRADER"],
 };
 
 /** Where each kind of device opens in the panel. */
-const OPENS: Record<DeviceType, Open> = { dh1: "dh1", eh1: "eh1", es1: "es1", autograder: "autograder" };
+const OPENS: Record<DeviceType, Open> = { dh1: "dh1", eh1: "eh1", es1: "es1", pb1: "pb1", autograder: "autograder" };
 
 export default function App() {
   const [appearance, setAppearance] = useAppearance();
   const dh1Engine = useDh1Engine(dh1Transport);
   const eh1Engine = useEh1Engine(eh1Transport);
   const es1Engine = useEs1Engine(es1Transport);
+  const pb1Engine = usePb1Engine(pb1Transport);
 
   const [layout, setLayout] = useState(loadLayout);
   useEffect(() => saveLayout(layout), [layout]);
@@ -98,6 +106,12 @@ export default function App() {
   useEffect(() => {
     if (!hasEs1) setEs1Summary(null);
   }, [hasEs1]);
+  const hasPb1 = !!find("pb1") && !problems.has(find("pb1")!.id);
+  // What PB-1's panel reports, for its card and the output area.
+  const [pb1Summary, setPb1Summary] = useState<Pb1Summary | null>(null);
+  useEffect(() => {
+    if (!hasPb1) setPb1Summary(null);
+  }, [hasPb1]);
 
   // AUTO GRADER's power starts off every time the rack opens: grading costs money.
   const [graderOn, setGraderOn] = useState(false);
@@ -215,6 +229,7 @@ export default function App() {
     if (instance.type === "dh1") return dh1.anyBusy || dh1.setlist.busy;
     if (instance.type === "eh1") return !!eh1.grading;
     if (instance.type === "es1") return !!es1Summary?.busy;
+    if (instance.type === "pb1") return !!pb1Summary?.busy;
     return graderOn && follow.active;
   };
 
@@ -245,7 +260,7 @@ export default function App() {
     }));
     // busyOf reads the models, which change every render; this runs on a click or a key.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dh1, eh1, es1Summary, graderOn, follow.active]);
+  }, [dh1, eh1, es1Summary, pb1Summary, graderOn, follow.active]);
 
   // Keys: ⌘B folds the rack; Delete / Backspace removes the selected device; Esc deselects.
   useEffect(() => {
@@ -312,6 +327,7 @@ export default function App() {
   const shown: Open = layout.open === "dh1" && !hasDh1 ? "output"
     : layout.open === "eh1" && !hasEh1 ? "output"
     : layout.open === "es1" && !hasEs1 ? "output"
+    : layout.open === "pb1" && !hasPb1 ? "output"
     : layout.open === "autograder" && !autograder ? "output"
     : layout.open;
 
@@ -346,6 +362,8 @@ export default function App() {
         return <Eh1Card model={eh1} status={eh1Engine.status} collapsed={collapsed} onToggleCollapse={collapse(instance.id)} onOpen={() => open("eh1")} cardProps={props} />;
       case "es1":
         return <Es1Card summary={es1Summary} status={es1Engine.status} collapsed={collapsed} onToggleCollapse={collapse(instance.id)} onOpen={() => open("es1")} cardProps={props} />;
+      case "pb1":
+        return <Pb1Card summary={pb1Summary} status={pb1Engine.status} collapsed={collapsed} onToggleCollapse={collapse(instance.id)} onOpen={() => open("pb1")} cardProps={props} />;
       case "autograder":
         return (
           <AutoGraderCard on={graderOn} onToggle={() => setGraderOn(!graderOn)} status={follow} inner={inner}
@@ -392,6 +410,7 @@ export default function App() {
           { label: "DH-1", status: dh1Engine.status, error: dh1Engine.error, used: chain.some((i) => i.type === "dh1") },
           { label: "EH-1", status: eh1Engine.status, error: eh1Engine.error, used: chain.some((i) => i.type === "eh1" || i.type === "autograder") },
           { label: "ES-1", status: es1Engine.status, error: es1Engine.error, used: chain.some((i) => i.type === "es1") },
+          { label: "PB-1", status: pb1Engine.status, error: pb1Engine.error, used: chain.some((i) => i.type === "pb1") },
         ]}
       />
       {engineIssues.map((problem) => (
@@ -433,6 +452,16 @@ export default function App() {
                   <p>This chain is ES-1 on its own: open it to build a pipeline or see what's live.</p>
                   <button className="pane-button" onClick={() => open("es1")}>Open ES-1 ⤢</button>
                 </div>
+              ) : hasPb1 ? (
+                <div className="output-empty">
+                  <p>This chain is PB-1 on its own: open it to write test events into a DuckLake catalog.</p>
+                  <button className="pane-button" onClick={() => open("pb1")}>Open PB-1 ⤢</button>
+                  {pb1Summary && (pb1Summary.display.title === "DONE" || pb1Summary.display.title === "STOPPED") && (
+                    <p className="muted mono">
+                      Last run: {pb1Summary.display.title} · {pb1Summary.display.line} · {pb1Summary.stat.value} · {pb1Summary.catalog}
+                    </p>
+                  )}
+                </div>
               ) : (
                 <div className="output-empty"><p>The chain is empty: add an instrument with + below.</p></div>
               )}
@@ -449,7 +478,7 @@ export default function App() {
               <span className="spacer" />
               <button className="bar-button" onClick={() => open("output")} aria-label="Close: back to the output" title="Back to the output">✕</button>
             </header>
-            {shown !== "es1" && <div className="panel-body">
+            {shown !== "es1" && shown !== "pb1" && <div className="panel-body">
               {shown === "dh1" && (
                 <Dh1Face key={dh1Focus.n} model={dh1} toolbar={toolbar} promptBar={false}
                   initialScreen={dh1Focus.setlist ? "setlist" : "face"} focusSection={dh1Focus.section} />
@@ -463,6 +492,12 @@ export default function App() {
         {hasEs1 && (
           <div className="panel-body rack-es1" style={shown === "es1" ? undefined : { display: "none" }}>
             <Es1 connection={es1Engine} embedded onSummary={setEs1Summary} />
+          </div>
+        )}
+        {/* So does PB-1's: a run keeps playing (and its card keeps stepping) with the panel closed. */}
+        {hasPb1 && (
+          <div className="panel-body rack-pb1" style={shown === "pb1" ? undefined : { display: "none" }}>
+            <Pb1 connection={pb1Engine} embedded onSummary={setPb1Summary} onQuery={openPb1Query} />
           </div>
         )}
       </section>

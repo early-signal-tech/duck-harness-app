@@ -4,5 +4,5 @@
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    dh_host::run(&[dh_host::Engine::Dh1, dh_host::Engine::Eh1, dh_host::Engine::Es1], tauri::generate_context!());
+    dh_host::run(&[dh_host::Engine::Dh1, dh_host::Engine::Eh1, dh_host::Engine::Es1, dh_host::Engine::Pb1], tauri::generate_context!());
 }

@@ -291,4 +291,4 @@
 .transport-setlist-runs { color: var(--bar-muted); font-size: 12px; }
 
 /* ES-1's panel: fixed-size hardware that scales to fill the rack's panel (no padding). */
-.rack-panel .rack-es1 { position: relative; padding: 0; overflow: hidden; }
+.rack-panel .rack-es1, .rack-panel .rack-pb1 { position: relative; padding: 0; overflow: hidden; }

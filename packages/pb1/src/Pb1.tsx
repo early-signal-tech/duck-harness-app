@@ -60,6 +60,15 @@ export function Pb1({ connection, embedded = false, onQuery }: {
   const [seq, setSeq] = useState<Sequence | null>(null);
   /** The status line when nothing is playing: what last happened. */
   const [note, setNote] = useState<string | null>(null);
+  /** QUERY's result, shown for a few seconds even while a run plays. */
+  const [flash, setFlash] = useState<string | null>(null);
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashNote = (text: string) => {
+    setFlash(text);
+    setNote(text);
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setFlash(null), 5_000);
+  };
 
   const set = (patch: Partial<Pb1Settings>) => {
     setS((prev) => ({ ...prev, ...patch }));
@@ -162,7 +171,7 @@ export function Pb1({ connection, embedded = false, onQuery }: {
   // the engine's Quack server up first, so the terminal can read it while a run writes.
   const query = async () => {
     if (!onQuery) {
-      setNote("QUERY opens a DuckDB terminal in the PB-1 app");
+      flashNote("QUERY opens a DuckDB terminal in the PB-1 app");
       return;
     }
     if (!engine || !ready) return;
@@ -170,9 +179,9 @@ export function Pb1({ connection, embedded = false, onQuery }: {
     try {
       if (catalog === "local_duckdb") await engine.startQuery();
       await onQuery(catalog, catalog === "secret" ? s.catalog : undefined);
-      setNote(`QUERY — terminal opened on ${s.catalog}, attached as wh`);
+      flashNote(`QUERY — terminal opened on ${s.catalog}, attached as wh`);
     } catch (e) {
-      setNote(`ERROR — ${message(e)}`);
+      flashNote(`ERROR — ${message(e)}`);
     }
   };
 
@@ -187,6 +196,7 @@ export function Pb1({ connection, embedded = false, onQuery }: {
   const statusLine = (() => {
     if (status === "down") return `OFFLINE — ${connection.error ?? "the engine isn't running"}`;
     if (status === "connecting") return "Starting the engine…";
+    if (flash) return flash;
     if (phase.kind === "busy") {
       return phase.what === "setup" ? `setup — creating events, events_rich, events_rejected in ${s.catalog}…` : `reset — ${s.catalog}…`;
     }
@@ -253,9 +263,6 @@ export function Pb1({ connection, embedded = false, onQuery }: {
               <div className="pb1-lab hot">CLEAR = RESET</div>
               <div className="pb1-lab dim">drops &amp; recreates</div>
             </div>
-            <button className="pb1-query" style={{ left: 222, top: 258 }} onClick={() => void query()} disabled={!ready}
-              title="Open a DuckDB terminal on this catalog, attached as wh">QUERY</button>
-            <div className="pb1-lab dim pb1-query-lab" style={{ left: 222, top: 294 }}>duckdb ▸ wh</div>
             {stream ? (
               <Knob key="tick" label="TEMPO · TICK" x={4} y={330} radius={44} labelled flag="--tick-interval" disabled={!on.tempo}
                 stops={TEMPO_STREAM.map((v) => `${String(v).replace(/^0\./, ".")}s`)} value={at(TEMPO_STREAM, s.tickInterval)}
@@ -270,6 +277,14 @@ export function Pb1({ connection, embedded = false, onQuery }: {
               readout={s.flush === 0 ? "never" : stream ? `end, if > ${s.flush} rows` : `${s.flush} batches`} onChange={(i) => set({ flush: FLUSH[i] })} />
             <Knob label="FINE · SPREAD" x={200} y={484} radius={14} flag="--batch-size-min/max" disabled={!on.fine}
               stops={FINE.map(String)} value={at(FINE, s.fine)} readout={s.fine ? `±${s.fine}%` : "fixed"} onChange={(i) => set({ fine: FINE[i] })} />
+          </div>
+
+          {/* QUERY sits in the CATALOG box but outside the left section, which is held while a run
+              plays: reading the catalog doesn't change the run, and that's when it's most useful. */}
+          <div className="pb1-left-live">
+            <button className="pb1-query" style={{ left: 222, top: 258 }} onClick={() => void query()} disabled={!ready}
+              title="Open a DuckDB terminal on this catalog, attached as wh">QUERY</button>
+            <div className="pb1-lab dim pb1-query-lab" style={{ left: 222, top: 294 }}>duckdb ▸ wh</div>
           </div>
 
           <div className="pb1-channels" inert={locked}>

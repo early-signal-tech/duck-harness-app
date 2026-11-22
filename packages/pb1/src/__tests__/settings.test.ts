@@ -8,21 +8,21 @@ const with_ = (patch: Partial<Pb1Settings>): Pb1Settings => ({ ...DEFAULT_SETTIN
 
 describe("connection flags", () => {
   it("points at the local catalogs or a secret by name", () => {
-    expect(connectionFlags(with_({ catalog: LOCAL_DUCKDB }))).toEqual({ "metadata-store": "duckdb" });
+    expect(connectionFlags(with_({ catalog: LOCAL_DUCKDB }))).toEqual({ "metadata-store": "quack" });
     expect(connectionFlags(with_({ catalog: LOCAL_POSTGRES }))).toEqual({ "metadata-store": "postgres" });
     expect(connectionFlags(with_({ catalog: "ducklake_prod" }))).toEqual({ "ducklake-secret": "ducklake_prod" });
   });
 
   it("adds the sink and migrate, but not the sink to a reset", () => {
-    expect(connectionFlags(with_({ sink: "postgres", migrate: true }))).toEqual({ "metadata-store": "duckdb", "data-sink": "postgres", migrate: true });
-    expect(connectionFlags(with_({ mode: "RESET", sink: "postgres" }))).toEqual({ "metadata-store": "duckdb" });
+    expect(connectionFlags(with_({ sink: "postgres", migrate: true }))).toEqual({ "metadata-store": "quack", "data-sink": "postgres", migrate: true });
+    expect(connectionFlags(with_({ mode: "RESET", sink: "postgres" }))).toEqual({ "metadata-store": "quack" });
   });
 });
 
 describe("run flags", () => {
   it("maps a batch run", () => {
     expect(runFlags(with_({ batchSize: 250_000, length: 25, flush: 4 }))).toEqual({
-      "metadata-store": "duckdb", "run-mode": "batch", mode: "simple", "flush-interval": 4,
+      "metadata-store": "quack", "run-mode": "batch", mode: "simple", "flush-interval": 4,
       "batch-size": 250_000, "num-batches": 25, distribution: "uniform",
     });
   });
@@ -40,7 +40,7 @@ describe("run flags", () => {
   it("maps a stream run, in minutes, with its anomaly rates", () => {
     const flags = runFlags(with_({ mode: "STREAM", tickInterval: 0.25, length: 5, duplicateRate: 0.1, driftRate: 0.2, partition: "day(ts)", fine: 50 }));
     expect(flags).toEqual({
-      "metadata-store": "duckdb", "run-mode": "ticker", mode: "simple", "flush-interval": 8,
+      "metadata-store": "quack", "run-mode": "ticker", mode: "simple", "flush-interval": 8,
       "tick-interval": 0.25, duration: 300, "duplicate-rate": 0.1, "schema-drift-rate": 0.2,
     });
   });
@@ -64,7 +64,7 @@ describe("run flags", () => {
 
   it("gives setup and reset only the connection", () => {
     expect(flagsFor(with_({ mode: "SETUP", catalog: "ducklake_prod" }))).toEqual({ "ducklake-secret": "ducklake_prod" });
-    expect(flagsFor(with_({ mode: "RESET", batchSize: 1000 }))).toEqual({ "metadata-store": "duckdb" });
+    expect(flagsFor(with_({ mode: "RESET", batchSize: 1000 }))).toEqual({ "metadata-store": "quack" });
   });
 });
 

@@ -3,8 +3,9 @@
 // Settings. Opened in a plain browser instead of the Tauri window (the headless checks),
 // there's no host to start an engine, so the panel plays on the fake engine.
 
-import { fakeEngine, Pb1, useBridge, type Pb1Connection } from "@dh/pb1";
+import { fakeEngine, Pb1, useBridge, type Pb1Connection, type QueryCatalog } from "@dh/pb1";
 import { tauriTransport } from "@dh/ui-kit";
+import { invoke } from "@tauri-apps/api/core";
 
 const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -20,6 +21,11 @@ const fake: Pb1Connection = {
 
 const useConnection = inTauri ? () => useBridge(transport) : () => fake;
 
+/** QUERY: the host opens Terminal on the catalog (crates/dh-host, pb1.rs). */
+const openQuery = inTauri
+  ? (catalog: QueryCatalog, secret?: string) => invoke<void>("pb1_query_open", { catalog, secret: secret ?? null })
+  : undefined;
+
 export default function App() {
-  return <Pb1 connection={useConnection()} />;
+  return <Pb1 connection={useConnection()} onQuery={openQuery} />;
 }

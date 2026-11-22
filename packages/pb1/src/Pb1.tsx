@@ -40,8 +40,14 @@ type Phase =
   | { kind: "busy"; what: "setup" | "reset" }
   | { kind: "running"; running: Running; tap: boolean };
 
-export function Pb1({ connection, embedded = false }: {
+/** Which catalog QUERY opens a terminal on: the host does the opening. */
+export type QueryCatalog = "local_duckdb" | "local_postgres" | "secret";
+
+export function Pb1({ connection, embedded = false, onQuery }: {
   connection: Pb1Connection;
+  /** Open a DuckDB terminal on a catalog, attached as wh. Without it (a plain browser) QUERY says
+   *  it only works in the app. */
+  onQuery?: (catalog: QueryCatalog, secret?: string) => Promise<void>;
   /** Fit the panel to its container, not the window. */
   embedded?: boolean;
 }) {
@@ -152,6 +158,24 @@ export function Pb1({ connection, embedded = false }: {
     }
   };
 
+  // QUERY: a DuckDB terminal on the catalog the knob points at. The local DuckDB catalog needs
+  // the engine's Quack server up first, so the terminal can read it while a run writes.
+  const query = async () => {
+    if (!onQuery) {
+      setNote("QUERY opens a DuckDB terminal in the PB-1 app");
+      return;
+    }
+    if (!engine || !ready) return;
+    const catalog: QueryCatalog = s.catalog === LOCAL_DUCKDB ? "local_duckdb" : s.catalog === LOCAL_POSTGRES ? "local_postgres" : "secret";
+    try {
+      if (catalog === "local_duckdb") await engine.startQuery();
+      await onQuery(catalog, catalog === "secret" ? s.catalog : undefined);
+      setNote(`QUERY — terminal opened on ${s.catalog}, attached as wh`);
+    } catch (e) {
+      setNote(`ERROR — ${message(e)}`);
+    }
+  };
+
   const power = () => {
     if (powered && phase.kind === "running") void phase.running.stop();
     setPowered(!powered);
@@ -220,15 +244,18 @@ export function Pb1({ connection, embedded = false }: {
 
           <div className="pb1-left" inert={locked}>
             <div className="pb1-box" style={{ left: 8, top: 14, width: 312, height: 216 }}><span className="pb1-box-title hot">RUN MODE — CATALOG SELECT</span></div>
-            <div className="pb1-box" style={{ left: 8, top: 244, width: 312, height: 76 }}><span className="pb1-box-title">CATALOG CLEAR</span></div>
+            <div className="pb1-box" style={{ left: 8, top: 244, width: 312, height: 76 }}><span className="pb1-box-title">CATALOG — CLEAR · QUERY</span></div>
             <Knob label="MODE" x={14} y={30} radius={26} labelled stops={MODES} value={at(MODES, s.mode)} onChange={(i) => set({ mode: MODES[i] })} />
             <Knob label="CATALOG" x={168} y={30} radius={24} labelled stops={stops.map(catalogShort)} value={at(stops, s.catalog)}
               readout={s.catalog} onChange={onCatalog} flag={isLocal(s.catalog) ? "--metadata-store" : "--ducklake-secret"} />
             <button className="pb1-clear" style={{ left: 34, top: 268 }} onClick={() => void clear()} disabled={!ready} aria-label="Reset catalog" title="Reset catalog: parkbench reset" />
             <div className="pb1-clear-lab" style={{ left: 72, top: 262 }}>
               <div className="pb1-lab hot">CLEAR = RESET</div>
-              <div className="pb1-lab dim">drops &amp; recreates tables</div>
+              <div className="pb1-lab dim">drops &amp; recreates</div>
             </div>
+            <button className="pb1-query" style={{ left: 222, top: 258 }} onClick={() => void query()} disabled={!ready}
+              title="Open a DuckDB terminal on this catalog, attached as wh">QUERY</button>
+            <div className="pb1-lab dim pb1-query-lab" style={{ left: 222, top: 294 }}>duckdb ▸ wh</div>
             {stream ? (
               <Knob key="tick" label="TEMPO · TICK" x={4} y={330} radius={44} labelled flag="--tick-interval" disabled={!on.tempo}
                 stops={TEMPO_STREAM.map((v) => `${String(v).replace(/^0\./, ".")}s`)} value={at(TEMPO_STREAM, s.tickInterval)}

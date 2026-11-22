@@ -132,7 +132,9 @@ export type Flags = Record<string, string | number | boolean>;
 /** The catalog's connection flags, which setup, reset and run all take. */
 export function connectionFlags(s: Pb1Settings): Flags {
   const flags: Flags =
-    s.catalog === LOCAL_DUCKDB ? { "metadata-store": "duckdb" }
+    // The local DuckDB catalog goes through the engine's Quack server, so QUERY's terminal can
+    // read it while a run writes.
+    s.catalog === LOCAL_DUCKDB ? { "metadata-store": "quack" }
       : s.catalog === LOCAL_POSTGRES ? { "metadata-store": "postgres" }
         : { "ducklake-secret": s.catalog };
   if (s.sink === "postgres" && s.mode !== "RESET") flags["data-sink"] = "postgres";

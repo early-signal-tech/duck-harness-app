@@ -303,3 +303,12 @@ forever: `--duration` must be a number of seconds. So PB-1 asks for a year
 - Better: `--duration 0` = run until interrupted, in Parkbench, then send that.
 - Waiting for: someone running a stream for longer than a year, or the next Parkbench PR
   that touches the ticker.
+
+## PB-1: a wider layout for the Rack
+The Rack's pane is about 2:1 and PB-1's panel is 1440×896 (1.6:1), so in the Rack the panel is
+limited by height and leaves black space at the sides. Tightening the panel's empty height
+(Nov 2026) got it to about 1.0 scale in a full-size window.
+
+- Bigger: a Rack-only layout that's wider and shorter, with the pads and the channel strip
+  stretched sideways, so knobs and pads can grow another 15–20%.
+- Waiting for: PB-1 still feeling small in the Rack, or a smaller window to fit.

@@ -22,11 +22,11 @@
 .pb1-power button { width: 46px; height: 30px; border: 0; border-radius: 3px; background: #0f0f0e; box-shadow: inset 0 -6px 0 #000, 0 0 0 2px #444; cursor: pointer; }
 .pb1-brand { position: absolute; right: 34px; top: 12px; font: 700 34px/1 var(--pb1-sans); color: var(--pb1-orange); letter-spacing: 0.02em; }
 .pb1-brand span { display: inline-block; padding: 0 8px; margin-right: 8px; border: 3px solid var(--pb1-orange); border-radius: 6px; font-size: 26px; vertical-align: 3px; }
-.pb1-rule { position: absolute; left: 22px; right: 22px; top: 62px; border-top: 1.5px solid var(--pb1-line); }
+.pb1-rule { position: absolute; left: 22px; right: 22px; top: 56px; border-top: 1.5px solid var(--pb1-line); }
 
 /* Areas and boxes */
-.pb1-left { position: absolute; left: 22px; top: 74px; width: 330px; height: 520px; border-right: 1.5px solid var(--pb1-line); }
-.pb1-channels { position: absolute; left: 352px; top: 74px; right: 22px; height: 520px; }
+.pb1-left { position: absolute; left: 22px; top: 66px; width: 330px; height: 464px; border-right: 1.5px solid var(--pb1-line); }
+.pb1-channels { position: absolute; left: 352px; top: 66px; right: 22px; height: 464px; }
 .pb1-ch { position: absolute; top: 0; width: 112px; height: 430px; border-right: 1.5px solid var(--pb1-line); }
 .pb1-ch.last { width: 190px; border-right: 0; }
 .pb1-box { position: absolute; border: 1.5px solid var(--pb1-line); border-radius: 3px; pointer-events: none; }
@@ -64,14 +64,14 @@
 .pb1-slide.off button { cursor: default; }
 
 /* Display */
-.pb1-display { position: absolute; left: 1160px; top: 86px; width: 226px; height: 176px; border-radius: 4px; background: #0b0b0a; box-shadow: inset 0 0 0 2px #444; padding: 8px 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+.pb1-display { position: absolute; left: 1160px; top: 78px; width: 226px; height: 176px; border-radius: 4px; background: #0b0b0a; box-shadow: inset 0 0 0 2px #444; padding: 8px 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
 .pb1-display > div { display: flex; flex-direction: column; min-width: 0; }
 .pb1-display label { font: 600 8px var(--pb1-mono); letter-spacing: 0.1em; color: #7e7a6f; }
 .pb1-display b { font: 700 19px/24px var(--pb1-mono); color: var(--pb1-led-on); text-shadow: 0 0 8px rgba(255, 59, 31, 0.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pb1-display b.small { font-size: 12px; }
 .pb1-display .pb1-msg { grid-column: 1 / -1; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; font: 500 9.5px/13px var(--pb1-mono); color: #c9c3b0; overflow: hidden; height: 40px; overflow-wrap: anywhere; }
 
-.pb1-title { position: absolute; left: 380px; top: 594px; width: 820px; pointer-events: none; }
+.pb1-title { position: absolute; left: 380px; top: 514px; width: 820px; pointer-events: none; }
 .pb1-title .t { font: 600 34px/1 var(--pb1-sans); color: var(--pb1-orange); letter-spacing: 0.01em; }
 .pb1-title .t em { font-style: normal; margin-left: 24px; font-size: 30px; }
 .pb1-title .u { margin-top: 6px; border-top: 1.5px solid var(--pb1-orange); width: 760px; }
@@ -126,7 +126,7 @@
 .pb1-clear-lab { position: absolute; display: flex; flex-direction: column; gap: 2px; }
 
 /* QUERY: over the left section, but not held with it during a run. */
-.pb1-left-live { position: absolute; left: 22px; top: 74px; width: 330px; height: 520px; pointer-events: none; }
+.pb1-left-live { position: absolute; left: 22px; top: 66px; width: 330px; height: 464px; pointer-events: none; }
 .pb1-left-live > * { pointer-events: auto; }
 .pb1-query { position: absolute; width: 78px; height: 30px; padding: 0; border: 0; border-radius: 3px; background: linear-gradient(#f4eedb, #d9cfae); box-shadow: inset 0 -4px 0 #b9ad88, 0 0 0 2px #111; color: #2c2a24; font: 700 11px var(--pb1-mono) !important; letter-spacing: 0.1em; cursor: pointer; }
 .pb1-query:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 -2px 0 #b9ad88, 0 0 0 2px #111; }

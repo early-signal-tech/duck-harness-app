@@ -24,7 +24,7 @@ import {
 } from "./settings";
 
 const PANEL_WIDTH = 1440;
-const PANEL_HEIGHT = 960;
+const PANEL_HEIGHT = 896;
 /** The channel strip's column width. */
 const COLUMN = 114;
 
@@ -253,12 +253,14 @@ export function Pb1({ connection, embedded = false, onQuery, onSummary }: {
   useLayoutEffect(() => {
     const element = stage.current;
     if (!element) return;
-    const fit = () => setScale(Math.min(element.clientWidth / (PANEL_WIDTH + 40), element.clientHeight / (PANEL_HEIGHT + 40)));
+    // A window gets a margin round the panel; the rack's pane is already framed, so less.
+    const margin = embedded ? 16 : 40;
+    const fit = () => setScale(Math.min(element.clientWidth / (PANEL_WIDTH + margin), element.clientHeight / (PANEL_HEIGHT + margin)));
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(element);
     return () => observer.disconnect();
-  }, []);
+  }, [embedded]);
 
   const locked = running || phase.kind === "busy" || !powered;
   const step = seq?.step ?? 0;
@@ -280,41 +282,41 @@ export function Pb1({ connection, embedded = false, onQuery, onSummary }: {
           <div className="pb1-rule" />
 
           <div className="pb1-left" inert={locked}>
-            <div className="pb1-box" style={{ left: 8, top: 14, width: 312, height: 216 }}><span className="pb1-box-title hot">RUN MODE — CATALOG SELECT</span></div>
-            <div className="pb1-box" style={{ left: 8, top: 244, width: 312, height: 76 }}><span className="pb1-box-title">CATALOG — CLEAR · QUERY</span></div>
+            <div className="pb1-box" style={{ left: 8, top: 14, width: 312, height: 176 }}><span className="pb1-box-title hot">RUN MODE — CATALOG SELECT</span></div>
+            <div className="pb1-box" style={{ left: 8, top: 204, width: 312, height: 76 }}><span className="pb1-box-title">CATALOG — CLEAR · QUERY</span></div>
             <Knob label="MODE" x={14} y={30} radius={26} labelled stops={MODES} value={at(MODES, s.mode)} onChange={(i) => set({ mode: MODES[i] })} />
             <Knob label="CATALOG" x={168} y={30} radius={24} labelled stops={stops.map(catalogShort)}
               // While the secrets sheet is open the knob rests on +NEW; closing it turns the knob to
               // the DuckLake secret just saved, or back to where it was.
               value={sheet ? stops.length - 1 : at(stops, s.catalog)}
               readout={sheet ? "new secret…" : s.catalog} onChange={onCatalog} flag={isLocal(s.catalog) ? "--metadata-store" : "--ducklake-secret"} />
-            <button className="pb1-clear" style={{ left: 34, top: 268 }} onClick={() => void clear()} disabled={!ready} aria-label="Reset catalog" title="Reset catalog: parkbench reset" />
-            <div className="pb1-clear-lab" style={{ left: 72, top: 262 }}>
+            <button className="pb1-clear" style={{ left: 34, top: 228 }} onClick={() => void clear()} disabled={!ready} aria-label="Reset catalog" title="Reset catalog: parkbench reset" />
+            <div className="pb1-clear-lab" style={{ left: 72, top: 222 }}>
               <div className="pb1-lab hot">CLEAR = RESET</div>
               <div className="pb1-lab dim">drops &amp; recreates</div>
             </div>
             {stream ? (
-              <Knob key="tick" label="TEMPO · TICK" x={4} y={330} radius={44} labelled flag="--tick-interval" disabled={!on.tempo}
+              <Knob key="tick" label="TEMPO · TICK" x={4} y={290} radius={44} labelled flag="--tick-interval" disabled={!on.tempo}
                 stops={TEMPO_STREAM.map((v) => `${String(v).replace(/^0\./, ".")}s`)} value={at(TEMPO_STREAM, s.tickInterval)}
                 readout={`1 row / ${s.tickInterval}s`} onChange={(i) => set({ tickInterval: TEMPO_STREAM[i] })} />
             ) : (
-              <Knob key="batch" label="TEMPO · BATCH" x={4} y={330} radius={44} labelled flag="--batch-size" disabled={!on.tempo}
+              <Knob key="batch" label="TEMPO · BATCH" x={4} y={290} radius={44} labelled flag="--batch-size" disabled={!on.tempo}
                 stops={TEMPO_BATCH.map(short)} value={at(TEMPO_BATCH, s.batchSize)}
                 readout={`${s.batchSize.toLocaleString()} rows`} onChange={(i) => set({ batchSize: TEMPO_BATCH[i] })} />
             )}
-            <Knob label="FLUSH EVERY" x={190} y={334} radius={22} labelled flag="--flush-interval" disabled={!on.flush}
+            <Knob label="FLUSH EVERY" x={190} y={294} radius={22} labelled flag="--flush-interval" disabled={!on.flush}
               stops={FLUSH.map((v) => (v ? String(v) : "MAN"))} value={at(FLUSH, s.flush)}
               readout={s.flush === 0 ? "never" : stream ? `end, if > ${s.flush} rows` : `${s.flush} batches`} onChange={(i) => set({ flush: FLUSH[i] })} />
-            <Knob label="FINE · SPREAD" x={200} y={484} radius={14} flag="--batch-size-min/max" disabled={!on.fine}
+            <Knob label="FINE · SPREAD" x={200} y={444} radius={14} flag="--batch-size-min/max" disabled={!on.fine}
               stops={FINE.map(String)} value={at(FINE, s.fine)} readout={s.fine ? `±${s.fine}%` : "fixed"} onChange={(i) => set({ fine: FINE[i] })} />
           </div>
 
           {/* QUERY sits in the CATALOG box but outside the left section, which is held while a run
               plays: reading the catalog doesn't change the run, and that's when it's most useful. */}
           <div className="pb1-left-live">
-            <button className="pb1-query" style={{ left: 222, top: 258 }} onClick={() => void query()} disabled={!ready}
+            <button className="pb1-query" style={{ left: 222, top: 218 }} onClick={() => void query()} disabled={!ready}
               title="Open a DuckDB terminal on this catalog, attached as wh">QUERY</button>
-            <div className="pb1-lab dim pb1-query-lab" style={{ left: 222, top: 294 }}>duckdb ▸ wh</div>
+            <div className="pb1-lab dim pb1-query-lab" style={{ left: 222, top: 254 }}>duckdb ▸ wh</div>
           </div>
 
           <div className="pb1-channels" inert={locked}>

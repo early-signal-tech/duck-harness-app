@@ -13,6 +13,7 @@
 pub mod discovery;
 pub mod engines;
 pub mod files;
+pub mod pb1;
 pub mod presets;
 pub mod question_sets;
 pub mod settings;
@@ -44,6 +45,7 @@ pub fn run(engines: &[Engine], context: tauri::Context) {
             settings::api_key_clear,
             settings::traces_db_set,
             settings::traces_shell_open,
+            pb1::pb1_query_open,
             presets::preset_list,
             presets::preset_write,
             presets::preset_delete,

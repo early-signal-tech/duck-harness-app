@@ -279,3 +279,12 @@ DISTRIBUTION.md.)
 - **Limits:** Apple Silicon only, their own API key, no auto-update. DH-1 first; the rack
   would also need EH-1's grader and ES-1's bridge (private repos).
 - Waiting for: someone to share it with, and a decision on the public releases repo.
+
+## PB-1: STREAM forever
+MASTER LENGTH's ∞ runs forever in BATCH (`--num-batches 0`), but Parkbench's ticker has no
+forever: `--duration` must be a number of seconds. So PB-1 asks for a year
+(`FOREVER_SECONDS` in packages/pb1/src/settings.ts), which in practice means until STOP.
+
+- Better: `--duration 0` = run until interrupted, in Parkbench, then send that.
+- Waiting for: someone running a stream for longer than a year, or the next Parkbench PR
+  that touches the ticker.

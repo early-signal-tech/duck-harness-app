@@ -14,9 +14,14 @@ function message(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-export function SecretsSheet({ controls, onClose }: { controls: SecretsControls; onClose: () => void }) {
+export function SecretsSheet({ controls, onClose, adding = false }: {
+  controls: SecretsControls;
+  onClose: () => void;
+  /** Open on the form for a new secret, not the list. */
+  adding?: boolean;
+}) {
   const [secrets, setSecrets] = useState<SecretInfo[] | null>(null);
-  const [view, setView] = useState<View>({ kind: "list" });
+  const [view, setView] = useState<View>(adding ? { kind: "form", replacing: null } : { kind: "list" });
   const [confirmDrop, setConfirmDrop] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const [note, setNote] = useState<{ text: string; error?: boolean } | null>(null);

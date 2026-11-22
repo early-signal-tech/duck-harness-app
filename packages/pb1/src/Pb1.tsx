@@ -272,8 +272,11 @@ export function Pb1({ connection, embedded = false, onQuery }: {
             <div className="pb1-box" style={{ left: 8, top: 14, width: 312, height: 216 }}><span className="pb1-box-title hot">RUN MODE — CATALOG SELECT</span></div>
             <div className="pb1-box" style={{ left: 8, top: 244, width: 312, height: 76 }}><span className="pb1-box-title">CATALOG — CLEAR · QUERY</span></div>
             <Knob label="MODE" x={14} y={30} radius={26} labelled stops={MODES} value={at(MODES, s.mode)} onChange={(i) => set({ mode: MODES[i] })} />
-            <Knob label="CATALOG" x={168} y={30} radius={24} labelled stops={stops.map(catalogShort)} value={at(stops, s.catalog)}
-              readout={s.catalog} onChange={onCatalog} flag={isLocal(s.catalog) ? "--metadata-store" : "--ducklake-secret"} />
+            <Knob label="CATALOG" x={168} y={30} radius={24} labelled stops={stops.map(catalogShort)}
+              // While the secrets sheet is open the knob rests on +NEW; closing it turns the knob to
+              // the DuckLake secret just saved, or back to where it was.
+              value={sheet ? stops.length - 1 : at(stops, s.catalog)}
+              readout={sheet ? "new secret…" : s.catalog} onChange={onCatalog} flag={isLocal(s.catalog) ? "--metadata-store" : "--ducklake-secret"} />
             <button className="pb1-clear" style={{ left: 34, top: 268 }} onClick={() => void clear()} disabled={!ready} aria-label="Reset catalog" title="Reset catalog: parkbench reset" />
             <div className="pb1-clear-lab" style={{ left: 72, top: 262 }}>
               <div className="pb1-lab hot">CLEAR = RESET</div>

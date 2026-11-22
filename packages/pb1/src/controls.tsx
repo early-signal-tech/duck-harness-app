@@ -3,13 +3,19 @@
 // up and down (Shift for fine), scroll, take the arrow keys, and a printed stop can be clicked.
 
 import { valueFromDrag } from "@dh/ui-kit";
-import { useRef, type KeyboardEvent, type PointerEvent, type WheelEvent } from "react";
+import { useId, useRef, type KeyboardEvent, type PointerEvent, type WheelEvent } from "react";
 
 const A0 = -135;
 const A1 = 135;
 const angleOf = (i: number, n: number) => (n === 1 ? 0 : A0 + ((A1 - A0) * i) / (n - 1));
 
-const CAPS = { orange: ["#f3a24b", "#c06a12"], white: ["#f6f4ee", "#b9b5a8"], black: ["#2a2a28", "#0b0b0a"] } as const;
+// Each cap is moulded plastic lit from above: a light top, its colour, a darker bottom, and the
+// pointer printed on it.
+const CAPS = {
+  orange: { light: "#ffc58c", body: "#f2832b", dark: "#a94f0d", pointer: "#fff6ea", gloss: 0.32 },
+  white: { light: "#ffffff", body: "#ebe8df", dark: "#a39f92", pointer: "#1d1c19", gloss: 0.55 },
+  black: { light: "#4a4a47", body: "#1f1f1e", dark: "#050505", pointer: "#ff5a26", gloss: 0.1 },
+} as const;
 
 export interface KnobProps {
   label: string;
@@ -66,7 +72,8 @@ export function Knob({ label, stops, value, onChange, readout, radius = 20, cap 
   const pad = labelled ? 34 : 12;
   const size = (radius + pad) * 2;
   const c = size / 2;
-  const [face, ring] = CAPS[cap];
+  const paint = CAPS[cap];
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
   const rad = (i: number) => ((angleOf(i, stops.length) - 90) * Math.PI) / 180;
   return (
     <div className={`pb1-knob${disabled ? " off" : ""}`} style={{ left: x, top: y }}
@@ -90,12 +97,33 @@ export function Knob({ label, stops, value, onChange, readout, radius = 20, cap 
             </g>
           );
         })}
-        <circle cx={c} cy={c} r={radius + 2} fill="#0b0b0a" />
+        <defs>
+          <radialGradient id={`${uid}s`} cx="50%" cy="28%" r="75%">
+            <stop offset="0" stopColor="#3e3e3c" /><stop offset=".62" stopColor="#141413" /><stop offset="1" stopColor="#040404" />
+          </radialGradient>
+          <radialGradient id={`${uid}c`} cx="42%" cy="30%" r="78%">
+            <stop offset="0" stopColor={paint.light} /><stop offset=".55" stopColor={paint.body} /><stop offset="1" stopColor={paint.dark} />
+          </radialGradient>
+          <filter id={`${uid}b`} x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation={Math.max(1.5, radius * 0.12)} /></filter>
+        </defs>
+        {/* What the light does stays put; only the knurling and the pointer turn. */}
+        <ellipse cx={c} cy={c + radius * 0.22} rx={radius * 1.02} ry={radius * 0.98} fill="rgba(0,0,0,0.55)" filter={`url(#${uid}b)`} />
+        <circle cx={c} cy={c} r={radius + 1.5} fill="#050505" />
+        <circle cx={c} cy={c} r={radius} fill={`url(#${uid}s)`} />
         <g style={{ transform: `rotate(${angleOf(value, stops.length)}deg)`, transformOrigin: `${c}px ${c}px` }} className="pb1-turn">
-          <circle cx={c} cy={c} r={radius} fill={ring} />
-          <circle cx={c} cy={c} r={radius * 0.72} fill={face} />
-          <line x1={c} y1={c - radius * 0.2} x2={c} y2={c - radius + 2} stroke={cap === "white" ? "#222" : "#ff4d1f"} strokeWidth="3" strokeLinecap="round" />
+          {Array.from({ length: 40 }, (_, i) => {
+            const a = (i * 9 * Math.PI) / 180;
+            return <line key={i} x1={c + Math.sin(a) * radius * 0.8} y1={c - Math.cos(a) * radius * 0.8} x2={c + Math.sin(a) * (radius - 0.6)} y2={c - Math.cos(a) * (radius - 0.6)}
+              stroke={i % 2 ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.6)"} strokeWidth="1.1" />;
+          })}
         </g>
+        <circle cx={c} cy={c + 1} r={radius * 0.72} fill="rgba(0,0,0,0.45)" />
+        <circle cx={c} cy={c} r={radius * 0.72} fill={`url(#${uid}c)`} stroke="rgba(0,0,0,0.35)" strokeWidth="0.8" />
+        <g style={{ transform: `rotate(${angleOf(value, stops.length)}deg)`, transformOrigin: `${c}px ${c}px` }} className="pb1-turn">
+          <line x1={c} y1={c - radius * 0.18} x2={c} y2={c - radius * 0.66} stroke={paint.pointer} strokeWidth={Math.max(2.2, radius * 0.11)} strokeLinecap="round" />
+          <line x1={c} y1={c - radius * 0.7} x2={c} y2={c - radius + 1.5} stroke={paint.pointer} strokeWidth="2.2" strokeLinecap="round" />
+        </g>
+        <ellipse cx={c - radius * 0.2} cy={c - radius * 0.32} rx={radius * 0.34} ry={radius * 0.2} fill={`rgba(255,255,255,${paint.gloss})`} transform={`rotate(-25 ${c - radius * 0.2} ${c - radius * 0.32})`} />
       </svg>
       {readout !== undefined && <div className="pb1-val">{readout}</div>}
     </div>

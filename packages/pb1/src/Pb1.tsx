@@ -13,6 +13,7 @@ import type { Pb1Connection, Running } from "./engine";
 import { Pb1Error } from "./engine";
 import "./pb1.css";
 import { advance, barOf, padOf, PADS, startSequence, type Sequence } from "./sequencer";
+import { createPacer, type Pacer } from "./pacer";
 import {
   active, catalogStops, commandFor, commandLine, connectionFlags, CONVERSION, DEFAULT_SETTINGS, DISTRIBUTION, DRIFT,
   DUPLICATE, FINE, flagsFor, FLUSH, isLocal, LENGTH, LOCAL_DUCKDB, LOCAL_POSTGRES, MODES, NEW_SECRET, PARTITION, PRESCALE,
@@ -117,10 +118,14 @@ export function Pb1({ connection, embedded = false, onQuery }: {
 
   // ── playing ──────────────────────────────────────────────────────────────────
   const stopRef = useRef<Running | null>(null);
+  // A fast BATCH run may still be playing back on the pads after Parkbench has finished.
+  const pacerRef = useRef<Pacer | null>(null);
   const play = async (tap: boolean) => {
     if (!engine || !ready) return;
     if (phase.kind === "running") {
-      await phase.running.stop();
+      // STOP skips the playback to the end; a run still writing is stopped too.
+      pacerRef.current?.skip();
+      if (stopRef.current) await phase.running.stop();
       return;
     }
     if (phase.kind === "busy") return;
@@ -139,20 +144,28 @@ export function Pb1({ connection, embedded = false, onQuery }: {
     }
     setSeq(startSequence(s.prescale));
     setNote(null);
-    const run = engine.run(flagsFor(s, { tap }), (event) => setSeq((prev) => (prev ? advance(prev, event) : prev)));
+    // Only BATCH is paced: STREAM ticks already come at TEMPO, and TAP is a single batch.
+    const pacer = createPacer((event) => setSeq((prev) => (prev ? advance(prev, event) : prev)),
+      { prescale: s.prescale, stepMs: s.mode === "BATCH" && !tap ? undefined : 0 });
+    pacerRef.current = pacer;
+    const run = engine.run(flagsFor(s, { tap }), pacer.push);
     stopRef.current = run;
     setPhase({ kind: "running", running: run, tap });
     try {
       await run.done;
+      stopRef.current = null;
+      await pacer.drained();
     } catch (e) {
+      pacer.skip();
       setNote(`ERROR — ${message(e)}`);
     } finally {
       stopRef.current = null;
+      pacerRef.current = null;
       setPhase({ kind: "idle" });
     }
   };
   // Closing the panel stops what it started.
-  useEffect(() => () => { void stopRef.current?.stop(); }, []);
+  useEffect(() => () => { pacerRef.current?.skip(); void stopRef.current?.stop(); }, []);
 
   const clear = async () => {
     if (!engine || !ready || phase.kind !== "idle") return;
@@ -186,7 +199,10 @@ export function Pb1({ connection, embedded = false, onQuery }: {
   };
 
   const power = () => {
-    if (powered && phase.kind === "running") void phase.running.stop();
+    if (powered && phase.kind === "running") {
+      pacerRef.current?.skip();
+      if (stopRef.current) void phase.running.stop();
+    }
     setPowered(!powered);
     setNote(powered ? "Engine off" : null);
   };

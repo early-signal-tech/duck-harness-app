@@ -1,4 +1,6 @@
 export { Pb1 } from "./Pb1";
+export { Pb1Card } from "./Pb1Card";
+export type { Pb1Summary } from "./summary";
 export type { QueryCatalog } from "./Pb1";
 export type { Pb1Connection, Pb1Engine, Running } from "./engine";
 export { Pb1Error } from "./engine";

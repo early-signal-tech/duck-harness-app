@@ -255,3 +255,18 @@ at often.
   only the UI is gone. A broken engines.json still shows a warning in Settings.
 - Waiting for: a real need to run an engine by hand, or the CLI-first distribution
   (DISTRIBUTION.md), where the commands matter more.
+
+## Follow-up questions inside DH-1
+Asking a follow-up to an answer inside DH-1's take panel: a ↳ FOLLOW UP button puts the
+transport in follow-up mode, and PLAY adds a turn to the same take. Drawn on the design
+canvas, board 21.
+
+- **Decided against** (2026-11-21). DH-1 is the experimentation tool: testing configs
+  and questions and running eval setlists. A take that turns into a conversation blurs
+  that, and A/B and SETLIST make no sense halfway through one.
+- **Where follow-ups go instead:** CH-1, a chat instrument with its own chain that plays
+  a DH-1 preset (board 22). It's an instrument, not a utility: it makes runs from what
+  you type, so it can't sit in DH-1's chain.
+- The engine already supports follow-ups (agent PR #25): a run request with
+  `parent_run_id` gets the earlier turns as context, up to 3 questions per conversation.
+- Waiting for: nothing. Come back to this only if CH-1 doesn't work out.

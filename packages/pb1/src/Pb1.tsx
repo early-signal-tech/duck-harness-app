@@ -3,17 +3,20 @@
 // (settings.ts); START plays, and the 16 pads step through the run, one step per batch
 // or tick (sequencer.ts).
 //
-// The panel is one fixed size, scaled to fit the window, like a piece of hardware. While a
+// The panel is one fixed size, scaled to fit the window, like a piece of hardware. In the rack,
+// `embedded` scales it to the rack's panel instead, and `onSummary` tells the rack what PB-1's
+// card shows (Pb1Card). While a
 // run plays its controls are held where they were, because they're the run's flags.
 
 import { SecretsSheet, type SecretInfo } from "@dh/ui-kit";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Knob, Plate, Slide } from "./controls";
 import type { Pb1Connection, Running } from "./engine";
 import { Pb1Error } from "./engine";
 import "./pb1.css";
 import { advance, barOf, padOf, PADS, startSequence, type Sequence } from "./sequencer";
 import { createPacer, type Pacer } from "./pacer";
+import { summarize, type Pb1Summary } from "./summary";
 import {
   active, catalogStops, commandFor, commandLine, connectionFlags, CONVERSION, DEFAULT_SETTINGS, DISTRIBUTION, DRIFT,
   DUPLICATE, FINE, flagsFor, FLUSH, isLocal, LENGTH, LOCAL_DUCKDB, LOCAL_POSTGRES, MODES, NEW_SECRET, PARTITION, PRESCALE,
@@ -44,8 +47,10 @@ type Phase =
 /** Which catalog QUERY opens a terminal on: the host does the opening. */
 export type QueryCatalog = "local_duckdb" | "local_postgres" | "secret";
 
-export function Pb1({ connection, embedded = false, onQuery }: {
+export function Pb1({ connection, embedded = false, onQuery, onSummary }: {
   connection: Pb1Connection;
+  /** What the rack's card shows, each time it changes. */
+  onSummary?: (summary: Pb1Summary) => void;
   /** Open a DuckDB terminal on a catalog, attached as wh. Without it (a plain browser) QUERY says
    *  it only works in the app. */
   onQuery?: (catalog: QueryCatalog, secret?: string) => Promise<void>;
@@ -235,6 +240,12 @@ export function Pb1({ connection, embedded = false, onQuery }: {
     return `READY — ${s.mode.toLowerCase()} · ${where}`;
   })();
   const command = commandLine(commandFor(s.mode), flagsFor(s));
+
+  const summary = useMemo(() => summarize({
+    settings: s, status, error: connection.error, powered, seq, statusLine, table: tableName(s), blankPads: BLANK_PADS,
+    phase: phase.kind === "busy" ? phase.what : phase.kind,
+  }), [s, status, connection.error, powered, seq, statusLine, phase]);
+  useEffect(() => { onSummary?.(summary); }, [onSummary, summary]);
 
   // ── fit to the window ────────────────────────────────────────────────────────
   const stage = useRef<HTMLDivElement>(null);

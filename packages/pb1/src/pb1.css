@@ -132,3 +132,126 @@
 .pb1-query:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 -2px 0 #b9ad88, 0 0 0 2px #111; }
 .pb1-query:disabled { cursor: default; opacity: 0.55; }
 .pb1-query-lab { position: absolute; width: 78px; text-align: center; }
+
+/* ── Materials ────────────────────────────────────────────────────────────────────────────
+   As on ES-1: light comes from above, so highlights sit on top edges and shadows fall down,
+   and shading that belongs to the light never turns with a control. Drawn with CSS and SVG
+   only. Layout and behaviour are the same as above; this only changes how things look. */
+.pb1 {
+  --pb1-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .2 0 0 0 -.06'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --pb1-screw: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cdefs%3E%3CradialGradient id='g' cx='35%25' cy='30%25' r='75%25'%3E%3Cstop offset='0' stop-color='%23fbfbf9'/%3E%3Cstop offset='.6' stop-color='%23a9a9a6'/%3E%3Cstop offset='1' stop-color='%235f5f5c'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='5' cy='5.5' r='4.4' fill='rgba(0,0,0,.4)'/%3E%3Ccircle cx='5' cy='5' r='4.2' fill='url(%23g)' stroke='%234a4a48' stroke-width='.4'/%3E%3Cpath d='M2.6 6.3 L7.4 3.7' stroke='%23353533' stroke-width='1' stroke-linecap='round'/%3E%3Cpath d='M2.8 6.9 L7.6 4.3' stroke='rgba(255,255,255,.55)' stroke-width='.4'/%3E%3C/svg%3E");
+  background-color: #1b1b1a;
+  background-image: var(--pb1-noise), linear-gradient(180deg, #262625, #121211);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 0 0 10px #111110, inset 0 0 0 11px rgba(255, 255, 255, 0.05), 0 24px 60px rgba(0, 0, 0, 0.7);
+}
+.pb1-stage { background: radial-gradient(ellipse at 50% 38%, #1c1c1b, #070707 75%); }
+
+/* The face: a painted plate, screwed to the chassis at its corners. */
+.pb1-face {
+  background-color: #2b2b29;
+  background-image: var(--pb1-screw), var(--pb1-screw), var(--pb1-screw), var(--pb1-screw), var(--pb1-noise),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 12%, rgba(0, 0, 0, 0) 80%, rgba(0, 0, 0, 0.18));
+  background-size: 11px 11px, 11px 11px, 11px 11px, 11px 11px, 180px 180px, 100% 100%;
+  background-position: left 8px top 8px, right 8px top 8px, left 8px bottom 8px, right 8px bottom 8px, 0 0, 0 0;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat, no-repeat;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1.5px 0 rgba(0, 0, 0, 0.5), 0 2px 0 rgba(0, 0, 0, 0.6), 0 6px 14px rgba(0, 0, 0, 0.5);
+}
+.pb1-brand { text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); }
+.pb1-brand span { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(0, 0, 0, 0.6); }
+.pb1-title .t { text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55); }
+.pb1-rule, .pb1-title .u { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45); }
+
+/* The power switch: a rocker in a bezel. */
+.pb1-power button {
+  background: linear-gradient(180deg, #3a3a38 0, #1a1a19 48%, #0b0b0a 52%, #161615);
+  box-shadow: 0 0 0 2px #050505, 0 0 0 3px #4a4a47, inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 3px 6px rgba(0, 0, 0, 0.6);
+}
+.pb1-power button[aria-pressed="false"] { background: linear-gradient(180deg, #121211 0, #1d1d1c 48%, #333331 52%, #232322); }
+
+/* Name plates: printed cream enamel, a little raised. */
+.pb1-plate {
+  background-image: var(--pb1-noise), linear-gradient(180deg, #faf6dc, #ece5bd);
+  box-shadow: inset 0 1px 0 #fffef2, inset 0 -1px 0 rgba(0, 0, 0, 0.15), 0 1.5px 0 rgba(0, 0, 0, 0.55), 0 3px 6px rgba(0, 0, 0, 0.35);
+}
+
+/* Value windows and the step counter: small dark glass. */
+.pb1-val, .pb1-stepno, .pb1-bar .tag {
+  background: linear-gradient(180deg, #050505, #121211);
+  box-shadow: inset 0 1.5px 3px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.pb1-val { text-shadow: 0 0 5px rgba(242, 98, 46, 0.55); }
+
+/* The display: dark glass set into the face, the readout glowing behind it. */
+.pb1-display {
+  border: 1px solid #000;
+  background: radial-gradient(ellipse at 30% -20%, rgba(255, 90, 60, 0.08), rgba(255, 90, 60, 0) 60%), linear-gradient(180deg, #030303, #0d0c0b);
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.95), inset 0 0 0 1px rgba(255, 255, 255, 0.03), 0 0 0 3px #161615, 0 0 0 4px rgba(255, 255, 255, 0.08), 0 1px 0 4px rgba(0, 0, 0, 0.5);
+}
+.pb1-display::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(160deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0) 36%); }
+
+/* Slide switches: a recessed slot and a ridged metal thumb. */
+.pb1-slot { background: linear-gradient(180deg, #050505, #1f1f1e); box-shadow: inset 0 1.5px 3px rgba(0, 0, 0, 0.95), 0 0 0 1.5px #3c3c3a, 0 1px 0 1.5px rgba(255, 255, 255, 0.1); }
+.pb1-thumb {
+  background: repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0 1px, rgba(0, 0, 0, 0) 1px 3px), linear-gradient(180deg, #f6f6f4, #b0b0ad);
+  box-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.8), inset 0 1px 0 #fff;
+}
+.pb1-slide.h .pb1-thumb { background: repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.2) 0 1px, rgba(0, 0, 0, 0) 1px 3px), linear-gradient(180deg, #f6f6f4, #b0b0ad); }
+
+/* Lamps: a lens with a glint, in a dark bezel. */
+.pb1 .pb1-led[class] {
+  box-shadow: 0 0 0 1.5px #0b0b0a, 0 0 0 2.5px #3a3a38;
+  background-image: radial-gradient(circle at 36% 30%, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.05) 42%, rgba(0, 0, 0, 0.3));
+}
+.pb1 .pb1-led.on[class] { box-shadow: 0 0 0 1.5px #0b0b0a, 0 0 0 2.5px #3a3a38, 0 0 12px 4px rgba(255, 59, 31, 0.75); }
+.pb1 .pb1-led.green.on[class] { box-shadow: 0 0 0 1.5px #0b0b0a, 0 0 0 2.5px #3a3a38, 0 0 12px 4px rgba(75, 224, 111, 0.6); }
+
+/* The bottom strip: a lighter painted plate, screwed on. */
+.pb1-strip {
+  background-color: var(--pb1-strip);
+  background-image: var(--pb1-screw), var(--pb1-screw), var(--pb1-screw), var(--pb1-screw), var(--pb1-noise),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 14%, rgba(0, 0, 0, 0) 75%, rgba(0, 0, 0, 0.14));
+  background-size: 10px 10px, 10px 10px, 10px 10px, 10px 10px, 180px 180px, 100% 100%;
+  background-position: left 6px top 6px, right 6px top 6px, left 6px bottom 6px, right 6px bottom 6px, 0 0, 0 0;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat, no-repeat;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 -1.5px 0 rgba(0, 0, 0, 0.3), 0 2px 0 rgba(0, 0, 0, 0.7), 0 7px 16px rgba(0, 0, 0, 0.55);
+}
+.pb1-scale { background: linear-gradient(180deg, #5a5750, #7d7970); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.35); }
+
+/* Pads: thick moulded keys, a gloss on top, sinking a little when pressed. */
+.pb1-pad {
+  overflow: visible;
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.55), inset 0 -9px 0 rgba(0, 0, 0, 0.16), inset 0 -10px 6px -4px rgba(0, 0, 0, 0.12),
+    0 4px 0 #3b3832, 0 5px 0 #23211d, 0 8px 10px rgba(0, 0, 0, 0.45);
+  transition: transform 60ms, box-shadow 60ms;
+}
+.pb1-pad.red { background: linear-gradient(180deg, #f46a50, #e8452c 45%, #c93219); }
+.pb1-pad.orange { background: linear-gradient(180deg, #f8a65a, #f08a2c 45%, #d8721a); }
+.pb1-pad.yellow { background: linear-gradient(180deg, #f8e070, #f2d03a 45%, #d9b622); }
+.pb1-pad.white { background: linear-gradient(180deg, #ffffff, #efeee8 45%, #d6d4cb); }
+.pb1-pad::before { content: ""; position: absolute; left: 3px; right: 3px; top: 3px; height: 26px; border-radius: 2px 2px 8px 8px; pointer-events: none; background: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0)); }
+.pb1-pad:active { transform: translateY(2px); box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.45), inset 0 -7px 0 rgba(0, 0, 0, 0.16), 0 2px 0 #3b3832, 0 3px 0 #23211d, 0 4px 6px rgba(0, 0, 0, 0.45); }
+.pb1-pad .mark { box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.35); }
+.pb1-pad.flush { outline-color: #fffef5; box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.55), inset 0 -9px 0 rgba(0, 0, 0, 0.16), 0 4px 0 #3b3832, 0 5px 0 #23211d, 0 8px 10px rgba(0, 0, 0, 0.45), 0 0 10px 2px rgba(255, 255, 255, 0.55); }
+.pb1-pad .n { text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }
+
+/* START/STOP, TAP and QUERY: cream keycaps with a dished top, sinking when pressed. */
+.pb1-big, .pb1-query {
+  background: radial-gradient(ellipse at 50% 8%, #fffaea, rgba(255, 250, 234, 0) 60%), linear-gradient(180deg, #f6f0dc, #dcd2b1 70%, #cdc29d);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+.pb1-big {
+  box-shadow: inset 0 1px 0 #fff, inset 0 -7px 0 #b9ad88, inset 0 -8px 6px -2px rgba(0, 0, 0, 0.12), 0 0 0 4px #c4b688, 0 0 0 5px #6d6550, 0 4px 0 5px #4c4638, 0 10px 14px 4px rgba(0, 0, 0, 0.4);
+}
+.pb1-big:active:not(:disabled), .pb1-big.on {
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.2), inset 0 -3px 0 #b9ad88, 0 0 0 4px #c4b688, 0 0 0 5px #6d6550, 0 1px 0 5px #4c4638, 0 4px 8px 4px rgba(0, 0, 0, 0.35);
+}
+.pb1-query { box-shadow: inset 0 1px 0 #fff, inset 0 -4px 0 #b9ad88, 0 0 0 2px #111, 0 3px 0 2px #050505, 0 5px 8px rgba(0, 0, 0, 0.5); }
+.pb1-query:active:not(:disabled) { box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.2), inset 0 -2px 0 #b9ad88, 0 0 0 2px #111, 0 1px 0 2px #050505; }
+
+/* CLEAR: a red domed button. */
+.pb1-clear {
+  background: radial-gradient(circle at 38% 30%, #ff9b84, #e2392a 45%, #9c1a10);
+  box-shadow: 0 0 0 2px #0b0b0a, 0 0 0 3.5px #3a3a38, 0 3px 4px 2px rgba(0, 0, 0, 0.55), inset 0 -3px 4px rgba(90, 0, 0, 0.45);
+}
+.pb1-clear:active:not(:disabled) { transform: translateY(1px); box-shadow: 0 0 0 2px #0b0b0a, 0 0 0 3.5px #3a3a38, 0 1px 2px 2px rgba(0, 0, 0, 0.55), inset 0 2px 4px rgba(90, 0, 0, 0.5); }
+@media (prefers-reduced-motion: reduce) { .pb1-pad, .pb1-turn { transition: none; } }

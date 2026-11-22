@@ -19,6 +19,9 @@ export interface Pb1Engine {
   /** `parkbench reset`. The host asks the person first; it rejects with code "cancelled" if they
    *  say no, so the panel doesn't ask again. */
   reset(flags: Flags): Promise<string>;
+  /** Get the catalog ready for QUERY's DuckDB terminal: for the local DuckDB catalog, start the
+   *  Quack server that lets the terminal read it while a run writes. */
+  startQuery(): Promise<void>;
   /** `parkbench run`, with an event for each line it writes. */
   run(flags: Flags, onEvent: (event: RunEvent) => void): Running;
   /** DuckDB's persistent secrets. A DuckLake secret can be the catalog. Values go to the

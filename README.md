@@ -200,6 +200,13 @@ Parquet (white outline). PRE-SCALE sets how many batches or ticks one step cover
   as `input`, and from there to Parkbench on stdin.
 - **The host confirms** a reset and saving or deleting a secret in a native dialog before
   the request reaches the engine (`writes` in crates/dh-host); a run or setup isn't asked.
+- **QUERY** opens Terminal with the duckdb CLI on the catalog the CATALOG knob points at,
+  attached as `wh` (`pb1_query_open` in crates/dh-host, pb1.rs), in PB-1's data folder. The
+  local DuckDB catalog runs through the engine's Quack server (cli-bridge's pb1-serve), so the
+  terminal can read it while a run writes; QUERY asks the engine to start that server first.
+  The local Postgres catalog and DuckLake secrets are attached directly. It needs the `duckdb`
+  CLI (2.0) installed. Through Quack, local runs are about 20–25% slower than writing the file
+  directly (parkbench's README has the numbers).
 - **`fakeEngine.ts`** acts like Parkbench from the same flags, without a database. The app
   uses it when it's opened in a plain browser (the headless checks), where there's no host.
 

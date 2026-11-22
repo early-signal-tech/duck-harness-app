@@ -346,10 +346,14 @@ fn pb1_confirmation(kind: &str, request: &serde_json::Value) -> Confirmation {
                 Some(secret) => format!(
                     "Drops events, events_rich and events_rejected in {secret}, then runs setup again. Parquet files already written stay."
                 ),
-                None => format!(
-                    "Deletes the local {} catalog and its data folder, then runs setup again.",
-                    if arg("metadata_store") == Some("duckdb") { "DuckDB" } else { "Postgres" }
-                ),
+                None => match arg("metadata_store") {
+                    // Through the engine's Quack server, which holds the file: only the tables go.
+                    Some("quack") => "Drops events, events_rich and events_rejected in the local DuckDB catalog, then runs setup again. Parquet files already written stay.".into(),
+                    store => format!(
+                        "Deletes the local {} catalog and its data folder, then runs setup again.",
+                        if store == Some("duckdb") { "DuckDB" } else { "Postgres" }
+                    ),
+                },
             },
             button: "Reset".into(),
         },
@@ -481,6 +485,8 @@ mod tests {
         let local = confirmation(Engine::Pb1, r#"{"id":"r","type":"reset","args":{"metadata_store":"duckdb"}}"#).unwrap();
         assert_eq!(local.title, "Reset this catalog?");
         assert!(local.message.starts_with("Deletes the local DuckDB catalog"));
+        let quack = confirmation(Engine::Pb1, r#"{"id":"r","type":"reset","args":{"metadata_store":"quack"}}"#).unwrap();
+        assert!(quack.message.starts_with("Drops events, events_rich and events_rejected in the local DuckDB catalog"));
         let shared = confirmation(Engine::Pb1, r#"{"id":"r","type":"reset","args":{"ducklake_secret":"ducklake_prod"}}"#).unwrap();
         assert!(shared.message.contains("in ducklake_prod") && shared.message.contains("Parquet files already written stay"));
 

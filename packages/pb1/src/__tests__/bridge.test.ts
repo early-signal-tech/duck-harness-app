@@ -38,7 +38,7 @@ const done = { event: "done", reason: "complete", steps: 2, rows_total: 20, elap
 describe("argsFor", () => {
   it("turns Parkbench's flags into the bridge's arguments, every value a string", () => {
     expect(argsFor("run", runFlags({ ...DEFAULT_SETTINGS, migrate: true, schema: "rich_ml", mlLabels: true, conversion: 0.25 }))).toMatchObject({
-      metadata_store: "duckdb", migrate: "true", run_mode: "batch", mode: "rich_ml", ml_labels: "true", conversion_rate: "0.25", batch_size: "100000",
+      metadata_store: "quack", migrate: "true", run_mode: "batch", mode: "rich_ml", ml_labels: "true", conversion_rate: "0.25", batch_size: "100000",
     });
   });
 
@@ -87,7 +87,7 @@ describe("the bridge", () => {
     const events: RunEvent[] = [];
     const run = bridge.run(runFlags(DEFAULT_SETTINGS), (e) => events.push(e));
     const sent = await transport.last();
-    expect(sent).toMatchObject({ type: "run", args: { run_mode: "batch", metadata_store: "duckdb" } });
+    expect(sent).toMatchObject({ type: "run", args: { run_mode: "batch", metadata_store: "quack" } });
     const id = sent.id;
     transport.reply({ id, type: "accepted" });
     transport.reply({ id, type: "event", event: "line", line: { event: "batch", batch: 1 } });
@@ -109,9 +109,9 @@ describe("the bridge", () => {
 
   it("confirms a reset with the host, and a cancel sends nothing", async () => {
     transport.answer = "cancel";
-    await expect(bridge.reset({ "metadata-store": "duckdb" })).rejects.toMatchObject({ code: "cancelled" });
+    await expect(bridge.reset({ "metadata-store": "quack" })).rejects.toMatchObject({ code: "cancelled" });
     expect(transport.sent).toEqual([]);
-    expect(transport.confirmed[0]).toMatchObject({ type: "reset", args: { metadata_store: "duckdb" } });
+    expect(transport.confirmed[0]).toMatchObject({ type: "reset", args: { metadata_store: "quack" } });
   });
 
   it("sends a secret's values once, as input, through the host's confirmation, then lists", async () => {
@@ -125,6 +125,22 @@ describe("the bridge", () => {
     expect(list).toMatchObject({ type: "secrets_list" });
     transport.reply({ id: list.id, type: "result", result: { ok: true, rows: [{ name: "s3_main", type: "s3", provider: "config", scope: ["s3://b"] }] } });
     await expect(created).resolves.toEqual([{ name: "s3_main", type: "s3", provider: "config", scope: ["s3://b"] }]);
+  });
+
+  it("readies QUERY by starting the local catalog's Quack server", async () => {
+    const ready = bridge.startQuery();
+    const sent = await transport.last();
+    expect(sent).toMatchObject({ type: "quack_start", args: {} });
+    expect(transport.confirmed).toEqual([]); // reading needs no confirmation
+    transport.reply({ id: sent.id, type: "result", result: { ok: true, init: "/x/query.sql" } });
+    await expect(ready).resolves.toBeUndefined();
+  });
+
+  it("says why when the Quack server can't start", async () => {
+    const ready = bridge.startQuery();
+    const sent = await transport.last();
+    transport.reply({ id: sent.id, type: "result", result: { ok: false, error: "parkbench quack-serve stopped (exit 1) before it was serving; is port 9495 in use?", code: "quack_unavailable" } });
+    await expect(ready).rejects.toMatchObject({ code: "quack_unavailable" });
   });
 
   it("fails what's waiting when the engine exits", async () => {

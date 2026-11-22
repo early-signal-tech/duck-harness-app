@@ -113,6 +113,10 @@ export class Bridge implements Pb1Engine {
     return `Reset ${where(flags)}: tables recreated`;
   }
 
+  async startQuery(): Promise<void> {
+    await this.once("quack_start", {});
+  }
+
   run(flags: Flags, onEvent: (event: RunEvent) => void): Running {
     const id = nextId("run");
     let done: DoneEvent | null = null;
@@ -212,5 +216,5 @@ export class Bridge implements Pb1Engine {
 /** Where the flags point, for the display. */
 function where(flags: Flags): string {
   if (typeof flags["ducklake-secret"] === "string") return flags["ducklake-secret"];
-  return flags["metadata-store"] === "duckdb" ? "local duckdb" : "local postgres";
+  return flags["metadata-store"] === "quack" || flags["metadata-store"] === "duckdb" ? "local duckdb" : "local postgres";
 }

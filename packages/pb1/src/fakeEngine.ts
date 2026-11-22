@@ -32,14 +32,16 @@ const str = (flags: Flags, flag: string, fallback: string) => (typeof flags[flag
 /** Where the flags point, for messages: a secret's name, or which local catalog. */
 export function catalogLabel(flags: Flags): string {
   if (typeof flags["ducklake-secret"] === "string") return flags["ducklake-secret"];
-  return flags["metadata-store"] === "duckdb" ? "local duckdb" : "local postgres";
+  return flags["metadata-store"] === "quack" || flags["metadata-store"] === "duckdb" ? "local duckdb" : "local postgres";
 }
 
 /** What the reset dialog says. A secret's catalog is shared, so only its tables go. */
 export function resetMessage(flags: Flags): string {
-  return typeof flags["ducklake-secret"] === "string"
-    ? `Drops events, events_rich and events_rejected in ${flags["ducklake-secret"]}, then runs setup again. Parquet files already written stay.`
-    : `Deletes the ${catalogLabel(flags)} catalog and its data folder, then runs setup again.`;
+  if (typeof flags["ducklake-secret"] === "string" || flags["metadata-store"] === "quack") {
+    const where = typeof flags["ducklake-secret"] === "string" ? flags["ducklake-secret"] : "the local DuckDB catalog";
+    return `Drops events, events_rich and events_rejected in ${where}, then runs setup again. Parquet files already written stay.`;
+  }
+  return `Deletes the ${catalogLabel(flags)} catalog and its data folder, then runs setup again.`;
 }
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -55,6 +57,8 @@ export function fakeEngine(options: FakeOptions): Pb1Engine {
       await wait(tickScale ? 700 : 0);
       return `Setup complete: events, events_rich, events_rejected in ${catalogLabel(flags)}`;
     },
+
+    async startQuery() {},
 
     async reset(flags) {
       if (!(await options.confirm("Reset this catalog?", resetMessage(flags)))) throw new Pb1Error("Not reset: cancelled.", "cancelled");

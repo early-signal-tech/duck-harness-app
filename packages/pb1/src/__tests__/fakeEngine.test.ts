@@ -39,7 +39,8 @@ describe("the fake engine", () => {
     await expect(quick(false).reset({ "metadata-store": "duckdb" })).rejects.toMatchObject({ code: "cancelled" });
     await expect(quick(true).reset({ "ducklake-secret": "ducklake_prod" })).resolves.toContain("ducklake_prod");
     expect(resetMessage({ "ducklake-secret": "ducklake_prod" })).toContain("Parquet files already written stay");
-    expect(resetMessage({ "metadata-store": "duckdb" })).toContain("local duckdb catalog and its data folder");
+    expect(resetMessage({ "metadata-store": "postgres" })).toContain("local postgres catalog and its data folder");
+    expect(resetMessage({ "metadata-store": "quack" })).toContain("Drops events, events_rich and events_rejected in the local DuckDB catalog");
   });
 
   it("keeps a new secret's name and type, never its values", async () => {

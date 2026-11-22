@@ -27,10 +27,13 @@ packages/
             grader's protocol (eh1-grader)
   es1/      the ES-1 device: a synth-style panel over Estuary's flowctl (BUILD, connected
             up to TEST, and MAP), and the client for the bridge's protocol (cli-bridge)
+  pb1/      the PB-1 device: a drum-machine-style panel over Parkbench, the DuckLake
+            benchmark tool, and the client for the bridge's protocol (cli-bridge)
 apps/
   dh1/      DH-1 as a standalone app: a Tauri window (src-tauri/) around the device
   eh1/      EH-1 as a standalone app (npm run eh1), starting eh1-grader's eh1-serve
   es1/      ES-1 as a standalone app (npm run es1), starting cli-bridge's es1-serve
+  pb1/      PB-1 as a standalone app (npm run pb1), starting cli-bridge's pb1-serve
   rack/     the Rack (npm run rack): one window running every engine, with DH-1,
             EH-1, and ES-1 as devices in a chain
 crates/
@@ -128,6 +131,11 @@ git clone https://github.com/early-signal-tech/eh1-grader
 git clone https://github.com/early-signal-tech/cli-bridge
 ```
 
+PB-1 runs [Parkbench](https://github.com/early-signal-tech/parkbench) through the same
+cli-bridge checkout, so it needs `parkbench` on your PATH (or in /usr/local/bin, or
+`PB1_PARKBENCH` set to it). Its local catalogs live in
+`~/Library/Application Support/Duck Harness/Data/pb1`.
+
 ES-1 also needs [flowctl](https://docs.estuary.dev/guides/get-started-with-flowctl/) on
 your PATH, signed in to your own Estuary account. Instead of a .env, the API key can be saved in
 Settings (the Keychain).
@@ -140,6 +148,7 @@ npm run dh1        # DH-1 in development (Tauri + Vite)
 npm run dh1:app    # DH-1 built as a Mac app, then opened (needed for dictation)
 npm run eh1        # EH-1
 npm run es1        # ES-1
+npm run pb1        # PB-1
 npm run rack       # the Rack: DH-1, EH-1, and ES-1 in one window
 npm test           # unit tests for every package
 npm run typecheck  # type-check every package and app
@@ -147,7 +156,7 @@ npm run typecheck  # type-check every package and app
 
 The host finds each engine (crates/dh-host, `discovery.rs`) in this order:
 
-1. **A dev override:** `DH1_AGENT_DIR` (the agent), `EH1_GRADER_DIR` (the grader) or `ES1_BRIDGE_DIR` (the bridge)
+1. **A dev override:** `DH1_AGENT_DIR` (the agent), `EH1_GRADER_DIR` (the grader), or `ES1_BRIDGE_DIR` / `PB1_BRIDGE_DIR` (the bridge)
    names a checkout to run with `uv run --project`.
 2. **The discovery file**, `~/Library/Application Support/Duck Harness/engines.json`,
    where an installed CLI will record its engines. You can write it by hand:
@@ -166,6 +175,40 @@ Every engine gets the same traces file as an absolute `--traces-db`: the one cho
 Settings, else `agent_traces.duckdb` in the agent checkout (the CLI's default too).
 If `uv` isn't on your PATH, set `DH1_UV` to
 its full path. Engine logs show up in the terminal, prefixed `[agent]` or `[grader]`.
+
+## PB-1
+
+`packages/pb1` is a panel for [Parkbench](https://github.com/early-signal-tech/parkbench),
+the DuckLake insert benchmark, laid out like a drum machine. The knobs and switches set
+Parkbench's flags, START plays the run, and the 16 pads step through it: one step per
+inserted batch (BATCH) or tick (STREAM), as many steps as the run has. The pads wrap from 16
+back to 1 and the step count keeps going, shown as BAR and STEP. A pad's mark says what
+happened in its step: inserted, schema drift (red), duplicate (dashed), or flushed to
+Parquet (white outline). PRE-SCALE sets how many batches or ticks one step covers.
+
+- **`settings.ts`** holds every control's stops, which controls apply in each MODE (the
+  rest are dimmed), and the Parkbench flags they add up to. Only the flags of controls
+  that apply are sent, so Parkbench never gets a combination it rejects.
+- **`sequencer.ts`** turns Parkbench's events (`run --output jsonl`; the types are in
+  `events.ts`) into the pads and the display.
+- **`engine.ts`** is what the panel needs from an engine: `setup`, `reset`, `run` (events,
+  and a `stop` that interrupts like Ctrl-C) and DuckDB's secrets. A DuckLake secret can be
+  the CATALOG, and "+ new secret" opens the kit's secrets sheet.
+- **`bridge.ts`** is that engine over cli-bridge's `pb1-serve` (its Parkbench table). It
+  turns the flags into the table's arguments and refuses one the table doesn't take, so a
+  test can check every setting the panel reaches. A secret's values go to the engine once,
+  as `input`, and from there to Parkbench on stdin.
+- **The host confirms** a reset and saving or deleting a secret in a native dialog before
+  the request reaches the engine (`writes` in crates/dh-host); a run or setup isn't asked.
+- **QUERY** opens Terminal with the duckdb CLI on the catalog the CATALOG knob points at,
+  attached as `wh` (`pb1_query_open` in crates/dh-host, pb1.rs), in PB-1's data folder. The
+  local DuckDB catalog runs through the engine's Quack server (cli-bridge's pb1-serve), so the
+  terminal can read it while a run writes; QUERY asks the engine to start that server first.
+  The local Postgres catalog and DuckLake secrets are attached directly. It needs the `duckdb`
+  CLI (2.0) installed. Through Quack, local runs are about 20–25% slower than writing the file
+  directly (parkbench's README has the numbers).
+- **`fakeEngine.ts`** acts like Parkbench from the same flags, without a database. The app
+  uses it when it's opened in a plain browser (the headless checks), where there's no host.
 
 ## The Rack
 

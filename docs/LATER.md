@@ -270,3 +270,36 @@ canvas, board 21.
 - The engine already supports follow-ups (agent PR #25): a run request with
   `parent_run_id` gets the earlier turns as context, up to 3 questions per conversation.
 - Waiting for: nothing. Come back to this only if CH-1 doesn't work out.
+
+## Sharing DH-1: a one-line install
+Give someone DH-1 without a checkout: `curl -fsSL https://…/install.sh | sh`.
+(Talked through 2026-11-15; separate from, and smaller than, the full plan in
+DISTRIBUTION.md.)
+
+- **The zip** (`scripts/package-dh1.sh`): a release `DH-1.app` (arm64), the agent's
+  code at a tagged version, and `install.sh`.
+- **install.sh:** unzips the app to `~/Applications` and the agent to
+  `~/Library/Application Support/Duck Harness/agent/`; installs `uv` if missing and runs
+  `uv sync` (Python and packages); writes `engines.json` to run that agent; opens DH-1.
+  They paste their API key in Settings. Running it again updates.
+- **No signing needed this way:** files fetched with curl don't get the quarantine flag,
+  so the unsigned app opens. A zip downloaded in a browser would hit Gatekeeper.
+- **An app change first:** the default traces file and "Open traces in DuckDB shell"
+  use `agent_dir()`, which is the checkout next to the build machine's repo (compiled
+  in). On another Mac that's a path that doesn't exist. Let an `engines.json` entry name
+  the engine's folder, and use it before the sibling checkout.
+- **Hosting:** duck-harness-app is private, so curl can't reach its releases. A small
+  public repo (e.g. `early-signal-tech/duck-harness-releases`) for the zip and the
+  script.
+- **Limits:** Apple Silicon only, their own API key, no auto-update. DH-1 first; the rack
+  would also need EH-1's grader and ES-1's bridge (private repos).
+- Waiting for: someone to share it with, and a decision on the public releases repo.
+
+## PB-1: STREAM forever
+MASTER LENGTH's ∞ runs forever in BATCH (`--num-batches 0`), but Parkbench's ticker has no
+forever: `--duration` must be a number of seconds. So PB-1 asks for a year
+(`FOREVER_SECONDS` in packages/pb1/src/settings.ts), which in practice means until STOP.
+
+- Better: `--duration 0` = run until interrupted, in Parkbench, then send that.
+- Waiting for: someone running a stream for longer than a year, or the next Parkbench PR
+  that touches the ticker.

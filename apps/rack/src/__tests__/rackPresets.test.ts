@@ -38,6 +38,15 @@ describe("rack presets", () => {
     expect(rackEdited(FACTORY_RACK_PRESETS[0], { ...state, dh1Preset: "anything" })).toBe(false);
   });
 
+  it("has a PB-1 preset: PB-1 on its own, with nothing else to save", () => {
+    const pb1 = FACTORY_RACK_PRESETS.find((p) => p.id === "factory-pb1");
+    expect(pb1?.devices).toEqual([{ type: "pb1" }]);
+    const alone: RackState = { chain: ["pb1"], dh1Preset: null, graders: {} };
+    expect(slotsOf(alone)).toEqual([{ type: "pb1" }]);
+    expect(rackEdited(pb1!, alone)).toBe(false);
+    expect(parseRackPreset(rackPresetToFile(pb1!)).devices).toEqual([{ type: "pb1" }]);
+  });
+
   it("steps through presets, wrapping round", () => {
     const all = FACTORY_RACK_PRESETS;
     expect(stepRackPreset(all, all[0].id, 1)?.id).toBe(all[1].id);

@@ -312,3 +312,12 @@ limited by height and leaves black space at the sides. Tightening the panel's em
 - Bigger: a Rack-only layout that's wider and shorter, with the pads and the channel strip
   stretched sideways, so knobs and pads can grow another 15–20%.
 - Waiting for: PB-1 still feeling small in the Rack, or a smaller window to fit.
+
+## PB-1: the beat's voice grid
+STREAM's beat (Nov 2026) is heard, not drawn: the pads keep showing one tick each, and only the
+BEAT lamp blinks on the beat. The sketch had a grid of the kit's voices (kick, snare, hats, clap,
+cowbell, crash) lighting as they play.
+
+- Idea: that grid as a flyout that slides up over the area above the pads while BEAT is on, like
+  the secrets sheet, opened from a small button in the BEAT box. No layout change.
+- Waiting for: the beat being used on real streams, and wanting to see which sound was which.

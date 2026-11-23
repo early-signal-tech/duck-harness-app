@@ -35,6 +35,8 @@ export const CONVERSION = [0.05, 0.1, 0.15, 0.25, 0.5] as const;
 export const PARTITION = ["", "day(ts)", "year(ts), month(ts)", "user_id", "bucket(8, user_id)"] as const;
 /** How many events (batches or ticks) one step of the sequencer covers. */
 export const PRESCALE = [1, 10, 100, 1_000] as const;
+/** The STREAM beat's LEVEL knob. */
+export const BEAT_LEVEL = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1] as const;
 
 /** Parkbench's ticker can't run forever, so ∞ in STREAM asks for a year: in practice, until STOP. */
 export const FOREVER_SECONDS = 365 * 24 * 60 * 60;
@@ -61,6 +63,9 @@ export interface Pb1Settings {
   sink: "ducklake" | "postgres";
   migrate: boolean;
   prescale: (typeof PRESCALE)[number];
+  /** STREAM's synthesized beat (beat.ts). Not a Parkbench flag. */
+  beat: boolean;
+  beatLevel: (typeof BEAT_LEVEL)[number];
 }
 
 export const DEFAULT_SETTINGS: Pb1Settings = {
@@ -84,6 +89,8 @@ export const DEFAULT_SETTINGS: Pb1Settings = {
   sink: "ducklake",
   migrate: false,
   prescale: 1,
+  beat: false,
+  beatLevel: 0.7,
 };
 
 export const isLocal = (catalog: string) => catalog === LOCAL_DUCKDB || catalog === LOCAL_POSTGRES;
@@ -96,7 +103,7 @@ export const catalogStops = (secrets: readonly string[]): string[] => [LOCAL_DUC
 
 export type Control =
   | "tempo" | "fine" | "flush" | "length" | "duplicate" | "drift" | "schema" | "payload"
-  | "distribution" | "span" | "users" | "conversion" | "mlLabels" | "partition" | "sink" | "migrate" | "tap";
+  | "distribution" | "span" | "users" | "conversion" | "mlLabels" | "partition" | "sink" | "migrate" | "tap" | "beat";
 
 /** Which controls do something in these settings. The rest are dimmed and send nothing. */
 export function active(s: Pb1Settings): Record<Control, boolean> {
@@ -124,6 +131,7 @@ export function active(s: Pb1Settings): Record<Control, boolean> {
     sink: s.mode !== "RESET",
     migrate: true,
     tap: batch,
+    beat: stream,
   };
 }
 

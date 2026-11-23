@@ -132,6 +132,8 @@ export function Knob({ label, stops, value, onChange, readout, radius = 20, cap 
 
 export interface SlideProps {
   label?: string;
+  /** What a screen reader calls a switch with no printed label. */
+  name?: string;
   options: readonly string[];
   value: number;
   onChange: (index: number) => void;
@@ -143,15 +145,15 @@ export interface SlideProps {
 }
 
 /** Click an option to pick it, or the switch to move it on one. */
-export function Slide({ label, options, value, onChange, horizontal, disabled, flag, x, y }: SlideProps) {
+export function Slide({ label, name, options, value, onChange, horizontal, disabled, flag, x, y }: SlideProps) {
   const n = options.length;
   const at = n === 1 ? 0 : value / (n - 1);
   const thumb = horizontal ? { left: 3 + (56 - 24) * at } : { top: 3 + (40 - 22) * at };
   return (
     <div className={`pb1-slide${horizontal ? " h" : ""}${disabled ? " off" : ""}`} style={{ left: x, top: y }}
-      role="radiogroup" aria-label={label || options.join(" or ")} title={flag && !disabled ? flag : undefined}>
+      role="radiogroup" aria-label={label || name || options.join(" or ")} title={flag && !disabled ? flag : undefined}>
       {label && <div className="pb1-lab">{label}</div>}
-      <button className="pb1-slot" disabled={disabled} aria-label={`${label || "switch"}: ${options[value]}`}
+      <button className="pb1-slot" disabled={disabled} aria-label={`${label || name || "switch"}: ${options[value]}`}
         onClick={() => onChange((value + 1) % n)}>
         <span className="pb1-thumb" style={thumb} />
       </button>

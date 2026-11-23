@@ -319,6 +319,25 @@ export function Pb1({ connection, embedded = false, onQuery, onSummary }: {
     return () => observer.disconnect();
   }, [embedded]);
 
+  // Space is START/STOP while the panel is on screen (in the Rack it stays mounted behind other
+  // devices) and nothing that takes typing, or the secrets sheet, has the keyboard.
+  const playRef = useRef(play);
+  playRef.current = play;
+  useEffect(() => {
+    if (sheet) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== "Space" || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+      if ((e.target as HTMLElement | null)?.closest?.("input, textarea, select, [contenteditable]")) return;
+      const element = stage.current;
+      if (!element || element.getClientRects().length === 0) return;
+      // Also stops Space clicking whichever control has focus.
+      e.preventDefault();
+      void playRef.current(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sheet]);
+
   const locked = running || phase.kind === "busy" || !powered;
   const step = seq?.step ?? 0;
   const lit = running && step > 0 ? padOf(step) : -1;
@@ -464,7 +483,7 @@ export function Pb1({ connection, embedded = false, onQuery, onSummary }: {
             <span className={`pb1-led${variation(s.catalog) === "local" ? " on" : ""}`} style={{ position: "absolute", left: 96, top: 92 }} aria-hidden="true" />
             <span className={`pb1-led${variation(s.catalog) === "cloud" ? " on" : ""}`} style={{ position: "absolute", left: 166, top: 92 }} aria-hidden="true" />
             <button className={`pb1-big${running ? " on" : ""}`} style={{ left: 62, top: 118 }} disabled={!ready || phase.kind === "busy"}
-              onClick={() => void play(false)} title={running ? "Stop the run" : command}>START<br />STOP</button>
+              onClick={() => void play(false)} title={running ? "Stop the run (Space)" : `${command} (Space)`}>START<br />STOP</button>
 
             {[0, 4, 8, 12].map((a) => (
               <div key={a} className="pb1-scale" style={{ left: padLeft(a), width: padLeft(a + 3) + 42 - padLeft(a) }} />

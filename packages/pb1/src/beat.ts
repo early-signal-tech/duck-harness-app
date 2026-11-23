@@ -1,8 +1,9 @@
 // STREAM's beat: what it plays and when, with no audio in it, so it can be tested. The sound
 // is synthesized in beatPlayer.ts; nothing is sampled.
 //
-// The clock comes from TEMPO. Each tick interval is folded to a hip hop tempo by doubling or
-// halving, so a tick on time lands on the 16-step grid. The ticks themselves only add
+// The clock comes from TEMPO. The slower stops are folded to a hip hop tempo by doubling or
+// halving, so a tick on time lands on the 16-step grid; the two fastest are picked by ear
+// (140 and 160 BPM) and their ticks fall between steps. The ticks themselves only add
 // sounds: a duplicate claps, a drift rings the cowbell, and ticks that stop coming drop
 // the beat to a quiet hat until they're back.
 
@@ -10,14 +11,15 @@ import type { TEMPO_STREAM } from "./settings";
 
 export type TickInterval = (typeof TEMPO_STREAM)[number];
 
-/** The beat for each TEMPO stop, and how far apart its ticks land. */
-export const BEAT_TEMPO: Record<TickInterval, { bpm: number; every: string }> = {
+/** The beat for each TEMPO stop, and how far apart its ticks land: null where they don't
+ *  line up with the steps. */
+export const BEAT_TEMPO: Record<TickInterval, { bpm: number; every: string | null }> = {
   5: { bpm: 96, every: "2 bars" },
   2: { bpm: 120, every: "1 bar" },
   1: { bpm: 120, every: "half a bar" },
   0.5: { bpm: 120, every: "1 beat" },
-  0.25: { bpm: 120, every: "an 8th note" },
-  0.1: { bpm: 75, every: "a 32nd note" },
+  0.25: { bpm: 140, every: null },
+  0.1: { bpm: 160, every: null },
 };
 
 /** One step of the 16: a 16th note. */

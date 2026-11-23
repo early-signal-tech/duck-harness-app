@@ -126,6 +126,11 @@
 .pb1-clear-lab { position: absolute; display: flex; flex-direction: column; gap: 2px; }
 
 /* QUERY: over the left section, but not held with it during a run. */
+/* STREAM's beat, under MASTER LENGTH */
+.pb1-beat { position: absolute; left: 1160px; top: 462px; width: 226px; height: 128px; }
+.pb1-beat-lab { position: absolute; width: 58px; text-align: center; }
+.pb1-beat-cap { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; letter-spacing: 0.06em; }
+.pb1-beat.off .pb1-beat-lab, .pb1-beat.off .pb1-beat-cap, .pb1-beat.off .pb1-led { opacity: 0.35; }
 .pb1-left-live { position: absolute; left: 22px; top: 66px; width: 330px; height: 464px; pointer-events: none; }
 .pb1-left-live > * { pointer-events: auto; }
 .pb1-query { position: absolute; width: 78px; height: 30px; padding: 0; border: 0; border-radius: 3px; background: linear-gradient(#f4eedb, #d9cfae); box-shadow: inset 0 -4px 0 #b9ad88, 0 0 0 2px #111; color: #2c2a24; font: 700 11px var(--pb1-mono) !important; letter-spacing: 0.1em; cursor: pointer; }

@@ -16,9 +16,12 @@ import { Pb1Error } from "./engine";
 import "./pb1.css";
 import { advance, barOf, padOf, PADS, startSequence, type Sequence } from "./sequencer";
 import { createPacer, type Pacer } from "./pacer";
+import { BEAT_TEMPO, type BeatPhase } from "./beat";
+import { createBeat, type Beat } from "./beatPlayer";
+import type { RunEvent } from "./events";
 import { summarize, type Pb1Summary } from "./summary";
 import {
-  active, catalogStops, commandFor, commandLine, connectionFlags, CONVERSION, DEFAULT_SETTINGS, DISTRIBUTION, DRIFT,
+  active, BEAT_LEVEL, catalogStops, commandFor, commandLine, connectionFlags, CONVERSION, DEFAULT_SETTINGS, DISTRIBUTION, DRIFT,
   DUPLICATE, FINE, flagsFor, FLUSH, isLocal, LENGTH, LOCAL_DUCKDB, LOCAL_POSTGRES, MODES, NEW_SECRET, PARTITION, PRESCALE,
   SCHEMA, SPAN, tableName, TEMPO_BATCH, TEMPO_STREAM, USERS, variation, type Pb1Settings,
 } from "./settings";
@@ -125,11 +128,48 @@ export function Pb1({ connection, embedded = false, onQuery, onSummary }: {
   const stopRef = useRef<Running | null>(null);
   // A fast BATCH run may still be playing back on the pads after Parkbench has finished.
   const pacerRef = useRef<Pacer | null>(null);
+  // STREAM's beat, when BEAT is on. It can be switched on or off mid-run.
+  const beatRef = useRef<Beat | null>(null);
+  const lampRef = useRef<HTMLSpanElement>(null);
+  const [beatPhase, setBeatPhase] = useState<BeatPhase | null>(null);
+  const stopBeat = () => {
+    beatRef.current?.close();
+    beatRef.current = null;
+    setBeatPhase(null);
+  };
+  /** Call from a click: browsers only let a page start sound from one. */
+  const startBeat = () => {
+    beatRef.current?.close();
+    beatRef.current = createBeat({
+      tickInterval: s.tickInterval,
+      level: s.beatLevel,
+      onPhase: setBeatPhase,
+      onPulse: () => {
+        const lamp = lampRef.current;
+        if (!lamp) return;
+        lamp.classList.add("on");
+        setTimeout(() => lamp.classList.remove("on"), 90);
+      },
+    });
+    setBeatPhase(beatRef.current ? "waiting" : null);
+  };
+  const onBeat = (i: number) => {
+    set({ beat: i === 1 });
+    if (phase.kind !== "running" || !stream) return;
+    if (i === 1) startBeat();
+    else stopBeat();
+  };
+  const onBeatLevel = (i: number) => {
+    set({ beatLevel: BEAT_LEVEL[i] });
+    beatRef.current?.setLevel(BEAT_LEVEL[i]);
+  };
   const play = async (tap: boolean) => {
     if (!engine || !ready) return;
     if (phase.kind === "running") {
       // STOP skips the playback to the end; a run still writing is stopped too.
       pacerRef.current?.skip();
+      // The beat keeps the kick and hat going while the run flushes.
+      beatRef.current?.flush();
       if (stopRef.current) await phase.running.stop();
       return;
     }
@@ -153,24 +193,35 @@ export function Pb1({ connection, embedded = false, onQuery, onSummary }: {
     const pacer = createPacer((event) => setSeq((prev) => (prev ? advance(prev, event) : prev)),
       { prescale: s.prescale, stepMs: s.mode === "BATCH" && !tap ? undefined : 0 });
     pacerRef.current = pacer;
-    const run = engine.run(flagsFor(s, { tap }), pacer.push);
+    if (stream && s.beat) startBeat();
+    const emit = (event: RunEvent) => {
+      beatRef.current?.event(event);
+      if (event.event === "flush") beatRef.current?.flush();
+      pacer.push(event);
+    };
+    const run = engine.run(flagsFor(s, { tap }), emit);
     stopRef.current = run;
     setPhase({ kind: "running", running: run, tap });
     try {
       await run.done;
       stopRef.current = null;
+      // The crash on the next beat; the beat closes itself after it.
+      beatRef.current?.end();
+      beatRef.current = null;
       await pacer.drained();
     } catch (e) {
       pacer.skip();
+      stopBeat();
       setNote(`ERROR — ${message(e)}`);
     } finally {
       stopRef.current = null;
       pacerRef.current = null;
+      setBeatPhase(null);
       setPhase({ kind: "idle" });
     }
   };
   // Closing the panel stops what it started.
-  useEffect(() => () => { pacerRef.current?.skip(); void stopRef.current?.stop(); }, []);
+  useEffect(() => () => { pacerRef.current?.skip(); beatRef.current?.close(); void stopRef.current?.stop(); }, []);
 
   const clear = async () => {
     if (!engine || !ready || phase.kind !== "idle") return;
@@ -206,6 +257,7 @@ export function Pb1({ connection, embedded = false, onQuery, onSummary }: {
   const power = () => {
     if (powered && phase.kind === "running") {
       pacerRef.current?.skip();
+      stopBeat();
       if (stopRef.current) void phase.running.stop();
     }
     setPowered(!powered);
@@ -226,7 +278,12 @@ export function Pb1({ connection, embedded = false, onQuery, onSummary }: {
       if (!last) return `${stream ? "stream" : "batch"} starting · ${where}`;
       if (last.event === "drift") return `drift at tick ${last.tick} — ${seq.lastDrift}`;
       if (last.event === "flush") return `flushed to Parquet · ${where}`;
-      if (last.event === "tick") return `tick ${last.tick} · ${where}`;
+      if (last.event === "tick") {
+        if (beatPhase === "stalled") return `STALLED — waiting for ticks · tick ${last.tick} · ${where}`;
+        if (beatPhase === "flushing") return `flushing… · tick ${last.tick} · ${where}`;
+        if (beatPhase === "playing") return `tick ${last.tick} · beat ${BEAT_TEMPO[s.tickInterval].bpm} BPM · ${where}`;
+        return `tick ${last.tick} · ${where}`;
+      }
       if (last.event === "batch") return `batch ${last.batch}${last.num_batches ? ` / ${last.num_batches}` : ""} · ${where}`;
     }
     if (note) return note;
@@ -379,6 +436,18 @@ export function Pb1({ connection, embedded = false, onQuery, onSummary }: {
             <div><label>ROWS / SEC</label><b className="small">{Math.round(seq?.rowsPerSec ?? 0).toLocaleString()}</b></div>
             <div><label>DRIFT · DUP</label><b className="small">{seq?.drifts ?? 0} · {seq?.duplicates ?? 0}</b></div>
             <div className="pb1-msg" title={command}>{statusLine}</div>
+          </div>
+          {/* BEAT sits outside the held controls: it changes no flags, so it can be switched and
+              turned while a stream plays. */}
+          <div className={`pb1-beat${on.beat && powered ? "" : " off"}`}>
+            <div className="pb1-box" style={{ left: 0, top: 0, width: 226, height: 128 }}><span className="pb1-box-title hot">BEAT — STREAM</span></div>
+            <Slide name="BEAT" x={16} y={26} options={["OFF", "ON"]} value={s.beat ? 1 : 0} disabled={!on.beat || !powered} onChange={onBeat} />
+            <Knob label="LEVEL" x={76} y={12} radius={17} cap="orange" disabled={!on.beat || !powered}
+              stops={BEAT_LEVEL.map(percent)} value={at(BEAT_LEVEL, s.beatLevel)} readout={percent(s.beatLevel)} onChange={onBeatLevel} />
+            <div className="pb1-lab pb1-beat-lab" style={{ left: 160, top: 20 }}>BEAT</div>
+            <span ref={lampRef} className="pb1-led" style={{ position: "absolute", left: 182, top: 44 }} aria-hidden="true" />
+            <div className="pb1-lab dim pb1-beat-lab" style={{ left: 160, top: 66 }}>{BEAT_TEMPO[s.tickInterval].bpm} BPM</div>
+            <div className="pb1-lab dim pb1-beat-cap">boom bap · synthesized</div>
           </div>
           <div className="pb1-title">
             <div className="t">Benchmark Composer <em>PB-1</em></div>

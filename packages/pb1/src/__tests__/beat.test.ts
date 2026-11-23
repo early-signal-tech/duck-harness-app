@@ -3,19 +3,18 @@ import { BEAT_TEMPO, GROOVE, hitsFor, nextPace, stallAfter, stepSeconds } from "
 import { active, DEFAULT_SETTINGS, runFlags, TEMPO_STREAM } from "../settings";
 
 describe("beat tempo", () => {
-  it("lands every tick on the 16-step grid (a 32nd at 0.1s)", () => {
+  it("lands each tick on the 16-step grid where it says it does", () => {
     for (const interval of TEMPO_STREAM) {
       const steps = interval / stepSeconds(BEAT_TEMPO[interval].bpm);
-      expect(Number.isInteger(steps) || steps === 0.5).toBe(true);
-    }
-  });
-
-  it("keeps every stop in a hip hop range", () => {
-    for (const interval of TEMPO_STREAM) {
-      expect(BEAT_TEMPO[interval].bpm).toBeGreaterThanOrEqual(75);
-      expect(BEAT_TEMPO[interval].bpm).toBeLessThanOrEqual(120);
+      expect(Number.isInteger(steps)).toBe(BEAT_TEMPO[interval].every !== null);
     }
     expect(BEAT_TEMPO[2]).toEqual({ bpm: 120, every: "1 bar" });
+  });
+
+  it("speeds up to 140 and 160 BPM at the two fastest stops", () => {
+    expect(BEAT_TEMPO[0.25].bpm).toBe(140);
+    expect(BEAT_TEMPO[0.1].bpm).toBe(160);
+    for (const interval of TEMPO_STREAM) expect(BEAT_TEMPO[interval].bpm).toBeGreaterThanOrEqual(96);
   });
 });
 

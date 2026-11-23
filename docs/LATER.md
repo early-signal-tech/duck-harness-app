@@ -95,16 +95,30 @@ Sonnet judge while the standalone EH-1 was on Haiku, so a setlist graded there s
   layout (rack folds, pane widths, text size) can stay per app.
 - That makes it something the CLI can read too ("grade with the judge I last used").
 
-## Several chains in the rack
-A narrow column of chains on the left, like Bitwig's track headers: each with its name,
+## Tracks in the rack (was "Several chains")
+A narrow column of tracks on the left, like Bitwig's track headers: each with its name,
 what's in it, its status, and ▶ / ■. Select one and its rack loads below and its takes
-show above; a chain keeps playing when you select another.
+show above; a track keeps playing when you select another. The point: one track feeds
+another. For example, PB-1 in track 1 writes DuckLake and DH-1 in track 2 reads it.
 
-- Wireframes: boards 18–19 ("RACK v3 · chains and takes").
+- Parked 2026-11-23: the user isn't sure about the UI yet.
+- Wireframes: boards 18–19 ("RACK v3 · chains and takes") and 23–24 ("RACK v4 · tracks").
 - For now the rack holds one chain, saved and loaded as a rack preset (board 20).
-- Open questions when it's picked up: whether a chain remembers what it plays (its prompt
-  or setlist) so its own ▶ replays it, and how chains are renamed and reordered.
-- Depends on: the single-chain rack (rack presets, takes) being built first.
+- Decided so far (2026-11-22):
+  - Each device type appears at most once across all tracks (one engine per type).
+  - Only PB-1's LOCAL POSTGRES catalog can feed another track. DH-1's SOURCE gets a
+    fourth choice, TRACK: a reference resolved when it plays, with what it actually read
+    recorded in `agent_runs.data_source`.
+  - A track's ▶ replays its last prompt or setlist until something changes.
+  - Sets of tracks replace rack presets (`dh-rack` v2; a v1 file loads as one track).
+- Found while checking it: PB-1's local catalogs store a relative data path
+  (`./ducklake_data/`), so another process can read the catalog but not its Parquet files
+  unless it runs from PB-1's data folder. PB-1 needs to create local catalogs with an
+  absolute data path, and the existing one needs a reset. Live reads work: a reader sees
+  new rows without reattaching.
+- Proposed order: absolute data path → tracks column + set format → PB-1 gives `source`
+  → DH-1 SOURCE → TRACK → replay the last prompt.
+- Open: the UI itself, and how tracks are renamed and reordered.
 
 ## Run on the face while a setlist runs
 For now a setlist has the engine to itself: RUN and RUN A+B are disabled while it's going,

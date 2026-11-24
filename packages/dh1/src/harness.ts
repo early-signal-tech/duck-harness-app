@@ -107,6 +107,9 @@ export interface Hello {
   tools?: string[];
   /** The DuckDB secret types the agent can save, with their fields; absent from older servers. */
   secret_types?: SecretType[];
+  /** The source "db" that asks about the traces themselves (read through the traces
+   *  server); null when traces are off, absent from older servers. */
+  traces_source?: string | null;
 }
 
 /** Where traces go, and whether the background traces server is up. */

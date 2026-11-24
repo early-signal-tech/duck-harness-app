@@ -87,6 +87,15 @@ const OPENS: Record<DeviceType, Open> = { dh1: "dh1", eh1: "eh1", es1: "es1", pb
 /** CH-1's DATA menu always offers TPC-H, after DH-1's SOURCE. */
 const TPCH_CHOICES: DataChoice[] = [0.01, 0.1, 1].map((scale) => ({ label: `TPC-H ${scale}`, source: { tpch: scale } }));
 
+/** CH-1's "Choose a database file…": a DuckDB file. */
+async function pickDatabaseFile(): Promise<string | null> {
+  const path = await openDialog({
+    title: "Choose a DuckDB database",
+    filters: [{ name: "DuckDB", extensions: ["duckdb", "db", "ddb"] }, { name: "All files", extensions: ["*"] }],
+  });
+  return typeof path === "string" ? path : null;
+}
+
 /** CH-1's "Load files…": data files for a new conversation. */
 async function pickDataFiles(): Promise<string[] | null> {
   const paths = await openDialog({
@@ -180,14 +189,29 @@ export default function App() {
   }, [presetId, presetEdited]);
 
   // CH-1 plays DH-1's current preset (with the card's EFFORT) on DH-1's engine. Its DATA
-  // menu starts at DH-1's SOURCE, then TPC-H.
+  // menu offers DH-1's SOURCE, the agent's own traces, each saved DuckLake catalog, then TPC-H.
   const dh1Source = sourceProblem(dh1.settings) ? null : sourceOf(dh1.settings);
+  const tracesSource = dh1Engine.hello?.traces_source ?? null;
+  const [lakes, setLakes] = useState<string[]>([]);
+  useEffect(() => {
+    if (!hasCh1 || !dh1Engine.harness) return;
+    let stale = false;
+    dh1Engine.harness.secrets()
+      .then((list) => { if (!stale) setLakes(list.filter((s) => s.type === "ducklake").map((s) => s.name)); })
+      .catch(() => {});
+    return () => { stale = true; };
+  }, [hasCh1, dh1Engine.harness]);
   const chatSources = useMemo<DataChoice[]>(() => {
-    const first: DataChoice[] = dh1Source ? [{ label: describeData(dh1Source), source: dh1Source }] : [];
-    const seen = JSON.stringify(dh1Source);
-    return [...first, ...TPCH_CHOICES.filter((c) => JSON.stringify(c.source) !== seen)];
+    const all: DataChoice[] = [
+      ...(dh1Source ? [{ label: describeData(dh1Source), source: dh1Source }] : []),
+      ...(tracesSource ? [{ label: "Agent traces", source: { db: tracesSource } }] : []),
+      ...lakes.map((name) => ({ label: `ducklake:${name}`, source: { db: `ducklake:${name}` } })),
+      ...TPCH_CHOICES,
+    ];
+    // DH-1's SOURCE may be one of the others: list it once.
+    return all.filter((c, i) => all.findIndex((d) => JSON.stringify(d.source) === JSON.stringify(c.source)) === i);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(dh1Source)]);
+  }, [JSON.stringify(dh1Source), tracesSource, lakes]);
   const chat = useChat(hasCh1 ? dh1Engine.harness : null, {
     rackPreset: presetId,
     config: configOf(dh1.settings),
@@ -473,7 +497,7 @@ export default function App() {
       <section className={`rack-panel${shown === "output" ? (hasCh1 ? " output chat" : " output") : " editor"}`}
         aria-label={shown === "output" ? (hasCh1 ? "CH-1 conversation" : "Output") : `${TITLES[shown][0]} editor`}>
         {shown === "output" && hasCh1 ? (
-          <Ch1 model={chat} sources={chatSources} onPickFiles={pickDataFiles} />
+          <Ch1 model={chat} sources={chatSources} onPickFiles={pickDataFiles} onPickDatabase={pickDatabaseFile} />
         ) : shown === "output" ? (
           <>
             <header className="panel-head">

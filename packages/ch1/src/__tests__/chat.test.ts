@@ -26,6 +26,10 @@ describe("data rules", () => {
     expect(describeData({ db: "s3://bucket/orders/" })).toBe("orders · S3");
     expect(describeData({ load: ["a.csv", "b.csv"] })).toBe("2 files");
     expect(describeData(null)).toBe("unknown data");
+    expect(describeData({ db: "agent:traces" })).toBe("Agent traces");
+    expect(describeData({ db: "ducklake:ducklake_prod" })).toBe("ducklake:ducklake_prod");
+    // Both are databases: a follow-up can switch to them.
+    expect(canUse({ db: "agent:traces" }, 2)).toBe(true);
   });
 });
 

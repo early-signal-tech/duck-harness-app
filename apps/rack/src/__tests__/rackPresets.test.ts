@@ -47,6 +47,17 @@ describe("rack presets", () => {
     expect(parseRackPreset(rackPresetToFile(pb1!)).devices).toEqual([{ type: "pb1" }]);
   });
 
+  it("has an Ask my data preset: CH-1 on its own, saving the DH-1 preset it plays", () => {
+    const chat = FACTORY_RACK_PRESETS.find((p) => p.id === "factory-ch1");
+    expect(chat?.name).toBe("Ask my data");
+    expect(chat?.devices).toEqual([{ type: "ch1", preset: "factory-balanced" }]);
+    const state: RackState = { chain: ["ch1"], dh1Preset: "factory-balanced", graders: {} };
+    expect(slotsOf(state)).toEqual([{ type: "ch1", preset: "factory-balanced" }]);
+    expect(rackEdited(chat!, state)).toBe(false);
+    expect(rackEdited(chat!, { ...state, dh1Preset: "factory-quick" })).toBe(true);
+    expect(parseRackPreset(rackPresetToFile(chat!)).devices).toEqual(chat!.devices);
+  });
+
   it("steps through presets, wrapping round", () => {
     const all = FACTORY_RACK_PRESETS;
     expect(stepRackPreset(all, all[0].id, 1)?.id).toBe(all[1].id);

@@ -11,6 +11,7 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@dh/ch1": "*",
     "@dh/dh1": "*",
     "@dh/eh1": "*",
     "@dh/es1": "*",

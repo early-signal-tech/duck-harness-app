@@ -15,3 +15,6 @@ export { IDLE, runReducer } from "./runState";
 export type { ActivityLine, RunView } from "./runState";
 export { isAnswer, StructuredAnswer } from "./components/StructuredAnswer";
 export type { Answer } from "./components/StructuredAnswer";
+// For CH-1, which plays DH-1's current preset: what a run is made of.
+export { configOf, sourceOf, sourceProblem } from "./settings";
+export { presetRef } from "./presets";

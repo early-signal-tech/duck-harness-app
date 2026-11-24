@@ -9,8 +9,8 @@
 // a one-per-chain device (AUTO GRADER) appears once. The + slots offer only what fits, and
 // a device that no longer fits (its instrument was deleted) says why and stays off.
 
-export type DeviceType = "dh1" | "eh1" | "es1" | "pb1" | "autograder";
-type Signal = "settings" | "runs" | "grades" | "pipelines" | "events";
+export type DeviceType = "dh1" | "eh1" | "es1" | "pb1" | "ch1" | "autograder";
+type Signal = "settings" | "runs" | "grades" | "pipelines" | "events" | "conversations";
 
 export interface DeviceInfo {
   name: string;
@@ -34,6 +34,9 @@ export const DEVICES: Record<DeviceType, DeviceInfo> = {
   // Nothing takes events yet: PB-1 stands alone until DH-1 can query what it writes.
   pb1: { name: "PB-1", tagline: "INGEST BENCH", kind: "instrument", takes: "settings", gives: "events",
     about: "Parkbench: write test events into DuckLake and watch them land" },
+  // Nothing takes conversations yet: AUTO GRADER after CH-1 is for later.
+  ch1: { name: "CH-1", tagline: "CHAT", kind: "instrument", takes: "settings", gives: "conversations",
+    about: "Ask your data, then follow up: plays a DH-1 preset" },
   autograder: { name: "AUTO GRADER", tagline: "EH-1 INSIDE", kind: "utility", takes: "runs", gives: "runs", onePerChain: true,
     about: "Grades each setlist run as it finishes, with its own EH-1" },
 };

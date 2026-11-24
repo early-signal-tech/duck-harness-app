@@ -168,7 +168,7 @@ export function Ch1({ model, sources, onPickFiles }: {
           {current.turns.length === 0 ? (
             <div className="ch1-empty">
               <b>Ask a question about your data</b>
-              <span>Each answer shows its iterations, queries and cost. Follow up up to {maxTurns - 1} times: the earlier answers come along.</span>
+              <span>Each answer shows its iterations, queries and cost. You can ask {maxTurns - 1} follow-ups, and the earlier answers come along.</span>
             </div>
           ) : current.turns.map((t, i) => (t.running
             ? <RunningTurn key={t.key} turn={t} n={i + 1} model={model} />

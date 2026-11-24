@@ -38,6 +38,9 @@ export interface Turn {
 
 export const isDatabase = (source: Source): source is { db: string; schema?: string | null } => "db" in source;
 
+/** The engine's name for the traces as a source (hello's traces_source). */
+export const TRACES_DB = "agent:traces";
+
 /** The first question can use anything; a follow-up can stay on the conversation's data
  *  (`current`) or switch to a database. */
 export function canUse(source: Source, turnsSoFar: number, current: Source | null = null): boolean {
@@ -59,6 +62,8 @@ function specOf(source: Source): SourceSpec | null {
 
 /** A source in a few words: "TPC-H 0.1", "shop.duckdb", "orders · S3", "3 files". */
 export function describeData(source: Source | null): string {
+  if (source && isDatabase(source) && source.db === TRACES_DB) return "Agent traces";
+  if (source && isDatabase(source) && source.db.startsWith("ducklake:")) return source.db;
   const spec = source && specOf(source);
   return spec ? describeSource(spec) : "unknown data";
 }

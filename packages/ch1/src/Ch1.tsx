@@ -6,7 +6,7 @@
 import { StructuredAnswer, type ConversationSummary, type Source } from "@dh/dh1";
 import { Markdown, Menu, MenuItem, MenuSection } from "@dh/ui-kit";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { canUse, describeData, money, sameData, statusNote, when, type DataChoice, type Turn } from "./chat";
+import { canUse, describeData, isDatabase, money, sameData, statusNote, when, type DataChoice, type Turn } from "./chat";
 import "./ch1.css";
 import type { ChatModel } from "./useChat";
 
@@ -63,12 +63,14 @@ function RunningTurn({ turn, n, model }: { turn: Turn; n: number; model: ChatMod
   return <TurnView turn={{ ...turn, view: model.live }} n={n} />;
 }
 
-export function Ch1({ model, sources, onPickFiles }: {
+export function Ch1({ model, sources, onPickFiles, onPickDatabase }: {
   model: ChatModel;
-  /** The DATA menu's choices. */
+  /** The DATA menu's choices: databases (traces, DuckLake catalogs, files) and in-memory data. */
   sources: DataChoice[];
   /** "Load files…" in the DATA menu, for a new conversation: the host's file dialog. */
   onPickFiles?: () => Promise<string[] | null>;
+  /** "Choose a database file…": a DuckDB file, for any question. */
+  onPickDatabase?: () => Promise<string | null>;
 }) {
   const { current, maxTurns, asked, busy } = model;
   // What you've typed but not sent, per conversation ("new" for the new one), so looking at
@@ -110,6 +112,11 @@ export function Ch1({ model, sources, onPickFiles }: {
     setMenu(false);
     const files = await onPickFiles?.();
     if (files?.length) model.setSource({ load: files });
+  };
+  const pickDatabase = async () => {
+    setMenu(false);
+    const path = await onPickDatabase?.();
+    if (path) model.setSource({ db: path });
   };
 
   const choices = sources.some((c) => sameData(c.source, current.source))
@@ -156,16 +163,23 @@ export function Ch1({ model, sources, onPickFiles }: {
           <Menu open={menu} onClose={() => setMenu(false)} label="Data for this conversation"
             anchor={<button className="ch1-pick" aria-haspopup="menu" aria-expanded={menu} disabled={busy}
               onClick={() => setMenu(!menu)}>{describeData(current.source)} <span aria-hidden="true">▾</span></button>}>
-            <MenuSection title={asked === 0 ? "DATA FOR THIS CONVERSATION" : "SWITCH DATA FOR THE NEXT QUESTION"}>
-              {choices.map((c) => (
-                <MenuItem key={c.label} checked={sameData(c.source, current.source)} disabled={!canUse(c.source, asked, current.source)} onSelect={() => pick(c.source)}
-                  hint={!canUse(c.source, asked, current.source) ? "new conversation only" : undefined}>{c.label}</MenuItem>
+            {/* Databases can be switched to at any turn; in-memory data only for a new conversation. */}
+            <MenuSection title="DATABASES">
+              {choices.filter((c) => isDatabase(c.source)).map((c) => (
+                <MenuItem key={c.label} checked={sameData(c.source, current.source)} onSelect={() => pick(c.source)}>{c.label}</MenuItem>
               ))}
-              {onPickFiles && <MenuItem disabled={asked > 0} onSelect={() => void pickFiles()} hint={asked > 0 ? "new conversation only" : undefined}>Load files…</MenuItem>}
+              {onPickDatabase && <MenuItem onSelect={() => void pickDatabase()}>Choose a database file…</MenuItem>}
+            </MenuSection>
+            <MenuSection title={asked === 0 ? "IN-MEMORY DATA" : "NEW CONVERSATION ONLY"}>
+              {choices.filter((c) => !isDatabase(c.source)).map((c) => (
+                <MenuItem key={c.label} checked={sameData(c.source, current.source)} disabled={!canUse(c.source, asked, current.source)}
+                  onSelect={() => pick(c.source)}>{c.label}</MenuItem>
+              ))}
+              {onPickFiles && <MenuItem disabled={asked > 0} onSelect={() => void pickFiles()}>Load files…</MenuItem>}
             </MenuSection>
             <p className="ch1-menu-note">{asked === 0
-              ? "After the first question, only the databases can be switched to."
-              : "Loaded files and TPC-H can't be switched to mid-conversation. Start a new conversation for those."}</p>
+              ? "In-memory data (TPC-H, loaded files) is built for one conversation: after the first question, only databases can be switched to."
+              : "A follow-up can only switch to a database. Use + NEW CONVERSATION to ask about TPC-H or loaded files."}</p>
           </Menu>
           <span className="ch1-spacer" />
           <span className="ch1-lbl">TURN {Math.max(turnNo, 1)} OF {maxTurns}</span>

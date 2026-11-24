@@ -17,7 +17,14 @@ const TAKES: { value: Take; label: string; hint: string }[] = [
   { value: "setlist", label: "SETLIST", hint: "A question set × presets × repeats" },
 ];
 
-export function Transport({ dh1, playable, take, onTake, onPlay, onEditSetlist, settings, lights, presets }: {
+/** A chat chain's transport (CH-1): questions are asked in the panel, so no prompt or PLAY. */
+export interface ChatTransport {
+  busy: boolean;
+  onNew: () => void;
+  onStop: () => void;
+}
+
+export function Transport({ dh1, playable, take, onTake, onPlay, onEditSetlist, settings, lights, presets, chat }: {
   dh1: Dh1Model;
   /** Open DH-1's Setlist, to change what SETLIST plays. */
   onEditSetlist: () => void;
@@ -32,7 +39,26 @@ export function Transport({ dh1, playable, take, onTake, onPlay, onEditSetlist, 
   settings: ReactNode;
   /** Every engine; `used` when a device in the chain needs it. */
   lights: { label: string; status: EngineStatus; error?: string | null; used: boolean }[];
+  /** When the chain's instrument is CH-1: + NEW CONVERSATION and STOP in place of PLAY. */
+  chat?: ChatTransport;
 }) {
+  if (chat) {
+    return (
+      <header className="bar transport">
+        <div className="brand">
+          <span className="wordmark">RACK</span>
+          <span className="tagline">DUCK HARNESS</span>
+        </div>
+        {presets}
+        <span className="transport-chat-note">A chat chain: ask in the panel below. PROMPT and PLAY belong to DH-1 chains.</span>
+        <button className="transport-play" disabled={chat.busy} onClick={chat.onNew} title="Start a new conversation">+ NEW CONVERSATION</button>
+        <button className="transport-stop" disabled={!chat.busy} onClick={chat.onStop} title="Stop the question running now">■ STOP</button>
+        <span className="transport-divider" aria-hidden="true" />
+        {settings}
+        <EngineLight lights={lights} />
+      </header>
+    );
+  }
   const { settings: face, update, setlist, canRun, canRunBoth, problem, anyBusy, stop } = dh1;
   const playing = setlist.busy;
   const progress = progressOf(setlist.state);

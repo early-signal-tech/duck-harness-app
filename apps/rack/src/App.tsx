@@ -10,12 +10,17 @@
 //   or ⌘B collapses the whole rack.
 //
 // One instrument per chain: DH-1 (with AUTO GRADER after it, which holds its own EH-1),
-// EH-1 on its own, ES-1 on its own, or PB-1 on its own. Each device's model lives here (one per kind, since
+// EH-1 on its own, ES-1 on its own, PB-1 on its own, or CH-1 on its own. CH-1 is a chat:
+// it plays DH-1's current preset on DH-1's engine, fills the panel with its conversation,
+// and swaps the transport's PROMPT and PLAY for + NEW CONVERSATION. Each device's model lives here (one per kind, since
 // a chain holds at most one of each), so a device keeps running whatever the panel shows.
 // ES-1 and PB-1 keep their state in their panels, so each panel stays mounted (hidden) while
 // its device is in the chain: going back to the output mustn't lose a build or stop a run.
 
-import { Dh1Card, Dh1Face, Dh1Output, useDh1, useEngine as useDh1Engine, type Dh1Section } from "@dh/dh1";
+import { Ch1, Ch1Card, describeData, useChat, type DataChoice } from "@dh/ch1";
+import {
+  configOf, Dh1Card, Dh1Face, Dh1Output, presetRef, sourceOf, sourceProblem, useDh1, useEngine as useDh1Engine, type Dh1Section,
+} from "@dh/dh1";
 import { Eh1Card, Eh1Face, FOLLOW_IDLE, useEh1, useEngine as useEh1Engine, type FollowStatus, type Grade } from "@dh/eh1";
 import { Es1, Es1Card, useEngine as useEs1Engine, type Es1Summary } from "@dh/es1";
 import { Pb1, Pb1Card, useBridge as usePb1Engine, type Pb1Summary, type QueryCatalog } from "@dh/pb1";
@@ -24,7 +29,7 @@ import {
   engineProblems, Menu, MenuDivider, MenuItem, SettingsMenu, tauriTransport, useAppearance, type SecretsControls, type TracesControls,
 } from "@dh/ui-kit";
 import { invoke } from "@tauri-apps/api/core";
-import { ask } from "@tauri-apps/plugin-dialog";
+import { ask, open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AutoGraderCard } from "./AutoGraderCard";
 import {
@@ -76,7 +81,21 @@ const TITLES: Record<Exclude<Open, "output">, [string, string]> = {
 };
 
 /** Where each kind of device opens in the panel. */
-const OPENS: Record<DeviceType, Open> = { dh1: "dh1", eh1: "eh1", es1: "es1", pb1: "pb1", autograder: "autograder" };
+// CH-1's conversation is the chain's output, so it opens there.
+const OPENS: Record<DeviceType, Open> = { dh1: "dh1", eh1: "eh1", es1: "es1", pb1: "pb1", ch1: "output", autograder: "autograder" };
+
+/** CH-1's DATA menu always offers TPC-H, after DH-1's SOURCE. */
+const TPCH_CHOICES: DataChoice[] = [0.01, 0.1, 1].map((scale) => ({ label: `TPC-H ${scale}`, source: { tpch: scale } }));
+
+/** CH-1's "Load files…": data files for a new conversation. */
+async function pickDataFiles(): Promise<string[] | null> {
+  const paths = await openDialog({
+    title: "Load data files",
+    multiple: true,
+    filters: [{ name: "Data", extensions: ["csv", "tsv", "parquet", "json", "jsonl", "ndjson", "gz"] }],
+  });
+  return Array.isArray(paths) && paths.length ? paths : null;
+}
 
 export default function App() {
   const [appearance, setAppearance] = useAppearance();
@@ -107,6 +126,7 @@ export default function App() {
     if (!hasEs1) setEs1Summary(null);
   }, [hasEs1]);
   const hasPb1 = !!find("pb1") && !problems.has(find("pb1")!.id);
+  const hasCh1 = !!find("ch1") && !problems.has(find("ch1")!.id);
   // What PB-1's panel reports, for its card and the output area.
   const [pb1Summary, setPb1Summary] = useState<Pb1Summary | null>(null);
   useEffect(() => {
@@ -143,7 +163,7 @@ export default function App() {
     setSelected(null);
     setLayout((l) => ({ ...l, collapsed: [], open: "output" }));
     for (const slot of preset.devices) {
-      if (slot.type === "dh1" && slot.preset) {
+      if ((slot.type === "dh1" || slot.type === "ch1") && slot.preset) {
         const found = dh1.presets.all.find((p) => p.id === slot.preset);
         if (found) dh1.presets.select(found);
         else setLoadNotice(`DH-1's preset “${slot.preset}” isn't here any more, so DH-1 kept its settings.`);
@@ -158,6 +178,23 @@ export default function App() {
   useEffect(() => {
     setRunLabels(presetId ? { rack_preset: presetId, rack_edited: presetEdited } : {});
   }, [presetId, presetEdited]);
+
+  // CH-1 plays DH-1's current preset (with the card's EFFORT) on DH-1's engine. Its DATA
+  // menu starts at DH-1's SOURCE, then TPC-H.
+  const dh1Source = sourceProblem(dh1.settings) ? null : sourceOf(dh1.settings);
+  const chatSources = useMemo<DataChoice[]>(() => {
+    const first: DataChoice[] = dh1Source ? [{ label: describeData(dh1Source), source: dh1Source }] : [];
+    const seen = JSON.stringify(dh1Source);
+    return [...first, ...TPCH_CHOICES.filter((c) => JSON.stringify(c.source) !== seen)];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(dh1Source)]);
+  const chat = useChat(hasCh1 ? dh1Engine.harness : null, {
+    rackPreset: presetId,
+    config: configOf(dh1.settings),
+    preset: presetRef(dh1.settings, dh1.presets.all),
+    labels: runLabels,
+    sources: chatSources,
+  });
 
   // Takes: what this preset has played, from the traces (◂ ▸ in the panel).
   const playing = dh1.busy || dh1.setlist.busy;
@@ -230,6 +267,7 @@ export default function App() {
     if (instance.type === "eh1") return !!eh1.grading;
     if (instance.type === "es1") return !!es1Summary?.busy;
     if (instance.type === "pb1") return !!pb1Summary?.busy;
+    if (instance.type === "ch1") return chat.busy;
     return graderOn && follow.active;
   };
 
@@ -249,6 +287,7 @@ export default function App() {
         dh1.setlist.stop();
       }
       if (instance.type === "eh1") eh1.stopGrading();
+      if (instance.type === "ch1") chat.stop();
     }
     if (instance.type === "autograder") setGraderOn(false);
     setChain((c) => c.filter((i) => i.id !== instance.id));
@@ -260,7 +299,7 @@ export default function App() {
     }));
     // busyOf reads the models, which change every render; this runs on a click or a key.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dh1, eh1, es1Summary, pb1Summary, graderOn, follow.active]);
+  }, [dh1, eh1, es1Summary, pb1Summary, chat, graderOn, follow.active]);
 
   // Keys: ⌘B folds the rack; Delete / Backspace removes the selected device; Esc deselects.
   useEffect(() => {
@@ -324,7 +363,8 @@ export default function App() {
     : [];
 
   // A device the chain no longer holds can't stay open in the panel.
-  const shown: Open = layout.open === "dh1" && !hasDh1 ? "output"
+  // DH-1's editor also opens for CH-1: it edits the preset CH-1 plays.
+  const shown: Open = layout.open === "dh1" && !hasDh1 && !hasCh1 ? "output"
     : layout.open === "eh1" && !hasEh1 ? "output"
     : layout.open === "es1" && !hasEs1 ? "output"
     : layout.open === "pb1" && !hasPb1 ? "output"
@@ -362,6 +402,17 @@ export default function App() {
         return <Eh1Card model={eh1} status={eh1Engine.status} collapsed={collapsed} onToggleCollapse={collapse(instance.id)} onOpen={() => open("eh1")} cardProps={props} />;
       case "es1":
         return <Es1Card summary={es1Summary} status={es1Engine.status} collapsed={collapsed} onToggleCollapse={collapse(instance.id)} onOpen={() => open("es1")} cardProps={props} />;
+      case "ch1":
+        return (
+          <Ch1Card model={chat} status={dh1Engine.status} collapsed={collapsed} onToggleCollapse={collapse(instance.id)} onOpen={() => open("output")}
+            preset={{
+              name: dh1.presets.current?.name ?? "No preset",
+              edited: dh1.presets.modified,
+              onStep: (delta) => dh1.presets.step(delta < 0 ? -1 : 1),
+              onOpen: () => openDh1(),
+            }}
+            effort={dh1.settings.effort} onEffort={(effort) => dh1.update({ effort })} cardProps={props} />
+        );
       case "pb1":
         return <Pb1Card summary={pb1Summary} status={pb1Engine.status} collapsed={collapsed} onToggleCollapse={collapse(instance.id)} onOpen={() => open("pb1")} cardProps={props} />;
       case "autograder":
@@ -406,8 +457,9 @@ export default function App() {
         onPlay={play}
         onEditSetlist={() => openDh1(undefined, true)}
         settings={<SettingsMenu engine={settingsEngine} traces={traces} secrets={secrets} appearance={appearance} onAppearance={setAppearance} />}
+        chat={hasCh1 ? { busy: chat.busy, onNew: () => { open("output"); chat.startNew(); }, onStop: chat.stop } : undefined}
         lights={[
-          { label: "DH-1", status: dh1Engine.status, error: dh1Engine.error, used: chain.some((i) => i.type === "dh1") },
+          { label: "DH-1", status: dh1Engine.status, error: dh1Engine.error, used: chain.some((i) => i.type === "dh1" || i.type === "ch1") },
           { label: "EH-1", status: eh1Engine.status, error: eh1Engine.error, used: chain.some((i) => i.type === "eh1" || i.type === "autograder") },
           { label: "ES-1", status: es1Engine.status, error: es1Engine.error, used: chain.some((i) => i.type === "es1") },
           { label: "PB-1", status: pb1Engine.status, error: pb1Engine.error, used: chain.some((i) => i.type === "pb1") },
@@ -418,8 +470,11 @@ export default function App() {
       ))}
       {loadNotice && <p className="rack-problem notice" role="status">{loadNotice}</p>}
 
-      <section className={`rack-panel${shown === "output" ? " output" : " editor"}`} aria-label={shown === "output" ? "Output" : `${TITLES[shown][0]} editor`}>
-        {shown === "output" ? (
+      <section className={`rack-panel${shown === "output" ? (hasCh1 ? " output chat" : " output") : " editor"}`}
+        aria-label={shown === "output" ? (hasCh1 ? "CH-1 conversation" : "Output") : `${TITLES[shown][0]} editor`}>
+        {shown === "output" && hasCh1 ? (
+          <Ch1 model={chat} sources={chatSources} onPickFiles={pickDataFiles} />
+        ) : shown === "output" ? (
           <>
             <header className="panel-head">
               <span className="caps">OUTPUT</span>

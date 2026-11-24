@@ -20,7 +20,7 @@ export const FORMAT_VERSION = 1;
 
 export interface RackSlot {
   type: DeviceType;
-  /** DH-1: the id of the DH-1 preset to load. Left out: DH-1 keeps what it has. */
+  /** DH-1, or CH-1 (which plays it): the id of the DH-1 preset to load. Left out: DH-1 keeps what it has. */
   preset?: string;
   /** EH-1 or AUTO GRADER's EH-1: its judge settings. Left out: it keeps what it has. */
   grader?: Partial<GraderSettings>;
@@ -51,6 +51,10 @@ export const FACTORY_RACK_PRESETS: RackPreset[] = [
   {
     id: "factory-es1", name: "ES-1", revision: 1, savedAt: "2026-11-15T00:00:00Z", factory: true,
     devices: [{ type: "es1" }],
+  },
+  {
+    id: "factory-ch1", name: "Ask my data", revision: 1, savedAt: "2026-11-23T00:00:00Z", factory: true,
+    devices: [{ type: "ch1", preset: "factory-balanced" }],
   },
   {
     id: "factory-pb1", name: "PB-1", revision: 1, savedAt: "2026-11-22T00:00:00Z", factory: true,
@@ -104,7 +108,7 @@ export interface RackState {
 /** The rack's state as preset slots, for saving. */
 export function slotsOf(state: RackState): RackSlot[] {
   return state.chain.map((type) => {
-    if (type === "dh1") return state.dh1Preset ? { type, preset: state.dh1Preset } : { type };
+    if (type === "dh1" || type === "ch1") return state.dh1Preset ? { type, preset: state.dh1Preset } : { type };
     if (type === "es1" || type === "pb1") return { type };
     const grader = state.graders[type];
     return grader ? { type, grader: { ...grader } } : { type };
@@ -117,7 +121,7 @@ export function rackEdited(preset: RackPreset, state: RackState): boolean {
   if (preset.devices.length !== state.chain.length) return true;
   return preset.devices.some((slot, i) => {
     if (slot.type !== state.chain[i]) return true;
-    if (slot.type === "dh1") return slot.preset !== undefined && slot.preset !== state.dh1Preset;
+    if (slot.type === "dh1" || slot.type === "ch1") return slot.preset !== undefined && slot.preset !== state.dh1Preset;
     if (slot.type === "es1" || slot.type === "pb1") return false;
     const grader = state.graders[slot.type as "eh1" | "autograder"];
     if (!slot.grader || !grader) return false;

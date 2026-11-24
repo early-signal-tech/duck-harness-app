@@ -45,6 +45,8 @@ export interface RunRequest {
   preset?: { id?: string; name: string; revision?: number; modified?: boolean };
   /** The caller's own tags, recorded with the run (agent_runs.labels). */
   labels?: Record<string, string | number | boolean | null>;
+  /** Make it a follow-up to this finished run: the earlier turns go in as context. */
+  parent_run_id?: string;
 }
 
 // --- reply shapes ---
@@ -146,10 +148,43 @@ export interface TakeRun {
   labels: Record<string, string | number | boolean | null>;
 }
 
+/** A question and its follow-ups, read back from the traces (duckdb_agent/conversations.py). */
+export interface ConversationSummary {
+  root_run_id: string;
+  last_run_id: string;
+  turns: number;
+  /** The first question. */
+  title: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  cost_usd: number | null;
+  last_status: string | null;
+  /** The last turn's data: {db, schema} | {load} | {tpch}; null if it wasn't recorded. */
+  data_source: Source | null;
+}
+
+/** One turn of a conversation. */
+export interface ConversationTurn {
+  run_id: string;
+  parent_run_id: string | null;
+  prompt: string;
+  answer: string | null;
+  status: string;
+  error: string | null;
+  iterations: number | null;
+  queries: number;
+  duration_ms: number | null;
+  cost_usd: number | null;
+  started_at: string | null;
+  data_source: Source | null;
+}
+
 type Message =
   | ({ id: string; type: "hello" } & Hello)
   | { id: string; type: "takes"; takes: TakeSummary[] }
   | { id: string; type: "take"; runs: TakeRun[] }
+  | { id: string; type: "conversations"; max_turns: number; conversations: ConversationSummary[] }
+  | { id: string; type: "conversation"; max_turns: number; turns: ConversationTurn[] }
   | ({ id: string; type: "traces" } & TracesInfo)
   | { id: string; type: "secrets"; secrets: SecretInfo[] }
   | { id: string; type: "accepted" }
@@ -245,6 +280,21 @@ export class Harness {
   }
 
   /** Stop the background traces server (the next run starts it again). */
+  /** A rack preset's conversations (null: those outside any rack preset), most recently
+   *  active first, and how many questions a conversation can have. */
+  async conversations(rackPreset: string | null, limit = 50): Promise<{ maxTurns: number; conversations: ConversationSummary[] }> {
+    const reply = await this.request({ type: "conversations", rack_preset: rackPreset, limit }, nextId("convos"));
+    if (reply.type !== "conversations") throw new HarnessError(`unexpected reply ${reply.type}`);
+    return { maxTurns: reply.max_turns, conversations: reply.conversations };
+  }
+
+  /** A conversation's turns up to `runId`, oldest first. */
+  async conversation(runId: string): Promise<{ maxTurns: number; turns: ConversationTurn[] }> {
+    const reply = await this.request({ type: "conversation", run_id: runId }, nextId("convo"));
+    if (reply.type !== "conversation") throw new HarnessError(`unexpected reply ${reply.type}`);
+    return { maxTurns: reply.max_turns, turns: reply.turns };
+  }
+
   async tracesStop(): Promise<boolean> {
     const reply = await this.request({ type: "traces_stop" }, nextId("traces"));
     return reply.type === "ok" && !!reply.stopped;

@@ -10,3 +10,8 @@ export type { Dh1Section } from "./Dh1Card";
 export { Dh1Output } from "./Dh1Output";
 export type { TakeKind } from "./Dh1Output";
 export { progressOf } from "./setlist";
+// For CH-1, which plays DH-1's engine: the live run view and answer rendering.
+export { IDLE, runReducer } from "./runState";
+export type { ActivityLine, RunView } from "./runState";
+export { isAnswer, StructuredAnswer } from "./components/StructuredAnswer";
+export type { Answer } from "./components/StructuredAnswer";

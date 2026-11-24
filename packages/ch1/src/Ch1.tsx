@@ -71,7 +71,12 @@ export function Ch1({ model, sources, onPickFiles }: {
   onPickFiles?: () => Promise<string[] | null>;
 }) {
   const { current, maxTurns, asked, busy } = model;
-  const [text, setText] = useState("");
+  // What you've typed but not sent, per conversation ("new" for the new one), so looking at
+  // another conversation doesn't lose it.
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const draftKey = current.rootRunId ?? "new";
+  const text = drafts[draftKey] ?? "";
+  const setText = (value: string) => setDrafts((d) => ({ ...d, [draftKey]: value }));
   const [menu, setMenu] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
@@ -124,10 +129,16 @@ export function Ch1({ model, sources, onPickFiles }: {
       <nav className="ch1-list" aria-label="Conversations">
         <span className="ch1-lbl">CONVERSATIONS</span>
         <div className="ch1-list-scroll">
-          {isNew && (
+          {/* The new conversation stays at the top, so leaving it before sending keeps it. */}
+          {isNew ? (
             <button className="ch1-convo on" aria-current="true" disabled>
               <b>{current.title ?? "New conversation"}</b>
-              <span><Lamps lit={asked - (busy ? 1 : 0)} total={maxTurns} running={busy} />{busy ? "asking…" : "not asked yet"}</span>
+              <span><Lamps lit={asked - (busy ? 1 : 0)} total={maxTurns} running={busy} />{busy ? "asking…" : drafts.new?.trim() ? "draft" : "not asked yet"}</span>
+            </button>
+          ) : (
+            <button className="ch1-convo" onClick={model.startNew} disabled={busy} title={drafts.new?.trim() || "Start a new conversation"}>
+              <b>New conversation</b>
+              <span><Lamps lit={0} total={maxTurns} />{drafts.new?.trim() ? `draft · ${drafts.new.trim()}` : "not asked yet"}</span>
             </button>
           )}
           {model.conversations.map((c) => (

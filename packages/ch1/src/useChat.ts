@@ -61,6 +61,8 @@ export function useChat(engine: ChatEngine | null, options: ChatOptions): ChatMo
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [maxTurns, setMaxTurns] = useState(DEFAULT_MAX_TURNS);
   const [current, setCurrent] = useState<Conversation>(() => fresh(startSource));
+  // The new conversation's DATA, kept while you look at other conversations.
+  const [draftSource, setDraftSource] = useState<Source | null>(null);
   const [live, setLive] = useState<RunView | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +85,7 @@ export function useChat(engine: ChatEngine | null, options: ChatOptions): ChatMo
   // A new rack preset (or engine) is a different list: start over.
   useEffect(() => {
     setCurrent(fresh(optionsRef.current.sources[0]?.source ?? { tpch: 0.1 }));
+    setDraftSource(null);
     setError(null);
     refresh();
   }, [refresh]);
@@ -109,10 +112,11 @@ export function useChat(engine: ChatEngine | null, options: ChatOptions): ChatMo
       .finally(() => setLoading(false));
   };
 
+  /** Go to the new conversation: the draft you left, if any. */
   const startNew = () => {
     if (busy) return;
     setError(null);
-    setCurrent(fresh(startSource));
+    setCurrent(fresh(draftSource ?? startSource));
   };
 
   // A question that failed before it ran (no run id) isn't in the traces, so it doesn't count.
@@ -121,6 +125,7 @@ export function useChat(engine: ChatEngine | null, options: ChatOptions): ChatMo
   const setSource = (source: Source) => {
     if (busy || !canUse(source, asked, current.source)) return;
     setCurrent((c) => ({ ...c, source }));
+    if (current.rootRunId === null && asked === 0) setDraftSource(source);
   };
 
   const full = asked >= maxTurns;
@@ -144,6 +149,8 @@ export function useChat(engine: ChatEngine | null, options: ChatOptions): ChatMo
       ...(labels ? { labels } : {}),
       ...(parent ? { parent_run_id: parent } : {}),
     };
+    // The draft becomes this conversation; the next new one starts afresh.
+    if (!parent) setDraftSource(null);
     const key = `live-${Date.now()}`;
     const pending: Turn = {
       key, runId: null, prompt, answer: null, structured: null, status: null, error: null, iterations: null, queries: 0,

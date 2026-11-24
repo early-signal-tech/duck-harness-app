@@ -20,6 +20,25 @@ function Lamps({ lit, total, running, big }: { lit: number; total: number; runni
   );
 }
 
+// Whether the conversations list is hidden: a per-window convenience, so localStorage.
+const FOLD_KEY = "ch1.list.folded";
+function loadFolded(): boolean {
+  try {
+    return localStorage.getItem(FOLD_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+function saveFolded(folded: boolean): void {
+  try {
+    localStorage.setItem(FOLD_KEY, folded ? "1" : "0");
+  } catch {
+    // not remembered
+  }
+}
+const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+const FOLD_KEYS = isMac ? "⌘I" : "Ctrl+I";
+
 function ConversationButton({ c, max, current, onOpen, disabled }: {
   c: ConversationSummary; max: number; current: boolean; onOpen: () => void; disabled: boolean;
 }) {
@@ -82,6 +101,24 @@ export function Ch1({ model, sources, onPickFiles, onPickDatabase }: {
   const [menu, setMenu] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
+  const root = useRef<HTMLDivElement>(null);
+
+  // ⌘I hides or shows the conversations list, while CH-1 is on screen.
+  const [folded, setFolded] = useState(loadFolded);
+  const toggleList = () => setFolded((f) => {
+    saveFolded(!f);
+    return !f;
+  });
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "i") return;
+      if (!root.current || root.current.getClientRects().length === 0) return;
+      e.preventDefault();
+      toggleList();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Follow the conversation as it grows.
   const liveSteps = model.live?.activity.length ?? 0;
@@ -132,9 +169,18 @@ export function Ch1({ model, sources, onPickFiles, onPickDatabase }: {
   const isNew = current.rootRunId === null;
 
   return (
-    <div className="ch1" data-device="ch1">
+    <div className="ch1" data-device="ch1" ref={root}>
+      {folded ? (
+        <button className="ch1-list-folded" onClick={toggleList} aria-label="Show conversations" title={`Show conversations (${FOLD_KEYS})`}>
+          <span aria-hidden="true">›</span>
+          <span className="ch1-lbl">CONVERSATIONS</span>
+        </button>
+      ) : (
       <nav className="ch1-list" aria-label="Conversations">
-        <span className="ch1-lbl">CONVERSATIONS</span>
+        <div className="ch1-list-head">
+          <span className="ch1-lbl">CONVERSATIONS</span>
+          <button className="ch1-fold" onClick={toggleList} aria-label="Hide conversations" title={`Hide conversations (${FOLD_KEYS})`}>‹</button>
+        </div>
         <div className="ch1-list-scroll">
           {/* The new conversation stays at the top, so leaving it before sending keeps it. */}
           {isNew ? (
@@ -155,6 +201,7 @@ export function Ch1({ model, sources, onPickFiles, onPickDatabase }: {
         </div>
         {model.conversations.length === 0 && <p className="ch1-empty-note">Your conversations in this rack preset show here, newest first. They're read back from the traces.</p>}
       </nav>
+      )}
 
       <section className="ch1-chat" aria-label="Conversation">
         <div className="ch1-bar">

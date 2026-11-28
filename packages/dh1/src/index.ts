@@ -18,3 +18,10 @@ export type { Answer } from "./components/StructuredAnswer";
 // For CH-1, which plays DH-1's current preset: what a run is made of.
 export { configOf, sourceOf, sourceProblem } from "./settings";
 export { presetRef } from "./presets";
+// For the Rack's DATA, MODEL and COMPRESSOR utilities: DH-1's own panels, exactly. Wrap
+// each in an element with the class "dh1-part" so DH-1's styles apply (dh1.css).
+export { SourcePanel } from "./components/SourcePanel";
+export { AgentPanel } from "./components/AgentPanel";
+export { CompressorPanel } from "./components/CompressorPanel";
+export { DEFAULT_SETTINGS, MODELS } from "./settings";
+export type { FaceSettings } from "./settings";

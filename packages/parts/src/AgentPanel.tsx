@@ -4,9 +4,7 @@
 
 import { Knob, Menu, MenuSection, SteppedKnob, Toggle } from "@dh/ui-kit";
 import { useState } from "react";
-import type { Effort, Hello } from "../harness";
-import { DEFAULT_SETTINGS, MODELS, type FaceSettings } from "../settings";
-import { kTokens } from "./CompressorPanel";
+import { DEFAULT_MODEL as DEFAULTS, kTokens, MODELS, type Effort, type EngineInfo, type ModelSettings } from "./settings";
 
 const EFFORTS: Effort[] = ["low", "medium", "high", "xhigh", "max"];
 const MAX_ITERATIONS = 50;
@@ -19,9 +17,9 @@ const TOKEN_STEPS = [2_000, 4_000, 8_000, 12_000, 16_000, 20_000, 21_000];
 const seconds = (s: number) => (s >= 60 ? `${s / 60} min` : `${s} s`);
 
 interface Props {
-  settings: FaceSettings;
-  update: (patch: Partial<FaceSettings>) => void;
-  hello: Hello | null;
+  settings: ModelSettings;
+  update: (patch: Partial<ModelSettings>) => void;
+  hello: EngineInfo | null;
   priced: boolean;
 }
 
@@ -33,7 +31,7 @@ export function AgentPanel({ settings, update, hello, priced }: Props) {
   const tokenSteps = TOKEN_STEPS.filter((t) => t <= tokenLimit);
 
   return (
-    <section className="panel agent">
+    <section className="panel agent dh-part">
       <h2>AGENT</h2>
       <div className="model-row">
         <span className="caps muted">MODEL</span>
@@ -72,7 +70,7 @@ export function AgentPanel({ settings, update, hello, priced }: Props) {
           value={effortIndex}
           min={0}
           max={EFFORTS.length - 1}
-          defaultValue={EFFORTS.indexOf(hello?.defaults.effort ?? DEFAULT_SETTINGS.effort)}
+          defaultValue={EFFORTS.indexOf(hello?.defaults.effort ?? DEFAULTS.effort)}
           format={(i) => EFFORTS[i].toUpperCase()}
           hint="how hard Claude thinks"
           onChange={(i) => update({ effort: EFFORTS[i] })}
@@ -82,7 +80,7 @@ export function AgentPanel({ settings, update, hello, priced }: Props) {
           value={settings.maxIterations}
           min={1}
           max={MAX_ITERATIONS}
-          defaultValue={hello?.defaults.max_iterations ?? DEFAULT_SETTINGS.maxIterations}
+          defaultValue={hello?.defaults.max_iterations ?? DEFAULTS.maxIterations}
           format={(n) => String(n)}
           hint="tool rounds before wrap-up"
           onChange={(maxIterations) => update({ maxIterations })}
@@ -92,7 +90,7 @@ export function AgentPanel({ settings, update, hello, priced }: Props) {
             label="RESULT SIZE"
             values={ROWS}
             value={settings.maxResultRows}
-            defaultValue={DEFAULT_SETTINGS.maxResultRows}
+            defaultValue={DEFAULTS.maxResultRows}
             format={(n) => `${n} rows`}
             onChange={(maxResultRows) => update({ maxResultRows })}
           />
@@ -114,7 +112,7 @@ export function AgentPanel({ settings, update, hello, priced }: Props) {
                   label="ROWS"
                   values={ROWS}
                   value={settings.maxResultRows}
-                  defaultValue={DEFAULT_SETTINGS.maxResultRows}
+                  defaultValue={DEFAULTS.maxResultRows}
                   format={String}
                   hint="per result"
                   onChange={(maxResultRows) => update({ maxResultRows })}
@@ -124,7 +122,7 @@ export function AgentPanel({ settings, update, hello, priced }: Props) {
                   label="CHARS"
                   values={CHARS}
                   value={settings.maxResultChars}
-                  defaultValue={DEFAULT_SETTINGS.maxResultChars}
+                  defaultValue={DEFAULTS.maxResultChars}
                   format={kTokens}
                   hint="per result"
                   onChange={(maxResultChars) => update({ maxResultChars })}
@@ -134,7 +132,7 @@ export function AgentPanel({ settings, update, hello, priced }: Props) {
                   label="CELL CLIP"
                   values={CELL_CLIP}
                   value={settings.maxCellChars}
-                  defaultValue={DEFAULT_SETTINGS.maxCellChars}
+                  defaultValue={DEFAULTS.maxCellChars}
                   format={String}
                   hint="chars per value"
                   onChange={(maxCellChars) => update({ maxCellChars })}
@@ -151,7 +149,7 @@ export function AgentPanel({ settings, update, hello, priced }: Props) {
           label="TIMEOUT"
           values={TIMEOUTS}
           value={settings.queryTimeoutSeconds}
-          defaultValue={DEFAULT_SETTINGS.queryTimeoutSeconds}
+          defaultValue={DEFAULTS.queryTimeoutSeconds}
           format={seconds}
           hint="per query"
           onChange={(queryTimeoutSeconds) => update({ queryTimeoutSeconds })}
@@ -160,7 +158,7 @@ export function AgentPanel({ settings, update, hello, priced }: Props) {
           label="MAX TOKENS"
           values={tokenSteps}
           value={settings.maxTokens}
-          defaultValue={DEFAULT_SETTINGS.maxTokens}
+          defaultValue={DEFAULTS.maxTokens}
           format={kTokens}
           hint="per response"
           onChange={(maxTokens) => update({ maxTokens })}

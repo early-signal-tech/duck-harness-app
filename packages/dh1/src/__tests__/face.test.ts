@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { stepTextSize } from "../layout";
-import { requestOf, DEFAULT_SETTINGS, sourceProblem } from "../settings";
+import { DEFAULT_COMPRESSOR, DEFAULT_DATA, DEFAULT_MODEL } from "@dh/parts";
+import { AGENT_KEYS, requestOf, DEFAULT_SETTINGS, sourceProblem } from "../settings";
 
 describe("settings to request", () => {
   it("builds the source for each kind", () => {
@@ -34,4 +35,14 @@ describe("pane layout", () => {
     expect(stepTextSize(17, 1)).toBe(18); // a saved size between steps snaps onto the list
   });
 
+});
+
+describe("DH-1's face is the three system utilities", () => {
+  it("stores MODEL and COMPRESSOR in a preset, and nothing else", () => {
+    expect([...AGENT_KEYS].sort()).toEqual([...Object.keys(DEFAULT_MODEL), ...Object.keys(DEFAULT_COMPRESSOR)].sort());
+  });
+
+  it("starts from the utilities' defaults", () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({ ...DEFAULT_MODEL, ...DEFAULT_COMPRESSOR, ...DEFAULT_DATA });
+  });
 });

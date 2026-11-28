@@ -1,43 +1,9 @@
 /* DH-1's own panels. Everything is scoped under .dh1 so another device's styles
-   can't collide with it in the rack. Shared pieces come from @dh/ui-kit. */
+   can't collide with it in the rack. Shared pieces come from @dh/ui-kit, and the
+   SOURCE, AGENT and CONTEXT COMPRESSOR panels bring their own styles (@dh/parts). */
 
-
-/* --- source --- */
-.dh1 .source { width: 250px; flex: none; }
-.dh1 .source .segmented button { padding: 0 4px; letter-spacing: 0.04em; font-size: 10.5px; }
-.dh1 .tone { display: flex; align-items: flex-start; gap: 12px; padding-top: 2px; }
-.dh1 .tone-text { display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
-.dh1 .tone-text .caps { font-weight: 700; color: var(--ink); }
-.dh1 .dropzone {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 92px;
-  border: 1.5px dashed var(--muted);
-  border-radius: 8px;
-  background: var(--field);
-  color: var(--ink-strong);
-}
-.dh1 .dropzone:hover { border-color: var(--edge); }
-.dh1 .tables { margin: 0; padding: 0; list-style: none; max-height: 112px; overflow: auto; }
-.dh1 .tables li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font: 400 12px/1.6 var(--mono);
-  border-bottom: 1px solid var(--rule);
-}
-.dh1 .tables .x { padding: 0 4px; border: 0; background: none; color: var(--muted); font-size: 14px; line-height: 1; }
-.dh1 .tables .x:hover { color: var(--danger); }
-
-/* --- agent --- */
+/* --- the panel row --- */
 .dh1 .dh1-row { flex: none; display: flex; gap: 12px; height: 325px; }
-.dh1 .agent { flex: 1; gap: 12px; }
-.dh1 .model-row { display: flex; align-items: center; gap: 10px; }
-.dh1 .model-row .caps { margin-right: 6px; }
-.dh1 .model-row .segmented button { flex: none; padding: 0 14px; }
 
 /* --- meters --- */
 .dh1 .meters { width: 240px; flex: none; }
@@ -166,78 +132,6 @@
 .dh1 { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
 .dh1 .dh1-toolbar { flex: none; height: 48px; }
 
-/* --- agent: five knobs --- */
-.dh1 .agent .knobs { justify-content: space-between; gap: 4px; }
-/* Five knobs share the panel's width, so the face fits from 1280px up. */
-.dh1 .agent .knobs > * { flex: 1 1 0; min-width: 0; }
-.dh1 .agent .knob { width: auto; }
-.dh1 .agent .knob-hint { max-width: 110px; }
-.dh1 .knob-with-flyout { display: flex; flex-direction: column; align-items: center; }
-.dh1 .knob-with-flyout .menu-root { justify-content: center; }
-.dh1 .flyout-link {
-  margin-top: 6px;
-  white-space: nowrap;
-  padding: 2px 6px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--muted);
-  font: 400 10px/1.2 var(--sans);
-}
-.dh1 .flyout-link .short { display: none; }
-.dh1 .flyout-link:hover { color: var(--ink); background: var(--field); }
-.dh1 .flyout-knobs { display: flex; gap: 14px; padding: 6px 8px 8px; }
-.dh1 .flyout-knobs .knob { width: 72px; }
-
-/* --- the context compressor --- */
-.dh1 .compressor { width: 330px; flex: none; gap: 9px; }
-.dh1 .compressor.off .comp-meter .fill { background: var(--field-edge); }
-.dh1 .comp-knobs { display: flex; justify-content: space-between; }
-.dh1 .comp-meter { display: flex; flex-direction: column; gap: 6px; }
-.dh1 .context-bar {
-  position: relative;
-  height: 16px;
-  border: 1.5px solid var(--edge);
-  border-radius: 3px;
-  background: var(--field);
-}
-.dh1 .context-bar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--meter); transition: width 0.3s; }
-/* Past 100K the input price steps up (Haiku 5.5): a faint red zone. */
-.dh1 .context-bar .knee {
-  position: absolute; top: 0; bottom: 0; right: 0;
-  background: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in srgb, var(--danger) 22%, transparent) 4px 5px);
-}
-.dh1 .context-bar .peak { position: absolute; top: 2px; bottom: 2px; width: 2px; margin-left: -1px; background: var(--muted); }
-.dh1 .context-bar .threshold { position: absolute; top: -5px; bottom: -5px; width: 2px; margin-left: -1px; background: var(--accent); }
-.dh1 .threshold-label { position: relative; height: 12px; }
-.dh1 .threshold-label span {
-  position: absolute; transform: translateX(-50%); white-space: nowrap;
-  font: 600 10px/1 var(--mono); color: var(--accent);
-}
-.dh1 .gr { display: flex; flex-direction: row-reverse; gap: 3px; }
-.dh1 .gr .seg { flex: 1; height: 14px; border: 1px solid var(--edge); border-radius: 2px; background: var(--field); }
-.dh1 .gr .seg.lit { background: var(--accent); border-color: var(--accent); }
-.dh1 .gr-scale { display: flex; justify-content: space-between; font: 400 10px/1 var(--mono); color: var(--muted); }
-.dh1 .compressor .menu-root { margin-top: auto; }
-.dh1 .sidechain {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  height: 28px;
-  padding: 0 10px;
-  border: 1px solid var(--field-edge);
-  border-radius: 4px;
-  background: var(--field);
-  color: var(--ink);
-  font: 400 11px/1 var(--mono);
-  text-align: left;
-}
-.dh1 .sidechain span:first-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.dh1 .compressor .menu { min-width: 300px; }
-.dh1 .sidechain-row { display: grid; grid-template-columns: 18px 1fr auto; padding: 5px 8px; }
-.dh1 .sidechain-row code { font: 400 10px/1 var(--mono); color: var(--muted); }
 
 /* --- structured answer --- */
 .dh1 .structured section { margin-top: 1em; }
@@ -259,21 +153,6 @@
 }
 .dh1 .structured .detail.clipped { cursor: pointer; border-bottom-style: dashed; }
 .dh1 .structured .detail.open .detail-text { display: block; -webkit-line-clamp: none; }
-
-/* A narrow AGENT panel (a 1280px window, or the rack): smaller knobs, and the toggles
-   drop to their own line. */
-.dh1 .agent { container-type: inline-size; }
-@container (max-width: 600px) {
-  .dh1 .model-row { flex-wrap: wrap; row-gap: 8px; }
-  .dh1 .model-row .spacer { display: none; }
-  .dh1 .agent .knob-dial { width: 58px; height: 58px; }
-  .dh1 .agent .knob-label { font-size: 9px; letter-spacing: 0.06em; white-space: nowrap; }
-  .dh1 .agent .knob-readout { min-width: 0; padding: 3px 5px; font-size: 11px; }
-  .dh1 .agent .knob-hint { font-size: 9.5px; }
-  .dh1 .flyout-link .long { display: none; }
-  .dh1 .flyout-link .short { display: inline; }
-  .dh1 .agent .knob .knob-face { stroke-width: 3.4; }
-}
 
 /* --- run timeline (top of Activity) --- */
 .dh1 .timeline { flex: none; display: flex; flex-direction: column; gap: 6px; padding-bottom: 8px; border-bottom: 1px solid var(--rule); }

@@ -7,7 +7,7 @@ import { diffSettings, settingsForSlot, type Slot } from "../ab";
 import { presetRef, type Preset } from "../presets";
 import { cacheHitRate, promptTokens, type RunView } from "../runState";
 import { agentSettingsOf, type FaceSettings } from "../settings";
-import { kTokens } from "./CompressorPanel";
+import { kTokens } from "@dh/parts";
 import { isAnswer, StructuredAnswer } from "./StructuredAnswer";
 
 interface Props {

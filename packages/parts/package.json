@@ -1,0 +1,19 @@
+{
+  "name": "@dh/parts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The Rack's system utilities: DATA, MODEL and COMPRESSOR. Each is a panel and its settings, used by DH-1 and by the Rack, with no DH-1 inside.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@dh/formats": "*",
+    "@dh/ui-kit": "*",
+    "@tauri-apps/plugin-dialog": "^2.8.4"
+  },
+  "peerDependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}

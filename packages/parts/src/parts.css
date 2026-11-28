@@ -1,0 +1,132 @@
+/* The system utilities' panels: SOURCE (DATA), AGENT (MODEL) and CONTEXT COMPRESSOR.
+   Each panel's root carries .dh-part, so these rules travel with the panel: they look
+   the same on DH-1's face and in the Rack. Moved from dh1.css as they were; every
+   selector keeps the specificity it had there. Shared pieces come from @dh/ui-kit. */
+
+/* The STRUCTURED, CACHE and ON lamps. On DH-1's face, dh1.css's setlist lamp rule
+   (.dh1 .lamp) sizes them at 12px, not ui-kit's 8px; this keeps them that size
+   anywhere, so the panels look exactly as they do on DH-1. */
+.dh-part .toggle .lamp { display: inline-block; flex: none; width: 12px; height: 12px; box-sizing: border-box; }
+
+/* --- source --- */
+.dh-part.source { width: 250px; flex: none; }
+.dh-part.source .segmented button { padding: 0 4px; letter-spacing: 0.04em; font-size: 10.5px; }
+.dh-part .tone { display: flex; align-items: flex-start; gap: 12px; padding-top: 2px; }
+.dh-part .tone-text { display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
+.dh-part .tone-text .caps { font-weight: 700; color: var(--ink); }
+.dh-part .dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 92px;
+  border: 1.5px dashed var(--muted);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--ink-strong);
+}
+.dh-part .dropzone:hover { border-color: var(--edge); }
+.dh-part .tables { margin: 0; padding: 0; list-style: none; max-height: 112px; overflow: auto; }
+.dh-part .tables li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font: 400 12px/1.6 var(--mono);
+  border-bottom: 1px solid var(--rule);
+}
+.dh-part .tables .x { padding: 0 4px; border: 0; background: none; color: var(--muted); font-size: 14px; line-height: 1; }
+.dh-part .tables .x:hover { color: var(--danger); }
+
+.dh-part.agent { flex: 1; gap: 12px; }
+.dh-part .model-row { display: flex; align-items: center; gap: 10px; }
+.dh-part .model-row .caps { margin-right: 6px; }
+.dh-part .model-row .segmented button { flex: none; padding: 0 14px; }
+
+/* --- agent: five knobs --- */
+.dh-part.agent .knobs { justify-content: space-between; gap: 4px; }
+/* Five knobs share the panel's width, so the face fits from 1280px up. */
+.dh-part.agent .knobs > * { flex: 1 1 0; min-width: 0; }
+.dh-part.agent .knob { width: auto; }
+.dh-part.agent .knob-hint { max-width: 110px; }
+.dh-part .knob-with-flyout { display: flex; flex-direction: column; align-items: center; }
+.dh-part .knob-with-flyout .menu-root { justify-content: center; }
+.dh-part .flyout-link {
+  margin-top: 6px;
+  white-space: nowrap;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font: 400 10px/1.2 var(--sans);
+}
+.dh-part .flyout-link .short { display: none; }
+.dh-part .flyout-link:hover { color: var(--ink); background: var(--field); }
+.dh-part .flyout-knobs { display: flex; gap: 14px; padding: 6px 8px 8px; }
+.dh-part .flyout-knobs .knob { width: 72px; }
+
+/* --- the context compressor --- */
+.dh-part.compressor { width: 330px; flex: none; gap: 9px; }
+.dh-part.compressor.off .comp-meter .fill { background: var(--field-edge); }
+.dh-part .comp-knobs { display: flex; justify-content: space-between; }
+.dh-part .comp-meter { display: flex; flex-direction: column; gap: 6px; }
+.dh-part .context-bar {
+  position: relative;
+  height: 16px;
+  border: 1.5px solid var(--edge);
+  border-radius: 3px;
+  background: var(--field);
+}
+.dh-part .context-bar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--meter); transition: width 0.3s; }
+/* Past 100K the input price steps up (Haiku 5.5): a faint red zone. */
+.dh-part .context-bar .knee {
+  position: absolute; top: 0; bottom: 0; right: 0;
+  background: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in srgb, var(--danger) 22%, transparent) 4px 5px);
+}
+.dh-part .context-bar .peak { position: absolute; top: 2px; bottom: 2px; width: 2px; margin-left: -1px; background: var(--muted); }
+.dh-part .context-bar .threshold { position: absolute; top: -5px; bottom: -5px; width: 2px; margin-left: -1px; background: var(--accent); }
+.dh-part .threshold-label { position: relative; height: 12px; }
+.dh-part .threshold-label span {
+  position: absolute; transform: translateX(-50%); white-space: nowrap;
+  font: 600 10px/1 var(--mono); color: var(--accent);
+}
+.dh-part .gr { display: flex; flex-direction: row-reverse; gap: 3px; }
+.dh-part .gr .seg { flex: 1; height: 14px; border: 1px solid var(--edge); border-radius: 2px; background: var(--field); }
+.dh-part .gr .seg.lit { background: var(--accent); border-color: var(--accent); }
+.dh-part .gr-scale { display: flex; justify-content: space-between; font: 400 10px/1 var(--mono); color: var(--muted); }
+.dh-part.compressor .menu-root { margin-top: auto; }
+.dh-part .sidechain {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--field-edge);
+  border-radius: 4px;
+  background: var(--field);
+  color: var(--ink);
+  font: 400 11px/1 var(--mono);
+  text-align: left;
+}
+.dh-part .sidechain span:first-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.dh-part.compressor .menu { min-width: 300px; }
+.dh-part .sidechain-row { display: grid; grid-template-columns: 18px 1fr auto; padding: 5px 8px; }
+.dh-part .sidechain-row code { font: 400 10px/1 var(--mono); color: var(--muted); }
+
+/* A narrow AGENT panel (a 1280px window, or the rack): smaller knobs, and the toggles
+   drop to their own line. */
+.dh-part.agent { container-type: inline-size; }
+@container (max-width: 600px) {
+  .dh-part .model-row { flex-wrap: wrap; row-gap: 8px; }
+  .dh-part .model-row .spacer { display: none; }
+  .dh-part.agent .knob-dial { width: 58px; height: 58px; }
+  .dh-part.agent .knob-label { font-size: 9px; letter-spacing: 0.06em; white-space: nowrap; }
+  .dh-part.agent .knob-readout { min-width: 0; padding: 3px 5px; font-size: 11px; }
+  .dh-part.agent .knob-hint { font-size: 9.5px; }
+  .dh-part .flyout-link .long { display: none; }
+  .dh-part .flyout-link .short { display: inline; }
+  .dh-part.agent .knob .knob-face { stroke-width: 3.4; }
+}

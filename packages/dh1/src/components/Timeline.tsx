@@ -5,7 +5,7 @@
 // Closed by default: then it's one line with a short summary.
 
 import { stepKind, type IterationInfo, type RunView, type StepKind } from "../runState";
-import { kTokens } from "./CompressorPanel";
+import { kTokens } from "@dh/parts";
 
 const LEGEND: { kind: StepKind; label: string }[] = [
   { kind: "list", label: "list tables" },

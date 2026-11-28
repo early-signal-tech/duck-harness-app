@@ -321,3 +321,10 @@ cowbell, crash) lighting as they play.
 - Idea: that grid as a flyout that slides up over the area above the pads while BEAT is on, like
   the secrets sheet, opened from a small button in the BEAT box. No layout change.
 - Waiting for: the beat being used on real streams, and wanting to see which sound was which.
+
+## PB-1: a SWING knob in the BEAT box
+The beat's swing is fixed today (`SWING` in packages/pb1/src/beat.ts). A knob next to
+LEVEL would set it, from straight to heavy.
+
+- Held off by choice (2026-11-23): the beat as it is was the goal.
+- Depends on nothing; it's a knob, a setting, and the scheduler reading it.

@@ -1,43 +1,20 @@
 // The face's settings, and turning them into a run request. Kept in localStorage between
 // launches. The agent settings (AGENT_KEYS) are what a preset stores.
 
-import type { AgentConfig, Effort, RunRequest, Source } from "./harness";
+import {
+  DEFAULT_COMPRESSOR, DEFAULT_DATA, DEFAULT_MODEL,
+  type CompressorSettings, type DataSettings, type ModelSettings,
+} from "@dh/parts";
+import type { AgentConfig, RunRequest, Source } from "./harness";
 import type { Slot, SlotSettings } from "./ab";
 import type { PresetRef } from "./presets";
 
-export const MODELS = [
-  { id: "claude-haiku-5-5", label: "HAIKU" },
-  { id: "claude-sonnet-5-5", label: "SONNET" },
-  { id: "claude-opus-5-5", label: "OPUS" },
-] as const;
+// The model list, TPC-H scales and file naming live with the system utilities (@dh/parts).
+export { fileName, MODELS, tableNameFor, TPCH_SCALES, type SourceKind } from "@dh/parts";
 
-export const TPCH_SCALES = [0.01, 0.1, 1] as const;
-
-export type SourceKind = "tpch" | "db" | "files";
-
-export interface FaceSettings {
-  // --- agent settings (AgentConfig fields; saved in presets) ---
-  model: string;
-  effort: Effort;
-  maxIterations: number;
-  maxResultRows: number;
-  maxResultChars: number;
-  maxCellChars: number;
-  queryTimeoutSeconds: number;
-  maxTokens: number;
-  structuredAnswer: boolean;
-  promptCaching: boolean;
-  // the context compressor (context editing)
-  contextEditing: boolean;
-  contextTriggerTokens: number;
-  contextKeepToolUses: number;
-  contextClearAtLeastTokens: number;
-  contextProtectedTools: string[];
-  // --- source and prompt ---
-  sourceKind: SourceKind;
-  tpchScale: number;
-  dbPath: string;
-  files: string[];
+/** DH-1's face: the three system utilities' settings (MODEL and COMPRESSOR are the agent
+ *  settings a preset stores; DATA is the source), plus the prompt, preset and A/B. */
+export interface FaceSettings extends ModelSettings, CompressorSettings, DataSettings {
   prompt: string;
   /** The preset the knobs were loaded from, or null. */
   presetId: string | null;
@@ -50,25 +27,9 @@ export interface FaceSettings {
 
 /** The agent's own defaults (duckdb_agent/config.py); the server's hello confirms them. */
 export const DEFAULT_SETTINGS: FaceSettings = {
-  model: "claude-haiku-5-5",
-  effort: "medium",
-  maxIterations: 25,
-  maxResultRows: 200,
-  maxResultChars: 20_000,
-  maxCellChars: 500,
-  queryTimeoutSeconds: 30,
-  maxTokens: 16_000,
-  structuredAnswer: false,
-  promptCaching: true,
-  contextEditing: true,
-  contextTriggerTokens: 80_000,
-  contextKeepToolUses: 8,
-  contextClearAtLeastTokens: 20_000,
-  contextProtectedTools: ["list_tables", "describe_table"],
-  sourceKind: "tpch",
-  tpchScale: 0.1,
-  dbPath: "",
-  files: [],
+  ...DEFAULT_MODEL,
+  ...DEFAULT_COMPRESSOR,
+  ...DEFAULT_DATA,
   prompt: "Which 5 customers spent the most in 1997?",
   presetId: "factory-balanced", // the defaults above are the Balanced preset (presets.ts)
   abSlot: "A",
@@ -179,15 +140,4 @@ export function requestOf(settings: FaceSettings, preset?: PresetRef, labels?: R
     ...(preset ? { preset } : {}),
     ...(labels ? { labels } : {}),
   };
-}
-
-export function fileName(path: string): string {
-  return path.split(/[\\/]/).pop() || path;
-}
-
-/** The table a loaded file becomes, as the agent names it (duckdb_agent/sources.py):
- *  data/Sales 2026.csv.gz -> sales_2026. */
-export function tableNameFor(path: string): string {
-  const stem = fileName(path).split(".")[0];
-  return stem.replace(/\W+/g, "_").replace(/^_+|_+$/g, "").toLowerCase() || "data";
 }

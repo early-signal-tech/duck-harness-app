@@ -5,8 +5,7 @@
 
 import { Menu, MenuSection, SteppedKnob, Knob, Toggle } from "@dh/ui-kit";
 import { useState } from "react";
-import type { RunView } from "../runState";
-import { DEFAULT_SETTINGS, type FaceSettings } from "../settings";
+import { DEFAULT_COMPRESSOR as DEFAULTS, kTokens, type CompressorReading, type CompressorSettings } from "./settings";
 
 export const THRESHOLDS = [20_000, 40_000, 60_000, 80_000, 100_000, 120_000, 150_000] as const;
 export const CLEAR_AT_LEAST = [0, 5_000, 10_000, 20_000, 30_000, 40_000, 60_000] as const;
@@ -18,8 +17,6 @@ const PRICE_KNEE = 100_000;
 const GR_SEGMENTS = 12;
 const GR_STEP = 5_000;
 
-export const kTokens = (n: number) => (n === 0 ? "0" : n >= 1000 ? `${Math.round(n / 100) / 10}K`.replace(".0K", "K") : String(n));
-
 const TOOL_LABELS: Record<string, string> = {
   list_tables: "List tables",
   describe_table: "Describe table",
@@ -29,9 +26,9 @@ const TOOL_LABELS: Record<string, string> = {
 };
 
 interface Props {
-  settings: FaceSettings;
-  update: (patch: Partial<FaceSettings>) => void;
-  view: RunView;
+  settings: CompressorSettings;
+  update: (patch: Partial<CompressorSettings>) => void;
+  view: CompressorReading;
   tools: string[];
 }
 
@@ -55,7 +52,7 @@ export function CompressorPanel({ settings, update, view, tools }: Props) {
     });
 
   return (
-    <section className={`panel compressor${on ? "" : " off"}`}>
+    <section className={`panel compressor dh-part${on ? "" : " off"}`}>
       <h2>
         CONTEXT COMPRESSOR
         <Toggle
@@ -73,7 +70,7 @@ export function CompressorPanel({ settings, update, view, tools }: Props) {
           label="THRESHOLD"
           values={THRESHOLDS}
           value={settings.contextTriggerTokens}
-          defaultValue={DEFAULT_SETTINGS.contextTriggerTokens}
+          defaultValue={DEFAULTS.contextTriggerTokens}
           format={kTokens}
           disabled={!on}
           onChange={(contextTriggerTokens) => update({ contextTriggerTokens })}
@@ -84,7 +81,7 @@ export function CompressorPanel({ settings, update, view, tools }: Props) {
           min={0}
           max={20}
           value={settings.contextKeepToolUses}
-          defaultValue={DEFAULT_SETTINGS.contextKeepToolUses}
+          defaultValue={DEFAULTS.contextKeepToolUses}
           format={(n) => `${n} uses`}
           disabled={!on}
           onChange={(contextKeepToolUses) => update({ contextKeepToolUses })}
@@ -94,7 +91,7 @@ export function CompressorPanel({ settings, update, view, tools }: Props) {
           label="CLEAR ≥"
           values={CLEAR_AT_LEAST}
           value={settings.contextClearAtLeastTokens}
-          defaultValue={DEFAULT_SETTINGS.contextClearAtLeastTokens}
+          defaultValue={DEFAULTS.contextClearAtLeastTokens}
           format={kTokens}
           disabled={!on}
           onChange={(contextClearAtLeastTokens) => update({ contextClearAtLeastTokens })}

@@ -14,17 +14,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { keyForOtherDevice, Markdown, Splitter } from "@dh/ui-kit";
 import { questionSource } from "@dh/formats";
+import { AgentPanel, CompressorPanel, SourcePanel } from "@dh/parts";
 import { AbSwitch } from "./components/AbSwitch";
-import { AgentPanel } from "./components/AgentPanel";
 import { CompareView } from "./components/CompareView";
-import { CompressorPanel } from "./components/CompressorPanel";
 import { HelpView } from "./components/HelpView";
 import { Detail } from "./components/Detail";
 import { MetersPanel } from "./components/MetersPanel";
 import { PresetBar } from "./components/PresetBar";
 import { answerText, isAnswer, StructuredAnswer } from "./components/StructuredAnswer";
 import { SetlistView } from "./components/SetlistView";
-import { SourcePanel } from "./components/SourcePanel";
 import { Timeline } from "./components/Timeline";
 import {
   DEFAULT_ANSWER_WIDTH, DEFAULT_TEXT_SIZE, loadLayout, MIN_ACTIVITY_WIDTH, MIN_ANSWER_WIDTH, saveLayout, stepTextSize,

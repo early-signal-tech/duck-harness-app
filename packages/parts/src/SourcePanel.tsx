@@ -6,11 +6,11 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { isRemotePath } from "@dh/formats";
 import { Knob } from "@dh/ui-kit";
-import { fileName, tableNameFor, TPCH_SCALES, type FaceSettings, type SourceKind } from "../settings";
+import { fileName, tableNameFor, TPCH_SCALES, type DataSettings, type SourceKind } from "./settings";
 
 interface Props {
-  settings: FaceSettings;
-  update: (patch: Partial<FaceSettings>) => void;
+  settings: DataSettings;
+  update: (patch: Partial<DataSettings>) => void;
   addFiles: (paths: string[]) => void;
 }
 
@@ -49,7 +49,7 @@ export function SourcePanel({ settings, update, addFiles }: Props) {
   const scaleIndex = Math.max(0, TPCH_SCALES.indexOf(settings.tpchScale as (typeof TPCH_SCALES)[number]));
 
   return (
-    <section className="panel source">
+    <section className="panel source dh-part">
       <h2>SOURCE</h2>
       <div className="segmented" role="radiogroup" aria-label="Source">
         {KINDS.map(({ kind, label }) => (

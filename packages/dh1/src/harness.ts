@@ -3,13 +3,14 @@
 // EngineTransport (the engine named "dh1"): requests go out with `send`, replies come
 // back through `onMessage`.
 
+import type { Effort } from "@dh/parts";
 import type { EngineTransport, SecretInfo, SecretRequest, SecretType } from "@dh/ui-kit";
 
 export const PROTOCOL_VERSION = 1;
 
 // --- request shapes ---
 
-export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
+export type { Effort };
 
 /** AgentConfig fields. Anything left out uses the server's default. */
 export interface AgentConfig {
